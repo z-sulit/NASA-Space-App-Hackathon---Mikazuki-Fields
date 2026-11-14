@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -234,3 +237,96 @@ def test_fallback_plans_json_valid() -> None:
             for card in (scen.plan_a, scen.plan_b, scen.plan_c):
                 assert len(card.seasons) == 6
                 assert len(card.why_bullets) >= 1
+
+
+def test_root_and_working_dir_imports() -> None:
+    """Verify GET /, cloud deployment configs at repo root, and imports from backend/ cwd."""
+    with TestClient(app) as client:
+        root_resp = client.get("/")
+        assert root_resp.status_code == 200
+        root_data = root_resp.json()
+        assert root_data["status"] == "ok"
+        assert root_data["health"] == "/api/health"
+
+    for filename in ("render.yaml", "Procfile", "railway.json", ".python-version"):
+        assert (REPO_ROOT / filename).exists(), f"Missing deployment config: {filename}"
+
+    railway_cfg = json.loads((REPO_ROOT / "railway.json").read_text(encoding="utf-8"))
+    assert railway_cfg["deploy"]["healthcheckPath"] == "/api/health"
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import app.main, app.power_client, app.optimizer, app.simulator; assert app.main.app.title == 'Mikazuki Fields API'",
+        ],
+        cwd=REPO_ROOT / "backend",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, f"Import from backend/ cwd failed: {proc.stderr}"
+
+
+def test_vercel_serverless_entry_and_readonly_cache_fallback(tmp_path: Path, monkeypatch: Any) -> None:
+    """Verify Vercel ASGI entrypoint, config files, VERCEL=1 tempdir cache, and read-only write safety."""
+    assert (REPO_ROOT / "api" / "index.py").exists()
+    assert (REPO_ROOT / "vercel.json").exists()
+    assert (REPO_ROOT / "requirements.txt").exists()
+
+    vercel_cfg = json.loads((REPO_ROOT / "vercel.json").read_text(encoding="utf-8"))
+    assert any(
+        r.get("source") == "/api/(.*)" and r.get("destination") == "/api/index.py"
+        for r in vercel_cfg.get("rewrites", [])
+    )
+
+    from api.index import app as vercel_app
+
+    assert vercel_app is app
+
+    monkeypatch.setenv("VERCEL", "1")
+    cache_dir = main_mod._get_cache_dir()
+    assert Path(tempfile.gettempdir()).resolve() in cache_dir.resolve().parents
+
+    monkeypatch.delenv("VERCEL", raising=False)
+    ro_dir = tmp_path / "readonly_cache"
+    monkeypatch.setattr(main_mod, "CACHE_DIR", ro_dir)
+    orig_mkdir = Path.mkdir
+
+    def _deny_ro_mkdir(self: Path, *args: Any, **kwargs: Any) -> None:
+        if self == ro_dir:
+            raise PermissionError("Read-only filesystem")
+        return orig_mkdir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", _deny_ro_mkdir)
+    fallback_dir = main_mod._get_cache_dir()
+    assert fallback_dir == Path(tempfile.gettempdir()) / "mikazuki_cache"
+
+    mock_payload = _make_mock_power_payload(wet_prectot=11.0, dry_prectot=2.5)
+
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return mock_payload
+
+    monkeypatch.setattr(power_client.requests, "get", lambda *_a, **_kw: _FakeResponse())
+    orig_write_text = Path.write_text
+
+    def _deny_cache_write(self: Path, *args: Any, **kwargs: Any) -> int:
+        if self.parent == fallback_dir:
+            raise OSError("Read-only cache directory")
+        return orig_write_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", _deny_cache_write)
+    stale_cache = fallback_dir / "8.15_125.15.json"
+    if stale_cache.exists():
+        stale_cache.unlink()
+
+    with TestClient(app) as client:
+        resp = client.get("/api/farm", params={"lat": 8.15, "lon": 125.15})
+        assert resp.status_code == 200
+        ctx = FarmContext.model_validate(resp.json())
+        assert ctx.location.is_custom_pin is True
+        assert ctx.climate.normal.wet.rain_mm == 2013.0
