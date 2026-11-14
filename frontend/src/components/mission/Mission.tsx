@@ -200,7 +200,7 @@ function saveLastFarm(v: LastFarm) {
   }
 }
 
-export function Mission({ presets: bundled, onReady, topRight }: { presets: Preset[]; onReady: () => void; topRight: ReactNode }) {
+export function Mission({ presets: bundled, onReady, topRight }: { presets: Preset[]; onReady: () => void; topRight?: ReactNode }) {
   // Preset farms: the app's bundled copy until the backend's measured data arrives.
   const [presets, setPresets] = useState<Preset[]>(bundled);
   const [farmSource, setFarmSource] = useState<DataSource>("demo");
@@ -514,7 +514,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           <Emblem size={30} tile={false} />
           <span className="micro whitespace-nowrap">Mikazuki Fields</span>
         </div>
-        <div className="flex items-center gap-2">{topRight}</div>
+        {topRight && <div className="flex items-center gap-2">{topRight}</div>}
       </div>
 
       {/* Step 01 */}
