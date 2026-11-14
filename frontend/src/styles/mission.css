@@ -1349,7 +1349,7 @@
     height: 4px;
     translate: -50% 0;
     border-radius: 2px;
-    background: rgb(246 239 235 / 0.3);
+    background: rgb(246 239 235 / 0.55); /* the drag affordance: 3:1 */
   }
   /* Unlayered, so it wins over the panel's padding shorthand: clears the step rail. */
   .stats-panel {
@@ -1365,8 +1365,8 @@
   gap: 2px;
   margin-bottom: 10px;
   padding: 2px;
-  border: 1px solid rgb(246 239 235 / 0.2);
-  border-radius: 8px;
+  border: 1px solid rgb(246 239 235 / 0.4);
+  border-radius: var(--r-control);
 }
 .route-tab {
   min-height: 40px;
@@ -1406,9 +1406,10 @@
   align-items: center;
   gap: 6px;
   min-height: 44px;
-  padding: 0 4px 0 12px;
-  border: 1px solid rgb(246 239 235 / 0.3);
-  border-radius: 10px;
+  padding: 4px 4px 4px 12px;
+  /* 0.5 ink: the outline is what marks this as a field, so it needs 3:1. */
+  border: 1px solid rgb(246 239 235 / 0.5);
+  border-radius: var(--r-card);
   background: rgb(20 26 6 / 0.9);
   transition: border-color 0.12s;
 }
@@ -1418,7 +1419,7 @@
 .place-search-box input {
   min-width: 0;
   flex: 1;
-  height: 42px;
+  height: 36px;
   background: transparent;
   font-size: 15px;
   color: #f6efeb;
@@ -1435,26 +1436,37 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 6px; /* card 10 - padding 4 */
   color: rgb(246 239 235 / 0.7);
 }
 .place-search-icon:hover {
   background: rgb(246 239 235 / 0.1);
 }
+/* Secondary on purpose: on this screen the one sakura action is Lock. */
 .place-search-go {
   display: grid;
   place-items: center;
   min-width: 72px;
   height: 36px;
   padding: 0 12px;
-  border-radius: 8px;
-  background: var(--sakura);
+  border-radius: 6px; /* card 10 - padding 4 */
+  background: rgb(246 239 235 / 0.14);
   font: 600 13px/1 var(--mf-font-display);
-  color: var(--foreground);
-  transition: transform 0.12s var(--mf-ease);
+  color: #f6efeb;
+  transition:
+    transform 0.12s var(--mf-ease),
+    background-color 0.12s;
+}
+.place-search-go:hover:not(:disabled) {
+  background: rgb(246 239 235 / 0.24);
 }
 .place-search-go:active:not(:disabled) {
   transform: scale(0.96);
+}
+.place-search-go:focus-visible,
+.place-search-icon:focus-visible {
+  outline: 2px solid #f6efeb;
+  outline-offset: 1px;
 }
 .place-search-go:disabled {
   opacity: 0.7;
@@ -1467,7 +1479,7 @@
   top: calc(100% + 4px);
   padding: 4px;
   border: 1px solid rgb(246 239 235 / 0.2);
-  border-radius: 10px;
+  border-radius: var(--r-card);
   background: rgb(20 26 6 / 0.97);
   box-shadow: 0 20px 50px rgb(0 0 0 / 0.5);
   animation: fade-up 0.15s var(--mf-ease) both;
@@ -1485,11 +1497,10 @@
 .place-search-list li.is-active {
   background: rgb(245 191 205 / 0.16);
 }
+/* Sits on the title's own plate, so no second box around it. */
 .place-search-note {
   margin-top: 6px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgb(20 26 6 / 0.9);
+  padding: 0 2px;
   font-size: 12.5px;
   line-height: 1.4;
   color: rgb(246 239 235 / 0.88);
@@ -1506,7 +1517,8 @@
     min-height: 52px;
   }
   .place-search-go,
-  .place-search-icon {
+  .place-search-icon,
+  .place-search-box input {
     height: 44px;
   }
   [role="switch"] {

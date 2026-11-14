@@ -2,11 +2,10 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { Loader2, MapPin, Search, X } from "lucide-react";
 import { GeocodeError, searchPlaces, type Place } from "../../api/geocode";
 
-const FALLBACK = "Tap the map instead, or pick a reference site.";
 const MESSAGE: Record<GeocodeError["kind"], string> = {
-  busy: `Search is busy right now. Wait a moment and try again, or ${FALLBACK.toLowerCase()}`,
-  offline: `Search needs an internet connection. ${FALLBACK}`,
-  failed: `Search didn't answer. ${FALLBACK}`,
+  busy: "Search is busy. Try again in a few seconds, or tap the map.",
+  offline: "Search needs an internet connection. Tap the map or pick a reference site instead.",
+  failed: "Couldn't reach the place search. Tap the map or pick a reference site instead.",
 };
 
 /**
@@ -42,7 +41,7 @@ export function PlaceSearch({ onPick, disabled = false }: { onPick: (p: Place) =
       if (ctl.signal.aborted) return;
       setResults(found);
       setActive(found.length ? 0 : -1);
-      if (!found.length) setNote(`No place in the Philippines matches "${query}". Try a province or town name. ${FALLBACK}`);
+      if (!found.length) setNote(`No place in the Philippines called "${query}". Try a province or town name, or tap the map.`);
     } catch (e) {
       if ((e as Error).name === "AbortError") return;
       setResults(null);
@@ -156,6 +155,10 @@ export function PlaceSearch({ onPick, disabled = false }: { onPick: (p: Place) =
           {note}
         </p>
       )}
+      {/* Screen readers hear that a search is running (the spinner is only visual). */}
+      <span className="sr-only" role="status">
+        {busy ? `Searching for ${q.trim()}` : ""}
+      </span>
     </div>
   );
 }
