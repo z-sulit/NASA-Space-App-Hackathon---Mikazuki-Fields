@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import type { PlantHandle, PlotSpec } from "../../three/plantScene";
 
 /** React wrapper for the WebGL plantation. Shows a simple message if WebGL is missing. */
-export function PlantField({ plots, plantKey, onSeason, drought = false }: { plots: PlotSpec[]; plantKey: string; onSeason: (i: number) => void; drought?: boolean }) {
+export function PlantField({ plots, plantKey, onSeason, drought = false, focus = null }: { plots: PlotSpec[]; plantKey: string; onSeason: (i: number) => void; drought?: boolean; focus?: number | null }) {
   const host = useRef<HTMLDivElement>(null);
   const handle = useRef<PlantHandle | null>(null);
   const [failed, setFailed] = useState(false);
-  const latest = useRef({ plots, onSeason, drought });
-  latest.current = { plots, onSeason, drought };
+  const latest = useRef({ plots, onSeason, drought, focus });
+  latest.current = { plots, onSeason, drought, focus };
 
   useEffect(() => {
     let dead = false;
@@ -18,6 +18,7 @@ export function PlantField({ plots, plantKey, onSeason, drought = false }: { plo
           handle.current = createPlantScene(host.current);
           handle.current.plant(latest.current.plots, (i) => latest.current.onSeason(i));
           handle.current.setDrought(latest.current.drought);
+          handle.current.setFocus(latest.current.focus);
         } catch {
           setFailed(true);
         }
@@ -48,6 +49,11 @@ export function PlantField({ plots, plantKey, onSeason, drought = false }: { plo
   useEffect(() => {
     handle.current?.setDrought(drought);
   }, [drought]);
+
+  // Spotlight one season's bed (temporal slider), or all.
+  useEffect(() => {
+    handle.current?.setFocus(focus);
+  }, [focus]);
 
   useEffect(() => {
     if (failed) onSeason(6);
