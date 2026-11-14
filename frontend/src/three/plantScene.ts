@@ -48,8 +48,13 @@ export interface PlotSpec {
   wilt: boolean;
 }
 export interface PlantHandle {
-  /** Replant the field (season by season). onSeason(i) fires as each plot starts; i = 6 when done. */
-  plant(plots: PlotSpec[], onSeason: (i: number) => void): void;
+  /**
+   * Replant the field (season by season). onSeason(i) fires as each plot starts; i = 6 when done.
+   * quick: all six beds regrow at once (switching routes on the field), with no drone pass.
+   */
+  plant(plots: PlotSpec[], onSeason: (i: number) => void, quick?: boolean): void;
+  /** Back to the default camera angle and zoom. */
+  resetView(): void;
   /** Update wilting (dry spell) without replanting. */
   setWilt(wilt: boolean[]): void;
   /** El Niño look: harsh orange sun, dry cracked soil, blowing dust (eases in and out). */
@@ -64,7 +69,8 @@ const PLOT_D = 4.2;
 const GAP = 0.22;
 const COLS = 3;
 const ROWS = 8;
-const STEP = 0.55; // seconds between seasons
+const STEP = 0.3; // seconds between seasons
+const GROW = 0.35; // seconds for one plant to grow in
 const FAMILY_TINT: Record<Family, string> = { Poaceae: "#a87c0e", Fabaceae: "#4d8b3a", Convolvulaceae: "#8e5ba8" };
 
 /** Paint a geometry one solid color (vertex colors), so parts can be merged into one plant. */
@@ -192,7 +198,7 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.shadowMap.enabled = false;
   const canvas = renderer.domElement;
-  canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:pan-y";
+  canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none";
   host.appendChild(canvas);
 
   const scene = new Scene();
@@ -274,7 +280,7 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
       x: plotX(plot) - PLOT_W / 2 + (c + 0.5) * (PLOT_W / COLS) + jitter,
       z: -PLOT_D / 2 + (r + 0.5) * (PLOT_D / ROWS),
       rot: ((i * 53) % 360) * (Math.PI / 180),
-      delay: (r * COLS + c) * 0.018,
+      delay: (r * COLS + c) * 0.009,
       size: 0.85 + ((i * 29) % 10) / 40,
     };
   });
@@ -345,9 +351,17 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
   let plantStart = -1;
   let seasonCb: ((i: number) => void) | null = null;
   let lastSeason = -2;
+  let quickStart = -1; // quick replant: every bed grows from this time
+  // Orbit: drag turns (yaw) and tilts (pitch); pinch or wheel zooms. All eased.
   let yaw = 0;
   let yawTarget = 0;
-  let drag: { x: number; yaw: number } | null = null;
+  let pitch = 0;
+  let pitchTarget = 0;
+  let zoom = 1;
+  let zoomTarget = 1;
+  let drag: { x: number; y: number; yaw: number; pitch: number } | null = null;
+  let pinch: { d: number; zoom: number } | null = null;
+  const pointers = new Map<number, { x: number; y: number }>();
   let visible = true;
   let dead = false;
   const t0 = performance.now();
@@ -374,21 +388,54 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
   const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting));
   io.observe(host);
 
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const spread = () => {
+    const [a, b] = [...pointers.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y) || 1;
+  };
+  const startDrag = (p: { x: number; y: number }) => (drag = { x: p.x, y: p.y, yaw: yawTarget, pitch: pitchTarget });
   const onDown = (e: PointerEvent) => {
-    drag = { x: e.clientX, yaw: yawTarget };
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      drag = null;
+      pinch = { d: spread(), zoom: zoomTarget };
+    } else if (pointers.size === 1) startDrag({ x: e.clientX, y: e.clientY });
     canvas.style.cursor = "grabbing";
   };
   const onMove = (e: PointerEvent) => {
-    if (!drag) return;
-    yawTarget = Math.max(-0.9, Math.min(0.9, drag.yaw + (e.clientX - drag.x) * 0.006));
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pointers.size >= 2) zoomTarget = clamp((pinch.zoom * pinch.d) / spread(), 0.6, 1.7);
+    else if (drag) {
+      yawTarget = clamp(drag.yaw + (e.clientX - drag.x) * 0.006, -0.9, 0.9);
+      pitchTarget = clamp(drag.pitch + (e.clientY - drag.y) * 0.012, -2.2, 3.5);
+    }
   };
-  const onUp = () => {
-    drag = null;
-    canvas.style.cursor = "grab";
+  const onUp = (e: PointerEvent) => {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (pointers.size === 1) startDrag([...pointers.values()][0]);
+    if (pointers.size === 0) {
+      drag = null;
+      canvas.style.cursor = "grab";
+    }
+  };
+  const onWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    zoomTarget = clamp(zoomTarget * Math.exp(e.deltaY * 0.0012), 0.6, 1.7);
+  };
+  const resetView = () => {
+    yawTarget = 0;
+    pitchTarget = 0;
+    zoomTarget = 1;
   };
   canvas.addEventListener("pointerdown", onDown);
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
+  canvas.addEventListener("pointermove", onMove);
+  canvas.addEventListener("pointerup", onUp);
+  canvas.addEventListener("pointercancel", onUp);
+  canvas.addEventListener("wheel", onWheel, { passive: false });
+  canvas.addEventListener("dblclick", resetView);
 
   let raf = 0;
   const tick = (now: number) => {
@@ -397,34 +444,36 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
     if (!visible) return;
     const t = (now - t0) / 1000;
 
-    // Camera: land from above over 1.8 s, then drift and follow the drag.
-    const land = Math.min(1, t / 1.8);
+    // Camera: land from above over 0.8 s, then drift and follow the drag / pinch.
+    const land = Math.min(1, t / 0.8);
     const ease = 1 - Math.pow(1 - land, 3);
-    yaw += (yawTarget + Math.sin(t * 0.15) * 0.12 - yaw) * 0.05;
+    yaw += (yawTarget + Math.sin(t * 0.15) * 0.12 - yaw) * 0.12;
+    pitch += (pitchTarget - pitch) * 0.15;
+    zoom += (zoomTarget - zoom) * 0.15;
     const base = landing.from.clone().lerp(landing.to.clone().multiplyScalar(fit), ease);
-    const dist = Math.hypot(base.x, base.z);
-    camera.position.set(Math.sin(yaw) * dist, base.y, Math.cos(yaw) * dist);
+    const dist = Math.hypot(base.x, base.z) * zoom;
+    camera.position.set(Math.sin(yaw) * dist, Math.max(1.2, base.y * zoom + pitch), Math.cos(yaw) * dist);
     camera.lookAt(0, 0.3, 0);
 
     // Planting progress
     const pt = plantStart < 0 ? -1 : t - plantStart;
-    const season = pt < 0 ? -1 : Math.min(6, Math.floor(pt / STEP));
+    const season = pt < 0 ? -1 : quickStart >= 0 ? 6 : Math.min(6, Math.floor(pt / STEP));
     if (season !== lastSeason && seasonCb && pt >= 0) {
       lastSeason = season;
       seasonCb(season);
     }
     const active = focus >= 0 && season >= 6 ? focus : Math.min(5, Math.max(0, season));
-    drone.position.x += (plotX(active) - drone.position.x) * 0.12;
+    drone.position.x += (plotX(active) - drone.position.x) * 0.25;
     drone.position.y = 2.6 + Math.sin(t * 2.2) * 0.12;
     ring.rotation.y = t * 1.5;
     const droneOn = season >= 0 && season < 6 ? 1 : 0;
-    beamMat.opacity += (0.22 * droneOn - beamMat.opacity) * 0.1;
-    droneLight.intensity += (10 * droneOn + 2 - droneLight.intensity) * 0.1;
+    beamMat.opacity += (0.22 * droneOn - beamMat.opacity) * 0.2;
+    droneLight.intensity += (10 * droneOn + 2 - droneLight.intensity) * 0.2;
 
     // El Niño: ease the light, soil, cracks and dust toward the drought look.
     const dt = Math.min(0.05, t - lastT);
     lastT = t;
-    drought += (droughtTarget - drought) * 0.045;
+    drought += (droughtTarget - drought) * 0.15;
     hemi.color.lerpColors(C.sky, C.skyDry, drought);
     hemi.groundColor.lerpColors(C.ground, C.groundDry, drought);
     hemi.intensity = 1.6 + 0.35 * drought;
@@ -447,13 +496,13 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
 
     for (let p = 0; p < 6; p++) {
       const on = focus < 0 || focus === p;
-      lift[p] += ((focus === p ? 0.32 : 0) - lift[p]) * 0.12;
-      bright[p] += ((on ? 1 : 0.32) - bright[p]) * 0.12;
+      lift[p] += ((focus === p ? 0.32 : 0) - lift[p]) * 0.25;
+      bright[p] += ((on ? 1 : 0.32) - bright[p]) * 0.25;
       beds[p].position.y = lift[p];
       const spec = plots[p];
-      const planted = pt >= 0 && pt >= p * STEP;
+      const planted = pt >= 0 && (quickStart >= 0 || pt >= p * STEP);
       const target = (spec && planted ? new Color(FAMILY_TINT[spec.family]) : soilNow.clone()).lerp(soilNow, 0.55).multiplyScalar(bright[p]);
-      plotMats[p].color.lerp(target, 0.18);
+      plotMats[p].color.lerp(target, 0.3);
     }
 
     (Object.keys(models) as Family[]).forEach((fam) => {
@@ -463,7 +512,7 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
         const spec = plots[s.plot];
         let g = 0;
         if (spec && spec.family === fam && pt >= 0) {
-          const k = (pt - s.plot * STEP - s.delay) / 0.6;
+          const k = quickStart >= 0 ? (t - quickStart - s.delay * 0.5) / 0.3 : (pt - s.plot * STEP - s.delay) / GROW;
           g = k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3) * Math.cos(k * 4) ; // grow with a little overshoot
         }
         const w = wilt[s.plot];
@@ -480,8 +529,8 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
     });
     labels.forEach((l, i) => {
       const m = l.material as SpriteMaterial;
-      const shown = pt >= i * STEP ? (focus < 0 || focus === i ? 1 : 0.35) : 0.25;
-      m.opacity += (shown - m.opacity) * 0.12;
+      const shown = quickStart >= 0 || pt >= i * STEP ? (focus < 0 || focus === i ? 1 : 0.35) : 0.25;
+      m.opacity += (shown - m.opacity) * 0.25;
       l.position.y = 0.36 + lift[i];
     });
     renderer.render(scene, camera);
@@ -489,7 +538,7 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
   raf = requestAnimationFrame(tick);
 
   return {
-    plant(next, onSeason) {
+    plant(next, onSeason, quick = false) {
       plots = next;
       wilt = next.map((p) => p.wilt);
       labels.forEach((l) => {
@@ -505,8 +554,11 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
       });
       seasonCb = onSeason;
       lastSeason = -2;
-      plantStart = (performance.now() - t0) / 1000 + 0.35;
+      const now = (performance.now() - t0) / 1000;
+      plantStart = quick ? now : now + 0.1;
+      quickStart = quick ? now : -1;
     },
+    resetView,
     setWilt(next) {
       wilt = next;
     },
@@ -522,8 +574,11 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
       ro.disconnect();
       io.disconnect();
       canvas.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerup", onUp);
+      canvas.removeEventListener("pointercancel", onUp);
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("dblclick", resetView);
       labels.forEach((l) => {
         (l.material as SpriteMaterial).map?.dispose();
         l.material.dispose();

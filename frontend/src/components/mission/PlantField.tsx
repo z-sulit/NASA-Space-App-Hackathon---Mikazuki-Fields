@@ -41,7 +41,8 @@ export function PlantField({ plots, plantKey, onSeason, drought = false, focus =
       first.current = false;
       return;
     }
-    handle.current?.plant(latest.current.plots, (i) => latest.current.onSeason(i));
+    // Switching routes on the field: regrow all beds at once, no drone pass.
+    handle.current?.plant(latest.current.plots, (i) => latest.current.onSeason(i), true);
   }, [plantKey]);
   const wiltKey = plots.map((p) => (p.wilt ? 1 : 0)).join("");
   useEffect(() => {
