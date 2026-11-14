@@ -144,6 +144,27 @@ npm run dev
 
 ---
 
+## Mathematical & Agronomic Models
+
+Mikazuki Fields combines deterministic agro-climatic physics with exhaustive vectorized search across all $8^6 = 262,144$ possible 6-season rotations:
+
+1. **Hargreaves Reference Evapotranspiration ($ET_0$):**
+   $$ET_0 = 0.0135 \times (T2M + 17.8) \times 0.408 \times \text{ALLSKY\_SFC\_SW\_DWN}$$
+2. **FAO-56 / FAO-33 Water Balance & Drought Yield Loss:**
+   - $\text{Demand} = K_c \times ET_0 \times \text{days}$ (plus $200\text{ mm}$ ponding for `paddy_rice`)
+   - $\text{Supply} = 0.80 \times \text{rain\_mm} + \text{store}_t$, $\text{Gap} = \max(0, \text{Demand} - \text{Supply})$
+   - Rainfed yield loss: $\min\left(0.85, K_y \times \frac{\text{Gap}}{\text{Demand}}\right)$
+3. **Heat, Nitrogen & Pest Carryover:**
+   - Heat loss: $\min(0.70, 0.10 \times \max(0, T_{\max} - T_{\text{heat\_limit}}))$
+   - Soil Nitrogen ($N_{t+1} = \text{clip}(N_t + \Delta N, 10, 100)$) with *Fabaceae* fixation ($0.5\times$ penalty if $\text{pH} < 5.5$) and urea top-up cost ($\text{Deficit\_N} \times 180\text{ PHP}$)
+   - Pest carryover: $+0.25$ on same-family monoculture vs. $\times 0.30$ decay on family switch (`Pest Cycle Broken`)
+4. **RUSLE-Style Bare-Soil Erosion Index ($0\text{–}100$):**
+   $$\text{Erosion\_Index}_t = \text{clip}\left(\frac{\text{rain\_mm}}{1200} \times K_{\text{soil}} \times \left(1 + \frac{\text{slope\_pct}}{10}\right) \times C_{\text{eff}} \times 50,\ 0,\ 100\right)$$
+5. **Multi-Objective Vectorized Optimization:**
+   - Evaluates all $262,144$ sequences in NumPy using min-max normalized **Water ($W$)**, **Soil ($S$)**, and **Economy ($E$)** sub-scores: $\arg\max(w_{\text{water}}W + w_{\text{soil}}S + w_{\text{econ}}E)$ for **Plan B**, and worst-case **Normal vs. El Niño** maximin selection for **Plan C**.
+
+---
+
 ## Team Tekkadan Roster
 
 - **Lorenzo Sulit (Data Engineer & API Infrastructure):** NASA multi-dataset ingestion pipeline (`NASA POWER`, `SRTM 30m`, `MODIS MOD13Q1`), Philippine farm preset JSONs, FastAPI backend endpoints, live custom map-pin caching, historical El Niño anomaly validation, and cloud/serverless deployment infrastructure.
