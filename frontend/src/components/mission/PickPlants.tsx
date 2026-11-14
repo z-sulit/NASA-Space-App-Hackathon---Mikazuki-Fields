@@ -2,7 +2,7 @@ import { Fragment, useState, type CSSProperties } from "react";
 import { ArrowLeft, Loader2, Bean, BugOff, ChevronDown, CloudRain, Sprout, TriangleAlert, Wheat } from "lucide-react";
 import type { CropId, Family, PlanId, PlanRequest, PlanResult, SeasonResult } from "../../types";
 import { CROP, CROPS } from "../../data/crops";
-import { peso } from "../ui";
+import { formatCurrency, type Currency } from "../ui";
 
 const FAMILY_VAR: Record<Family, string> = {
   Poaceae: "var(--family-poaceae)",
@@ -92,6 +92,7 @@ export function PickPlants({
   req,
   onReq,
   notes,
+  currency = "PHP",
   busy,
   onPlant,
   onBack,
@@ -106,6 +107,7 @@ export function PickPlants({
   req: PlanRequest;
   onReq: (patch: Partial<PlanRequest>) => void;
   notes: string[];
+  currency?: Currency;
   busy: boolean;
   onPlant: () => void;
   onBack: () => void;
@@ -165,7 +167,7 @@ export function PickPlants({
                 <span className="block text-xs text-ink/70">{plan.promise}</span>
                 <Chips rotation={plan.rotation} seasons={plan.seasons} />
                 <span className="mt-3 flex justify-between text-xs text-ink/80 tabular">
-                  <span>{peso(plan.kpis.totalProfit)}</span>
+                  <span>{formatCurrency(plan.kpis.totalProfit, currency)}</span>
                   <span>Soil N → {Math.round(plan.kpis.nFinal)}</span>
                 </span>
               </button>

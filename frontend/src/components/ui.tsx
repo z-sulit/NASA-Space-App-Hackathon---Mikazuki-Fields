@@ -1,8 +1,17 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Info, type LucideIcon } from "lucide-react";
+import { formatCurrency, formatCurrencyK } from "../utils/currency";
 
-export const peso = (v: number) => `₱${Math.round(v).toLocaleString("en-PH")}`;
-export const pesoK = (v: number) => `₱${Math.round(v / 1000).toLocaleString("en-PH")}k`;
+export {
+  PHP_PER_USD,
+  convertPhp,
+  formatCurrency,
+  formatCurrencyK,
+  localizeCurrencyText,
+  type Currency,
+} from "../utils/currency";
+export const peso = (v: number) => formatCurrency(v, "PHP");
+export const pesoK = (v: number) => formatCurrencyK(v, "PHP");
 
 export const prefersReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
