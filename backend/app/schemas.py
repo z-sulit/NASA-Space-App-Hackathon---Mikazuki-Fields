@@ -124,8 +124,8 @@ class PlanRequest(BaseModel):
     """Request payload for POST /api/plans."""
 
     preset_id: Optional[str] = "bukidnon"
-    lat: float = 7.90
-    lon: float = 125.09
+    lat: float = Field(default=7.90, ge=-90.0, le=90.0)
+    lon: float = Field(default=125.09, ge=-180.0, le=180.0)
     baseline_crop: str = "corn"
     soil_texture: Literal["clay", "loam", "sandy"] = "loam"
     irrigation: Literal["rainfed", "irrigated"] = "rainfed"
