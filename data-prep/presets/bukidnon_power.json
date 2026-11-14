@@ -1,0 +1,89 @@
+{
+  "preset_id": "bukidnon",
+  "location": {
+    "preset_id": "bukidnon",
+    "name": "Valencia City, Bukidnon",
+    "lat": 7.9,
+    "lon": 125.09,
+    "is_custom_pin": false
+  },
+  "baseline_crop": "corn",
+  "typical_terrain": "Highland volcanic loam, sloping",
+  "climate": {
+    "normal": {
+      "wet": {
+        "rain_mm": 1505.0,
+        "t2m_c": 22.23,
+        "tmax_c": 27.96,
+        "gwetroot": 0.928,
+        "allsky_mj": 18.29,
+        "et0_mm_day": 4.03,
+        "heavy_rain_months": [
+          6,
+          7,
+          8,
+          9,
+          10
+        ]
+      },
+      "dry": {
+        "rain_mm": 926.8,
+        "t2m_c": 21.74,
+        "tmax_c": 28.08,
+        "gwetroot": 0.865,
+        "allsky_mj": 18.04,
+        "et0_mm_day": 3.93,
+        "heavy_rain_months": [
+          5
+        ]
+      }
+    },
+    "elnino": {
+      "wet": {
+        "rain_mm": 1128.8,
+        "t2m_c": 23.73,
+        "tmax_c": 29.46,
+        "gwetroot": 0.789,
+        "allsky_mj": 18.29,
+        "et0_mm_day": 4.18,
+        "heavy_rain_months": [
+          6,
+          7
+        ]
+      },
+      "dry": {
+        "rain_mm": 695.1,
+        "t2m_c": 23.24,
+        "tmax_c": 29.58,
+        "gwetroot": 0.736,
+        "allsky_mj": 18.04,
+        "et0_mm_day": 4.08,
+        "heavy_rain_months": []
+      }
+    }
+  },
+  "historical_el_nino_validation": {
+    "2015_2016": {
+      "dry_rain_mm": 501.4,
+      "normal_dry_rain_mm": 926.8,
+      "rain_change_pct": -45.9,
+      "dry_tmax_c": 29.54,
+      "tmax_delta_c": 1.46,
+      "dry_gwetroot": 0.742,
+      "gwetroot_change_pct": -14.3,
+      "dry_allsky_mj": 20.03,
+      "allsky_change_pct": 11.0
+    },
+    "2023_2024": {
+      "dry_rain_mm": 634.4,
+      "normal_dry_rain_mm": 926.8,
+      "rain_change_pct": -31.5,
+      "dry_tmax_c": 28.56,
+      "tmax_delta_c": 0.48,
+      "dry_gwetroot": 0.822,
+      "gwetroot_change_pct": -5.0,
+      "dry_allsky_mj": 17.84,
+      "allsky_change_pct": -1.1
+    }
+  }
+}

@@ -77,6 +77,6 @@ npm run dev
 ---
 
 ## Team Tekkadan Roster (3-Person Split)
-* **Person 1 (Data Engineer + API + Pitch):** NASA data pipeline, preset JSONs, FastAPI endpoints, El Niño validation, and pitch deck/video.
+* **Person 1 (Data Engineer + API + Pitch):** NASA data pipeline, preset JSONs, FastAPI endpoints, El Niño validation.
 * **Person 2 (Agronomic Modeler + Optimizer):** 8-crop library calibration, vectorized NumPy season-step engine ($8^6 = 262,144$ rotations), and deterministic explanations.
 * **Person 3 (Frontend Lead + UI/UX):** 4-region React interface, Leaflet map picker, 3-plan comparison cards, Recharts graphs, and mobile tab layout.

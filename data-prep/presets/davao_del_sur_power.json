@@ -1,0 +1,87 @@
+{
+  "preset_id": "davao_del_sur",
+  "location": {
+    "preset_id": "davao_del_sur",
+    "name": "Digos, Davao del Sur",
+    "lat": 6.75,
+    "lon": 125.36,
+    "is_custom_pin": false
+  },
+  "baseline_crop": "corn",
+  "typical_terrain": "Rainfed lowland/foothill clay-loam",
+  "climate": {
+    "normal": {
+      "wet": {
+        "rain_mm": 1324.4,
+        "t2m_c": 28.09,
+        "tmax_c": 32.77,
+        "gwetroot": 0.848,
+        "allsky_mj": 18.94,
+        "et0_mm_day": 4.79,
+        "heavy_rain_months": [
+          6,
+          7,
+          8,
+          10
+        ]
+      },
+      "dry": {
+        "rain_mm": 949.5,
+        "t2m_c": 27.5,
+        "tmax_c": 32.67,
+        "gwetroot": 0.816,
+        "allsky_mj": 18.91,
+        "et0_mm_day": 4.72,
+        "heavy_rain_months": [
+          1
+        ]
+      }
+    },
+    "elnino": {
+      "wet": {
+        "rain_mm": 993.3,
+        "t2m_c": 29.59,
+        "tmax_c": 34.27,
+        "gwetroot": 0.721,
+        "allsky_mj": 18.94,
+        "et0_mm_day": 4.94,
+        "heavy_rain_months": [
+          10
+        ]
+      },
+      "dry": {
+        "rain_mm": 712.1,
+        "t2m_c": 29.0,
+        "tmax_c": 34.17,
+        "gwetroot": 0.694,
+        "allsky_mj": 18.91,
+        "et0_mm_day": 4.87,
+        "heavy_rain_months": []
+      }
+    }
+  },
+  "historical_el_nino_validation": {
+    "2015_2016": {
+      "dry_rain_mm": 496.5,
+      "normal_dry_rain_mm": 949.5,
+      "rain_change_pct": -47.7,
+      "dry_tmax_c": 32.75,
+      "tmax_delta_c": 0.08,
+      "dry_gwetroot": 0.697,
+      "gwetroot_change_pct": -14.6,
+      "dry_allsky_mj": 20.8,
+      "allsky_change_pct": 10.0
+    },
+    "2023_2024": {
+      "dry_rain_mm": 660.9,
+      "normal_dry_rain_mm": 949.5,
+      "rain_change_pct": -30.4,
+      "dry_tmax_c": 32.98,
+      "tmax_delta_c": 0.31,
+      "dry_gwetroot": 0.747,
+      "gwetroot_change_pct": -8.5,
+      "dry_allsky_mj": 19.45,
+      "allsky_change_pct": 2.9
+    }
+  }
+}
