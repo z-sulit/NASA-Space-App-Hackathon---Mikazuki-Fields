@@ -3,7 +3,7 @@ import { CloudSun, Droplets, Thermometer } from "lucide-react";
 import type { CropId, PlanRequest, PlanResult, Preset } from "../../types";
 import { CROP } from "../../data/crops";
 import { customPlan } from "../../engine/plans";
-import { peso } from "../ui";
+import { formatCurrency, type Currency } from "../ui";
 
 const pct = (now: number, base: number) => (base ? Math.round(((now - base) / Math.abs(base)) * 100) : 0);
 
@@ -54,7 +54,19 @@ export function explainElNino(req: PlanRequest, preset: Preset, now: PlanResult,
   return { findings, tight, hottest };
 }
 
-export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; preset: Preset; now: PlanResult; normal: PlanResult }) {
+export function ElNinoReport({
+  req,
+  preset,
+  now,
+  normal,
+  currency = "PHP",
+}: {
+  req: PlanRequest;
+  preset: Preset;
+  now: PlanResult;
+  normal: PlanResult;
+  currency?: Currency;
+}) {
   const { findings, tight, hottest } = useMemo(() => explainElNino(req, preset, now, normal), [req, preset, now, normal]);
   const observed = preset.elnino_basis === "observed_2015_2016" && preset.elnino;
   const dP = now.kpis.totalProfit - normal.kpis.totalProfit;
@@ -80,9 +92,9 @@ export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; p
 
       {changed ? (
         <>
-          <p className="mt-2 text-sm font-semibold">
+          <p className="mt-2 text-sm font-semibold tabular">
             3-year profit {dP < 0 ? "−" : "+"}
-            {peso(Math.abs(dP))} ({pct(now.kpis.totalProfit, normal.kpis.totalProfit)}%)
+            {formatCurrency(Math.abs(dP), currency)} ({pct(now.kpis.totalProfit, normal.kpis.totalProfit)}%)
           </p>
           <ul className="mt-1 space-y-1.5">
             {findings.map((f) => (
@@ -105,7 +117,7 @@ export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; p
                   </span>
                 )}
                 {f.pumpExtra !== undefined && (
-                  <span className="block text-ink/70">Irrigation kept the yield, but pumping cost {peso(f.pumpExtra)} more.</span>
+                  <span className="block text-ink/70 tabular">Irrigation kept the yield, but pumping cost {formatCurrency(f.pumpExtra, currency)} more.</span>
                 )}
               </li>
             ))}
