@@ -28,11 +28,16 @@ export const SEASON_MONTHS: Record<SeasonKind, string[]> = {
 
 export const seasonKind = (i: number): SeasonKind => (i % 2 === 0 ? "wet" : "dry");
 
-/** Season climate, with the El Niño / Dry Spell shock applied (-25% rain, +1.5 °C). */
+/**
+ * Season climate for a scenario. El Niño replays the farm's real 2015–16 months when we
+ * have them (preset.elnino, from NASA POWER); otherwise a flat shock (−25% rain, +1.5 °C).
+ */
 export function climate(preset: Preset, kind: SeasonKind, scenario: Scenario): SeasonClimate {
   const c = preset.seasons[kind];
   if (scenario === "normal") return c;
+  if (preset.elnino) return preset.elnino[kind];
   const t2m = c.t2m_c + 1.5;
+  const et0Scale = (t2m + 17.8) / (c.t2m_c + 17.8);
   return {
     ...c,
     rain_mm: c.rain_mm * 0.75,
@@ -41,7 +46,92 @@ export function climate(preset: Preset, kind: SeasonKind, scenario: Scenario): S
     tmax_c: c.tmax_c + 1.5,
     gwetroot: c.gwetroot * 0.85,
     et0_mm_day: 0.0135 * (t2m + 17.8) * 0.408 * c.allsky_mj,
+    monthly_tmax_c: c.monthly_tmax_c?.map((t) => t + 1.5),
+    monthly_et0_mm_day: c.monthly_et0_mm_day?.map((e) => e * et0Scale),
   };
+}
+
+const RAIN_EFFECTIVE = 0.8; // share of rain that reaches the roots
+const BARE_EVAP = 0.3; // soil evaporation (share of ET0) while the field is bare
+const PADDY_EXTRA = 200; // puddling + percolation for paddy rice
+
+export interface SeasonWater {
+  demand: number;
+  supply: number;
+  gap: number;
+  endStore: number;
+  cropTmax: number;
+  months: NonNullable<SeasonResult["months"]>;
+}
+
+/**
+ * Water for one crop in one season; mirrors season_water() in backend/app/simulator.py.
+ * With monthly series it runs a soil bucket month by month while the crop is in the ground
+ * (a crop of D days occupies D/30 months), so a dry spell inside the season counts even
+ * when the 6-month total is plentiful. Otherwise it uses season totals.
+ */
+/** Per-crop monthly numbers for one season climate, computed once and reused (WeakMap on the climate). */
+interface Prep {
+  need: number[];
+  bare: number[];
+  demand: number;
+  supplyRain: number;
+  cropTmax: number;
+  planted: boolean[];
+}
+const prepCache = new WeakMap<SeasonClimate, Map<string, Prep>>();
+function prep(crop: Crop, clim: SeasonClimate): Prep {
+  let byCrop = prepCache.get(clim);
+  if (!byCrop) prepCache.set(clim, (byCrop = new Map()));
+  const hit = byCrop.get(crop.id);
+  if (hit) return hit;
+  const r = clim.monthly_rain_mm;
+  const e = clim.monthly_et0_mm_day!;
+  const t = clim.monthly_tmax_c!;
+  const extra = crop.id === "paddy_rice" ? PADDY_EXTRA : 0;
+  const frac = [0, 1, 2, 3, 4, 5].map((k) => Math.min(1, Math.max(0, crop.days / 30 - k)));
+  const cropMonths = frac.reduce((a, b) => a + b, 0);
+  const need = frac.map((f, k) => crop.kc * e[k] * 30 * f + (extra * f) / cropMonths);
+  const out: Prep = {
+    need,
+    bare: frac.map((f, k) => BARE_EVAP * e[k] * 30 * (1 - f)),
+    demand: need.reduce((a, b) => a + b, 0),
+    supplyRain: frac.reduce((a, f, k) => a + (f > 0 ? RAIN_EFFECTIVE * r[k] : 0), 0),
+    cropTmax: frac.reduce((a, f, k) => a + f * t[k], 0) / cropMonths,
+    planted: frac.map((f) => f > 0),
+  };
+  byCrop.set(crop.id, out);
+  return out;
+}
+
+/**
+ * Water for one crop in one season; mirrors season_water() in backend/app/simulator.py.
+ * With monthly series it runs a soil bucket month by month while the crop is in the ground
+ * (a crop of D days occupies D/30 months), so a dry spell inside the season counts even
+ * when the 6-month total is plentiful. Otherwise it uses season totals.
+ */
+export function seasonWater(crop: Crop, store: number, clim: SeasonClimate, whc: number, kind: SeasonKind, detail = false): SeasonWater {
+  const r = clim.monthly_rain_mm;
+  if (!(r?.length === 6 && clim.monthly_et0_mm_day?.length === 6 && clim.monthly_tmax_c?.length === 6)) {
+    const demand = crop.kc * clim.et0_mm_day * crop.days + (crop.id === "paddy_rice" ? PADDY_EXTRA : 0);
+    const supply = RAIN_EFFECTIVE * clim.rain_mm + store;
+    return { demand, supply, gap: Math.max(0, demand - supply), endStore: Math.max(0, supply - demand), cropTmax: clim.tmax_c, months: [] };
+  }
+  // Hot path for the optimizer (1.5 million calls): cached per-crop numbers, no allocations unless `detail`.
+  const p = prep(crop, clim);
+  let bucket = store;
+  let gap = 0;
+  const months: SeasonWater["months"] = [];
+  for (let k = 0; k < 6; k++) {
+    const need = p.need[k];
+    const avail = RAIN_EFFECTIVE * r[k] + bucket;
+    const short = need > avail ? need - avail : 0;
+    gap += short;
+    if (detail && p.planted[k]) months.push({ month: SEASON_MONTHS[kind][k], rain: r[k], need, inSoil: bucket, short });
+    const next = avail - need - p.bare[k];
+    bucket = next < 0 ? 0 : next > whc ? whc : next;
+  }
+  return { demand: p.demand, supply: p.supplyRain + store, gap, endStore: bucket, cropTmax: p.cropTmax, months };
 }
 
 export interface Env {
@@ -105,10 +195,9 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
     const kind = seasonKind(t);
     const isPaddy = crop.id === "paddy_rice";
 
-    // 1. Water balance
-    const demand = crop.kc * clim.et0_mm_day * crop.days + (isPaddy ? 200 : 0);
-    const supply = 0.8 * clim.rain_mm + store;
-    const gap = Math.max(0, demand - supply);
+    // 1. Water balance (monthly when the climate has monthly series)
+    const w = seasonWater(crop, store, clim, whc, kind, record !== undefined);
+    const { demand, supply, gap } = w;
     let pumped = 0;
     let pumpCost = 0;
     let waterLoss = 0;
@@ -121,11 +210,10 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
     }
     if (isPaddy && env.slopePct > 8) feasible = false;
     if (!env.relaxFlood && env.overrides.floods === kind && !crop.flood_tolerant) feasible = false;
-    const leftover = Math.max(0, supply - demand);
-    store = 0.5 * Math.min(whc, leftover) + 0.5 * (env.climates[t + 1].gwetroot * whc);
+    store = 0.5 * Math.min(whc, w.endStore) + 0.5 * (env.climates[t + 1].gwetroot * whc);
 
-    // 2. Heat
-    const heatLoss = Math.min(0.7, 0.1 * Math.max(0, clim.tmax_c - crop.heat_limit_c));
+    // 2. Heat: mean afternoon heat over the months the crop is in the ground
+    const heatLoss = Math.min(0.7, 0.1 * Math.max(0, w.cropTmax - crop.heat_limit_c));
 
     // 3. Nitrogen and urea top-up
     const sameFamily = crop.family === prevFamily;
@@ -184,6 +272,8 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
         ureaCost,
         pumpCost,
         profit,
+        months: w.months,
+        cropTmax: w.cropTmax,
       });
     }
     prevFamily = crop.family;

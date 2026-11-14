@@ -62,6 +62,30 @@
               8,
               9,
               10
+            ],
+            "monthly_rain_mm": [
+              301.2,
+              286.7,
+              229.7,
+              243.0,
+              262.9,
+              181.5
+            ],
+            "monthly_tmax_c": [
+              28.26,
+              27.81,
+              27.91,
+              28.07,
+              28.14,
+              27.55
+            ],
+            "monthly_et0_mm_day": [
+              4.12,
+              4.03,
+              4.22,
+              4.18,
+              4.0,
+              3.65
             ]
           },
           "dry": {
@@ -73,32 +97,108 @@
             "et0_mm_day": 3.93,
             "heavy_rain_months": [
               5
+            ],
+            "monthly_rain_mm": [
+              195.8,
+              183.2,
+              122.6,
+              86.6,
+              125.3,
+              213.3
+            ],
+            "monthly_tmax_c": [
+              27.24,
+              26.8,
+              27.25,
+              28.37,
+              29.26,
+              29.58
+            ],
+            "monthly_et0_mm_day": [
+              3.39,
+              3.29,
+              3.74,
+              4.27,
+              4.56,
+              4.35
             ]
           }
         },
         "elnino": {
           "wet": {
-            "rain_mm": 1128.8,
-            "t2m_c": 23.73,
-            "tmax_c": 29.46,
-            "gwetroot": 0.789,
-            "allsky_mj": 18.29,
-            "et0_mm_day": 4.18,
+            "rain_mm": 1212.6,
+            "t2m_c": 22.09,
+            "tmax_c": 28.06,
+            "gwetroot": 0.847,
+            "allsky_mj": 17.08,
+            "et0_mm_day": 3.75,
             "heavy_rain_months": [
               6,
-              7
+              8,
+              9
+            ],
+            "monthly_rain_mm": [
+              235.8,
+              177.3,
+              209.2,
+              280.2,
+              143.5,
+              166.5
+            ],
+            "monthly_tmax_c": [
+              28.94,
+              28.07,
+              28.01,
+              27.87,
+              27.97,
+              27.5
+            ],
+            "monthly_et0_mm_day": [
+              3.69,
+              3.97,
+              4.03,
+              3.67,
+              3.67,
+              3.48
             ]
           },
           "dry": {
-            "rain_mm": 695.1,
-            "t2m_c": 23.24,
-            "tmax_c": 29.58,
-            "gwetroot": 0.736,
-            "allsky_mj": 18.04,
-            "et0_mm_day": 4.08,
-            "heavy_rain_months": []
+            "rain_mm": 501.4,
+            "t2m_c": 22.18,
+            "tmax_c": 29.54,
+            "gwetroot": 0.742,
+            "allsky_mj": 20.03,
+            "et0_mm_day": 4.41,
+            "heavy_rain_months": [
+              5
+            ],
+            "monthly_rain_mm": [
+              127.1,
+              40.0,
+              49.6,
+              19.5,
+              52.5,
+              212.7
+            ],
+            "monthly_tmax_c": [
+              26.93,
+              27.42,
+              28.05,
+              31.06,
+              32.53,
+              31.23
+            ],
+            "monthly_et0_mm_day": [
+              3.56,
+              4.17,
+              4.18,
+              5.17,
+              5.05,
+              4.37
+            ]
           }
-        }
+        },
+        "elnino_basis": "observed_2015_2016"
       },
       "banner_metrics": [
         {
@@ -183,6 +283,30 @@
               7,
               8,
               10
+            ],
+            "monthly_rain_mm": [
+              226.1,
+              257.7,
+              204.5,
+              191.9,
+              303.1,
+              141.0
+            ],
+            "monthly_tmax_c": [
+              33.06,
+              32.66,
+              32.21,
+              32.58,
+              33.18,
+              32.95
+            ],
+            "monthly_et0_mm_day": [
+              4.71,
+              4.67,
+              4.87,
+              5.08,
+              4.86,
+              4.53
             ]
           },
           "dry": {
@@ -194,31 +318,107 @@
             "et0_mm_day": 4.72,
             "heavy_rain_months": [
               1
+            ],
+            "monthly_rain_mm": [
+              180.1,
+              230.9,
+              140.0,
+              85.1,
+              118.3,
+              195.1
+            ],
+            "monthly_tmax_c": [
+              32.14,
+              31.44,
+              31.59,
+              33.0,
+              33.74,
+              34.08
+            ],
+            "monthly_et0_mm_day": [
+              4.14,
+              3.98,
+              4.6,
+              5.16,
+              5.42,
+              5.02
             ]
           }
         },
         "elnino": {
           "wet": {
-            "rain_mm": 993.3,
-            "t2m_c": 29.59,
-            "tmax_c": 34.27,
-            "gwetroot": 0.721,
-            "allsky_mj": 18.94,
-            "et0_mm_day": 4.94,
+            "rain_mm": 1336.7,
+            "t2m_c": 27.76,
+            "tmax_c": 32.81,
+            "gwetroot": 0.815,
+            "allsky_mj": 18.54,
+            "et0_mm_day": 4.65,
             "heavy_rain_months": [
+              6,
+              7,
+              9,
               10
+            ],
+            "monthly_rain_mm": [
+              265.8,
+              217.9,
+              168.6,
+              237.3,
+              298.8,
+              148.2
+            ],
+            "monthly_tmax_c": [
+              34.67,
+              31.47,
+              32.3,
+              32.96,
+              32.03,
+              33.43
+            ],
+            "monthly_et0_mm_day": [
+              4.46,
+              4.94,
+              4.7,
+              4.63,
+              4.61,
+              4.57
             ]
           },
           "dry": {
-            "rain_mm": 712.1,
-            "t2m_c": 29.0,
-            "tmax_c": 34.17,
-            "gwetroot": 0.694,
-            "allsky_mj": 18.91,
-            "et0_mm_day": 4.87,
-            "heavy_rain_months": []
+            "rain_mm": 496.5,
+            "t2m_c": 27.61,
+            "tmax_c": 32.75,
+            "gwetroot": 0.697,
+            "allsky_mj": 20.8,
+            "et0_mm_day": 5.2,
+            "heavy_rain_months": [],
+            "monthly_rain_mm": [
+              154.1,
+              36.9,
+              91.9,
+              41.5,
+              47.4,
+              124.6
+            ],
+            "monthly_tmax_c": [
+              32.06,
+              31.69,
+              32.11,
+              32.94,
+              34.18,
+              33.52
+            ],
+            "monthly_et0_mm_day": [
+              4.62,
+              4.81,
+              4.88,
+              5.87,
+              5.94,
+              5.11
+            ]
           }
-        }
+        },
+        "elnino_basis": "observed_2015_2016"
       },
       "banner_metrics": [
         {
@@ -305,6 +505,30 @@
               9,
               10,
               11
+            ],
+            "monthly_rain_mm": [
+              205.6,
+              300.5,
+              266.3,
+              242.4,
+              398.8,
+              353.3
+            ],
+            "monthly_tmax_c": [
+              36.02,
+              34.09,
+              33.77,
+              33.12,
+              31.76,
+              30.65
+            ],
+            "monthly_et0_mm_day": [
+              5.72,
+              4.96,
+              4.61,
+              4.55,
+              3.53,
+              3.15
             ]
           },
           "dry": {
@@ -317,35 +541,108 @@
             "heavy_rain_months": [
               5,
               12
+            ],
+            "monthly_rain_mm": [
+              515.7,
+              132.4,
+              91.7,
+              68.6,
+              74.7,
+              205.7
+            ],
+            "monthly_tmax_c": [
+              30.29,
+              29.63,
+              31.61,
+              35.12,
+              37.78,
+              38.38
+            ],
+            "monthly_et0_mm_day": [
+              2.59,
+              2.94,
+              3.63,
+              4.8,
+              5.43,
+              5.68
             ]
           }
         },
         "elnino": {
           "wet": {
-            "rain_mm": 1325.2,
-            "t2m_c": 28.51,
-            "tmax_c": 34.73,
-            "gwetroot": 0.729,
-            "allsky_mj": 17.85,
-            "et0_mm_day": 4.55,
+            "rain_mm": 1194.8,
+            "t2m_c": 27.28,
+            "tmax_c": 34.71,
+            "gwetroot": 0.757,
+            "allsky_mj": 19.04,
+            "et0_mm_day": 4.73,
             "heavy_rain_months": [
               7,
-              10,
-              11
+              8,
+              10
+            ],
+            "monthly_rain_mm": [
+              98.1,
+              272.8,
+              238.1,
+              126.9,
+              377.6,
+              81.3
+            ],
+            "monthly_tmax_c": [
+              37.22,
+              37.23,
+              35.89,
+              34.17,
+              33.16,
+              30.57
+            ],
+            "monthly_et0_mm_day": [
+              6.45,
+              4.36,
+              4.98,
+              5.26,
+              3.64,
+              3.79
             ]
           },
           "dry": {
-            "rain_mm": 816.6,
-            "t2m_c": 27.03,
-            "tmax_c": 35.3,
-            "gwetroot": 0.626,
-            "allsky_mj": 17.32,
-            "et0_mm_day": 4.28,
+            "rain_mm": 910.7,
+            "t2m_c": 26.2,
+            "tmax_c": 34.75,
+            "gwetroot": 0.695,
+            "allsky_mj": 17.52,
+            "et0_mm_day": 4.25,
             "heavy_rain_months": [
               12
+            ],
+            "monthly_rain_mm": [
+              519.6,
+              78.7,
+              76.3,
+              44.9,
+              30.0,
+              161.2
+            ],
+            "monthly_tmax_c": [
+              31.04,
+              30.49,
+              31.43,
+              35.82,
+              40.44,
+              39.3
+            ],
+            "monthly_et0_mm_day": [
+              2.89,
+              3.49,
+              3.32,
+              4.28,
+              6.05,
+              5.75
             ]
           }
-        }
+        },
+        "elnino_basis": "observed_2015_2016"
       },
       "banner_metrics": [
         {
@@ -409,7 +706,7 @@
             "kpis": {
               "total_profit_php": 128995.0,
               "worst_season_profit_php": 8550.0,
-              "profit_elnino_delta_pct": 0.0,
+              "profit_elnino_delta_pct": -44.2,
               "total_water_gap_mm": 0.0,
               "total_pumped_mm": 0.0,
               "final_soil_n": 10.0,
@@ -429,8 +726,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 376.8,
-                "supply_mm": 1315.4,
+                "demand_mm": 386.5,
+                "supply_mm": 959.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -455,8 +752,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 367.5,
-                "supply_mm": 853.3,
+                "demand_mm": 338.3,
+                "supply_mm": 582.5,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -481,8 +778,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 376.8,
-                "supply_mm": 1319.7,
+                "demand_mm": 386.5,
+                "supply_mm": 964.2,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -507,8 +804,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 367.5,
-                "supply_mm": 853.3,
+                "demand_mm": 338.3,
+                "supply_mm": 582.5,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -533,8 +830,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 376.8,
-                "supply_mm": 1319.7,
+                "demand_mm": 386.5,
+                "supply_mm": 964.2,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -559,8 +856,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 367.5,
-                "supply_mm": 853.3,
+                "demand_mm": 338.3,
+                "supply_mm": 582.5,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -582,7 +879,7 @@
             "why_bullets": [
               "Repeats Yellow/White Corn for all 6 seasons, ending with Soil N at 10 kg/ha (-55.0).",
               "Requires PHP 35,460 in extra urea top-up to offset nitrogen depletion.",
-              "Zero botanical family breaks: pest pressure compounds across seasons (+0.0% profit change under El Niño)."
+              "Zero botanical family breaks: pest pressure compounds across seasons (-44.2% profit change under El Niño)."
             ]
           },
           "plan_b": {
@@ -592,7 +889,7 @@
             "kpis": {
               "total_profit_php": 342522.0,
               "worst_season_profit_php": 53144.0,
-              "profit_elnino_delta_pct": 0.0,
+              "profit_elnino_delta_pct": -6.7,
               "total_water_gap_mm": 0.0,
               "total_pumped_mm": 0.0,
               "final_soil_n": 90.0,
@@ -612,8 +909,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 322.4,
-                "supply_mm": 1315.4,
+                "demand_mm": 330.3,
+                "supply_mm": 959.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -639,8 +936,8 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 314.4,
-                "supply_mm": 853.3,
+                "demand_mm": 284.2,
+                "supply_mm": 582.5,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -665,8 +962,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 322.4,
-                "supply_mm": 1319.7,
+                "demand_mm": 330.3,
+                "supply_mm": 964.2,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -692,8 +989,8 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 314.4,
-                "supply_mm": 853.3,
+                "demand_mm": 284.2,
+                "supply_mm": 582.5,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -718,8 +1015,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 322.4,
-                "supply_mm": 1319.7,
+                "demand_mm": 330.3,
+                "supply_mm": 964.2,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -745,8 +1042,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 314.4,
-                "supply_mm": 853.3,
+                "demand_mm": 284.2,
+                "supply_mm": 582.5,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -768,7 +1065,7 @@
             "why_bullets": [
               "Breaks pest cycles 4 times across 3 years using 4 nitrogen-fixing legume season(s).",
               "Ends with Soil N at 90 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
-              "Net 3-year profit is PHP 342,522 (+213,527 vs Status Quo) with +0.0% El Niño shift."
+              "Net 3-year profit is PHP 342,522 (+213,527 vs Status Quo) with -6.7% El Niño shift."
             ]
           },
           "plan_c": {
@@ -776,19 +1073,19 @@
             "title": "Plan C: Drought-Safe",
             "subtitle": "Max Water & Soil Protection",
             "kpis": {
-              "total_profit_php": 334548.0,
-              "worst_season_profit_php": 52249.0,
+              "total_profit_php": 327920.0,
+              "worst_season_profit_php": 47936.0,
               "profit_elnino_delta_pct": 0.0,
               "total_water_gap_mm": 0.0,
               "total_pumped_mm": 0.0,
-              "final_soil_n": 94.0,
-              "soil_n_delta": 29.0,
-              "mean_erosion_index": 76.8,
-              "bare_month_count": 11,
+              "final_soil_n": 96.0,
+              "soil_n_delta": 31.0,
+              "mean_erosion_index": 81.6,
+              "bare_month_count": 9,
               "pest_break_count": 4,
               "water_score": 100.0,
-              "soil_score": 72.4,
-              "economy_score": 93.1
+              "soil_score": 71.1,
+              "economy_score": 90.0
             },
             "seasons": [
               {
@@ -798,8 +1095,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 322.4,
-                "supply_mm": 1315.4,
+                "demand_mm": 330.3,
+                "supply_mm": 959.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -822,141 +1119,139 @@
                 "season_index": 1,
                 "season_label": "Y1 Dry (Dec–May)",
                 "season_type": "dry",
-                "crop_id": "sweet_potato",
-                "crop_name": "Sweet Potato (Camote)",
-                "family": "Convolvulaceae",
-                "demand_mm": 314.4,
-                "supply_mm": 853.3,
+                "crop_id": "mungbean",
+                "crop_name": "Mungbean (Monggo)",
+                "family": "Fabaceae",
+                "demand_mm": 164.3,
+                "supply_mm": 513.2,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.045,
-                "pest_loss": 0.007,
-                "pest_broken_badge": true,
-                "soil_n": 69.0,
+                "pest_level": 0.4,
+                "pest_loss": 0.06,
+                "pest_broken_badge": false,
+                "soil_n": 84.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 53.4,
+                "erosion_index": 73.6,
                 "bare_soil_erosion_months": [
                   5
                 ],
-                "effective_yield_t_ha": 10.93,
-                "profit_php": 60869.0
+                "effective_yield_t_ha": 1.13,
+                "profit_php": 47936.0
               },
               {
                 "season_index": 2,
                 "season_label": "Y2 Wet (Jun–Nov)",
                 "season_type": "wet",
-                "crop_id": "mungbean",
-                "crop_name": "Mungbean (Monggo)",
-                "family": "Fabaceae",
-                "demand_mm": 196.5,
-                "supply_mm": 1319.7,
+                "crop_id": "sweet_potato",
+                "crop_name": "Sweet Potato (Camote)",
+                "family": "Convolvulaceae",
+                "demand_mm": 330.3,
+                "supply_mm": 964.2,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.013,
-                "pest_loss": 0.002,
+                "pest_level": 0.12,
+                "pest_loss": 0.018,
                 "pest_broken_badge": true,
-                "soil_n": 81.0,
+                "soil_n": 78.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 100.0,
+                "erosion_index": 86.7,
                 "bare_soil_erosion_months": [
-                  8,
                   9,
                   10
                 ],
-                "effective_yield_t_ha": 1.2,
-                "profit_php": 52249.0
+                "effective_yield_t_ha": 10.8,
+                "profit_php": 59817.0
               },
               {
                 "season_index": 3,
                 "season_label": "Y2 Dry (Dec–May)",
                 "season_type": "dry",
-                "crop_id": "sweet_potato",
-                "crop_name": "Sweet Potato (Camote)",
-                "family": "Convolvulaceae",
-                "demand_mm": 314.4,
-                "supply_mm": 853.3,
+                "crop_id": "mungbean",
+                "crop_name": "Mungbean (Monggo)",
+                "family": "Fabaceae",
+                "demand_mm": 164.3,
+                "supply_mm": 513.2,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.004,
-                "pest_loss": 0.001,
+                "pest_level": 0.036,
+                "pest_loss": 0.005,
                 "pest_broken_badge": true,
-                "soil_n": 75.0,
+                "soil_n": 90.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 53.4,
+                "erosion_index": 73.6,
                 "bare_soil_erosion_months": [
                   5
                 ],
-                "effective_yield_t_ha": 10.99,
-                "profit_php": 61443.0
+                "effective_yield_t_ha": 1.19,
+                "profit_php": 51998.0
               },
               {
                 "season_index": 4,
                 "season_label": "Y3 Wet (Jun–Nov)",
                 "season_type": "wet",
-                "crop_id": "mungbean",
-                "crop_name": "Mungbean (Monggo)",
-                "family": "Fabaceae",
-                "demand_mm": 196.5,
-                "supply_mm": 1319.7,
+                "crop_id": "sweet_potato",
+                "crop_name": "Sweet Potato (Camote)",
+                "family": "Convolvulaceae",
+                "demand_mm": 330.3,
+                "supply_mm": 964.2,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.001,
-                "pest_loss": 0.0,
+                "pest_level": 0.011,
+                "pest_loss": 0.002,
                 "pest_broken_badge": true,
-                "soil_n": 87.0,
+                "soil_n": 84.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 100.0,
+                "erosion_index": 86.7,
                 "bare_soil_erosion_months": [
-                  8,
                   9,
                   10
                 ],
-                "effective_yield_t_ha": 1.2,
-                "profit_php": 52386.0
+                "effective_yield_t_ha": 10.98,
+                "profit_php": 61349.0
               },
               {
                 "season_index": 5,
                 "season_label": "Y3 Dry (Dec–May)",
                 "season_type": "dry",
-                "crop_id": "peanut",
-                "crop_name": "Peanut",
+                "crop_id": "mungbean",
+                "crop_name": "Mungbean (Monggo)",
                 "family": "Fabaceae",
-                "demand_mm": 314.4,
-                "supply_mm": 853.3,
+                "demand_mm": 164.3,
+                "supply_mm": 513.2,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.251,
-                "pest_loss": 0.038,
-                "pest_broken_badge": false,
-                "soil_n": 94.0,
+                "pest_level": 0.003,
+                "pest_loss": 0.0,
+                "pest_broken_badge": true,
+                "soil_n": 96.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 58.8,
+                "erosion_index": 73.6,
                 "bare_soil_erosion_months": [
                   5
                 ],
-                "effective_yield_t_ha": 1.73,
-                "profit_php": 53144.0
+                "effective_yield_t_ha": 1.2,
+                "profit_php": 52364.0
               }
             ],
             "why_bullets": [
               "Breaks pest cycles 4 times across 3 years using 4 nitrogen-fixing legume season(s).",
-              "Ends with Soil N at 94 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
-              "Excludes high-water crops to protect against drought: El Niño profit change is +0.0% (vs +0.0% in Plan A)."
+              "Ends with Soil N at 96 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
+              "Excludes high-water crops to protect against drought: El Niño profit change is +0.0% (vs -44.2% in Plan A)."
             ]
           }
         },
@@ -966,19 +1261,19 @@
             "title": "Plan A: Status Quo",
             "subtitle": "Continuous Monoculture (El Niño)",
             "kpis": {
-              "total_profit_php": 128995.0,
-              "worst_season_profit_php": 8550.0,
-              "profit_elnino_delta_pct": 0.0,
-              "total_water_gap_mm": 0.0,
+              "total_profit_php": 72034.0,
+              "worst_season_profit_php": -8221.0,
+              "profit_elnino_delta_pct": -44.2,
+              "total_water_gap_mm": 294.3,
               "total_pumped_mm": 0.0,
               "final_soil_n": 10.0,
               "soil_n_delta": -55.0,
-              "mean_erosion_index": 62.8,
-              "bare_month_count": 0,
+              "mean_erosion_index": 59.0,
+              "bare_month_count": 3,
               "pest_break_count": 0,
-              "water_score": 100.0,
-              "soil_score": 22.5,
-              "economy_score": 12.6
+              "water_score": 32.0,
+              "soil_score": 23.6,
+              "economy_score": 9.6
             },
             "seasons": [
               {
@@ -988,8 +1283,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 390.8,
-                "supply_mm": 997.7,
+                "demand_mm": 360.5,
+                "supply_mm": 823.6,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1000,7 +1295,7 @@
                 "soil_n": 47.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 77.8,
+                "erosion_index": 83.5,
                 "bare_soil_erosion_months": [],
                 "effective_yield_t_ha": 4.69,
                 "profit_php": 46110.0
@@ -1012,11 +1307,11 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 381.5,
-                "supply_mm": 660.2,
-                "water_gap_mm": 0.0,
+                "demand_mm": 391.6,
+                "supply_mm": 293.5,
+                "water_gap_mm": 98.1,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
+                "water_yield_loss": 0.313,
                 "heat_loss": 0.0,
                 "pest_level": 0.4,
                 "pest_loss": 0.06,
@@ -1024,10 +1319,12 @@
                 "soil_n": 26.0,
                 "urea_cost_php": 2340.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 47.9,
-                "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 4.22,
-                "profit_php": 35488.0
+                "erosion_index": 34.5,
+                "bare_soil_erosion_months": [
+                  5
+                ],
+                "effective_yield_t_ha": 2.9,
+                "profit_php": 12366.0
               },
               {
                 "season_index": 2,
@@ -1036,8 +1333,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 390.8,
-                "supply_mm": 1010.4,
+                "demand_mm": 360.5,
+                "supply_mm": 832.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1048,7 +1345,7 @@
                 "soil_n": 10.0,
                 "urea_cost_php": 6120.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 77.8,
+                "erosion_index": 83.5,
                 "bare_soil_erosion_months": [],
                 "effective_yield_t_ha": 3.6,
                 "profit_php": 20802.0
@@ -1060,11 +1357,11 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 381.5,
-                "supply_mm": 660.2,
-                "water_gap_mm": 0.0,
+                "demand_mm": 391.6,
+                "supply_mm": 293.5,
+                "water_gap_mm": 98.1,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
+                "water_yield_loss": 0.313,
                 "heat_loss": 0.0,
                 "pest_level": 0.9,
                 "pest_loss": 0.135,
@@ -1072,10 +1369,12 @@
                 "soil_n": 10.0,
                 "urea_cost_php": 9000.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 47.9,
-                "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 3.11,
-                "profit_php": 9495.0
+                "erosion_index": 34.5,
+                "bare_soil_erosion_months": [
+                  5
+                ],
+                "effective_yield_t_ha": 2.14,
+                "profit_php": -7572.0
               },
               {
                 "season_index": 4,
@@ -1084,8 +1383,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 390.8,
-                "supply_mm": 1010.4,
+                "demand_mm": 360.5,
+                "supply_mm": 832.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1096,7 +1395,7 @@
                 "soil_n": 10.0,
                 "urea_cost_php": 9000.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 77.8,
+                "erosion_index": 83.5,
                 "bare_soil_erosion_months": [],
                 "effective_yield_t_ha": 3.06,
                 "profit_php": 8550.0
@@ -1108,11 +1407,11 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 381.5,
-                "supply_mm": 660.2,
-                "water_gap_mm": 0.0,
+                "demand_mm": 391.6,
+                "supply_mm": 293.5,
+                "water_gap_mm": 98.1,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
+                "water_yield_loss": 0.313,
                 "heat_loss": 0.0,
                 "pest_level": 1.0,
                 "pest_loss": 0.15,
@@ -1120,16 +1419,18 @@
                 "soil_n": 10.0,
                 "urea_cost_php": 9000.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 47.9,
-                "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 3.06,
-                "profit_php": 8550.0
+                "erosion_index": 34.5,
+                "bare_soil_erosion_months": [
+                  5
+                ],
+                "effective_yield_t_ha": 2.1,
+                "profit_php": -8221.0
               }
             ],
             "why_bullets": [
               "Repeats Yellow/White Corn for all 6 seasons, ending with Soil N at 10 kg/ha (-55.0).",
               "Requires PHP 35,460 in extra urea top-up to offset nitrogen depletion.",
-              "Zero botanical family breaks: pest pressure compounds across seasons (+0.0% profit change under El Niño)."
+              "Zero botanical family breaks: pest pressure compounds across seasons (-44.2% profit change under El Niño)."
             ]
           },
           "plan_b": {
@@ -1137,19 +1438,19 @@
             "title": "Plan B: Balanced Optimal",
             "subtitle": "Recommended Route (El Niño)",
             "kpis": {
-              "total_profit_php": 342522.0,
-              "worst_season_profit_php": 53144.0,
-              "profit_elnino_delta_pct": 0.0,
-              "total_water_gap_mm": 0.0,
+              "total_profit_php": 319700.0,
+              "worst_season_profit_php": 47011.0,
+              "profit_elnino_delta_pct": -6.7,
+              "total_water_gap_mm": 103.4,
               "total_pumped_mm": 0.0,
               "final_soil_n": 90.0,
               "soil_n_delta": 25.0,
-              "mean_erosion_index": 56.5,
-              "bare_month_count": 0,
+              "mean_erosion_index": 53.4,
+              "bare_month_count": 6,
               "pest_break_count": 4,
-              "water_score": 100.0,
-              "soil_score": 76.5,
-              "economy_score": 96.1
+              "water_score": 76.1,
+              "soil_score": 77.4,
+              "economy_score": 93.4
             },
             "seasons": [
               {
@@ -1159,8 +1460,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 334.4,
-                "supply_mm": 997.7,
+                "demand_mm": 309.9,
+                "supply_mm": 823.6,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1171,8 +1472,10 @@
                 "soil_n": 75.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 71.6,
-                "bare_soil_erosion_months": [],
+                "erosion_index": 76.9,
+                "bare_soil_erosion_months": [
+                  9
+                ],
                 "effective_yield_t_ha": 1.76,
                 "profit_php": 54456.0
               },
@@ -1183,11 +1486,11 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 326.4,
-                "supply_mm": 660.2,
-                "water_gap_mm": 0.0,
+                "demand_mm": 327.2,
+                "supply_mm": 293.5,
+                "water_gap_mm": 34.5,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
+                "water_yield_loss": 0.09,
                 "heat_loss": 0.0,
                 "pest_level": 0.045,
                 "pest_loss": 0.007,
@@ -1195,10 +1498,12 @@
                 "soil_n": 69.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 40.1,
-                "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 10.93,
-                "profit_php": 60869.0
+                "erosion_index": 28.9,
+                "bare_soil_erosion_months": [
+                  5
+                ],
+                "effective_yield_t_ha": 9.95,
+                "profit_php": 52550.0
               },
               {
                 "season_index": 2,
@@ -1207,8 +1512,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 334.4,
-                "supply_mm": 1010.4,
+                "demand_mm": 309.9,
+                "supply_mm": 832.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1219,8 +1524,10 @@
                 "soil_n": 79.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 71.6,
-                "bare_soil_erosion_months": [],
+                "erosion_index": 76.9,
+                "bare_soil_erosion_months": [
+                  9
+                ],
                 "effective_yield_t_ha": 1.8,
                 "profit_php": 56225.0
               },
@@ -1231,11 +1538,11 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 326.4,
-                "supply_mm": 660.2,
-                "water_gap_mm": 0.0,
+                "demand_mm": 327.2,
+                "supply_mm": 293.5,
+                "water_gap_mm": 34.5,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
+                "water_yield_loss": 0.09,
                 "heat_loss": 0.0,
                 "pest_level": 0.004,
                 "pest_loss": 0.001,
@@ -1243,10 +1550,12 @@
                 "soil_n": 73.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 40.1,
-                "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 10.99,
-                "profit_php": 61443.0
+                "erosion_index": 28.9,
+                "bare_soil_erosion_months": [
+                  5
+                ],
+                "effective_yield_t_ha": 10.01,
+                "profit_php": 53073.0
               },
               {
                 "season_index": 4,
@@ -1255,8 +1564,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 334.4,
-                "supply_mm": 1010.4,
+                "demand_mm": 309.9,
+                "supply_mm": 832.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1267,8 +1576,10 @@
                 "soil_n": 83.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 71.6,
-                "bare_soil_erosion_months": [],
+                "erosion_index": 76.9,
+                "bare_soil_erosion_months": [
+                  9
+                ],
                 "effective_yield_t_ha": 1.8,
                 "profit_php": 56384.0
               },
@@ -1279,11 +1590,11 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 326.4,
-                "supply_mm": 660.2,
-                "water_gap_mm": 0.0,
+                "demand_mm": 327.2,
+                "supply_mm": 293.5,
+                "water_gap_mm": 34.5,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
+                "water_yield_loss": 0.074,
                 "heat_loss": 0.0,
                 "pest_level": 0.251,
                 "pest_loss": 0.038,
@@ -1291,16 +1602,18 @@
                 "soil_n": 90.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 44.1,
-                "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 1.73,
-                "profit_php": 53144.0
+                "erosion_index": 31.8,
+                "bare_soil_erosion_months": [
+                  5
+                ],
+                "effective_yield_t_ha": 1.6,
+                "profit_php": 47011.0
               }
             ],
             "why_bullets": [
               "Breaks pest cycles 4 times across 3 years using 4 nitrogen-fixing legume season(s).",
               "Ends with Soil N at 90 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
-              "Net 3-year profit is PHP 342,522 (+213,527 vs Status Quo) with +0.0% El Niño shift."
+              "Net 3-year profit is PHP 319,700 (+247,666 vs Status Quo) with -6.7% El Niño shift."
             ]
           },
           "plan_c": {
@@ -1308,19 +1621,19 @@
             "title": "Plan C: Drought-Safe",
             "subtitle": "Max Water & Soil Protection (El Niño)",
             "kpis": {
-              "total_profit_php": 334548.0,
-              "worst_season_profit_php": 52249.0,
+              "total_profit_php": 327920.0,
+              "worst_season_profit_php": 47936.0,
               "profit_elnino_delta_pct": 0.0,
               "total_water_gap_mm": 0.0,
               "total_pumped_mm": 0.0,
-              "final_soil_n": 94.0,
-              "soil_n_delta": 29.0,
-              "mean_erosion_index": 62.5,
-              "bare_month_count": 0,
+              "final_soil_n": 96.0,
+              "soil_n_delta": 31.0,
+              "mean_erosion_index": 56.0,
+              "bare_month_count": 6,
               "pest_break_count": 4,
               "water_score": 100.0,
-              "soil_score": 76.7,
-              "economy_score": 93.1
+              "soil_score": 78.8,
+              "economy_score": 96.1
             },
             "seasons": [
               {
@@ -1330,8 +1643,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 334.4,
-                "supply_mm": 997.7,
+                "demand_mm": 309.9,
+                "supply_mm": 823.6,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1342,8 +1655,10 @@
                 "soil_n": 75.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 71.6,
-                "bare_soil_erosion_months": [],
+                "erosion_index": 76.9,
+                "bare_soil_erosion_months": [
+                  9
+                ],
                 "effective_yield_t_ha": 1.76,
                 "profit_php": 54456.0
               },
@@ -1351,127 +1666,137 @@
                 "season_index": 1,
                 "season_label": "Y1 Dry (Dec–May)",
                 "season_type": "dry",
-                "crop_id": "sweet_potato",
-                "crop_name": "Sweet Potato (Camote)",
-                "family": "Convolvulaceae",
-                "demand_mm": 326.4,
-                "supply_mm": 660.2,
+                "crop_id": "mungbean",
+                "crop_name": "Mungbean (Monggo)",
+                "family": "Fabaceae",
+                "demand_mm": 189.6,
+                "supply_mm": 277.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.045,
-                "pest_loss": 0.007,
-                "pest_broken_badge": true,
-                "soil_n": 69.0,
+                "pest_level": 0.4,
+                "pest_loss": 0.06,
+                "pest_broken_badge": false,
+                "soil_n": 84.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 40.1,
-                "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 10.93,
-                "profit_php": 60869.0
+                "erosion_index": 39.8,
+                "bare_soil_erosion_months": [
+                  5
+                ],
+                "effective_yield_t_ha": 1.13,
+                "profit_php": 47936.0
               },
               {
                 "season_index": 2,
                 "season_label": "Y2 Wet (Jun–Nov)",
                 "season_type": "wet",
-                "crop_id": "mungbean",
-                "crop_name": "Mungbean (Monggo)",
-                "family": "Fabaceae",
-                "demand_mm": 203.8,
-                "supply_mm": 1010.4,
+                "crop_id": "sweet_potato",
+                "crop_name": "Sweet Potato (Camote)",
+                "family": "Convolvulaceae",
+                "demand_mm": 309.9,
+                "supply_mm": 832.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.013,
-                "pest_loss": 0.002,
+                "pest_level": 0.12,
+                "pest_loss": 0.018,
                 "pest_broken_badge": true,
-                "soil_n": 81.0,
+                "soil_n": 78.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 89.6,
-                "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 1.2,
-                "profit_php": 52249.0
+                "erosion_index": 69.9,
+                "bare_soil_erosion_months": [
+                  9
+                ],
+                "effective_yield_t_ha": 10.8,
+                "profit_php": 59817.0
               },
               {
                 "season_index": 3,
                 "season_label": "Y2 Dry (Dec–May)",
                 "season_type": "dry",
-                "crop_id": "sweet_potato",
-                "crop_name": "Sweet Potato (Camote)",
-                "family": "Convolvulaceae",
-                "demand_mm": 326.4,
-                "supply_mm": 660.2,
+                "crop_id": "mungbean",
+                "crop_name": "Mungbean (Monggo)",
+                "family": "Fabaceae",
+                "demand_mm": 189.6,
+                "supply_mm": 277.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.004,
-                "pest_loss": 0.001,
+                "pest_level": 0.036,
+                "pest_loss": 0.005,
                 "pest_broken_badge": true,
-                "soil_n": 75.0,
+                "soil_n": 90.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 40.1,
-                "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 10.99,
-                "profit_php": 61443.0
+                "erosion_index": 39.8,
+                "bare_soil_erosion_months": [
+                  5
+                ],
+                "effective_yield_t_ha": 1.19,
+                "profit_php": 51998.0
               },
               {
                 "season_index": 4,
                 "season_label": "Y3 Wet (Jun–Nov)",
                 "season_type": "wet",
-                "crop_id": "mungbean",
-                "crop_name": "Mungbean (Monggo)",
-                "family": "Fabaceae",
-                "demand_mm": 203.8,
-                "supply_mm": 1010.4,
+                "crop_id": "sweet_potato",
+                "crop_name": "Sweet Potato (Camote)",
+                "family": "Convolvulaceae",
+                "demand_mm": 309.9,
+                "supply_mm": 832.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.001,
-                "pest_loss": 0.0,
+                "pest_level": 0.011,
+                "pest_loss": 0.002,
                 "pest_broken_badge": true,
-                "soil_n": 87.0,
+                "soil_n": 84.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 89.6,
-                "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 1.2,
-                "profit_php": 52386.0
+                "erosion_index": 69.9,
+                "bare_soil_erosion_months": [
+                  9
+                ],
+                "effective_yield_t_ha": 10.98,
+                "profit_php": 61349.0
               },
               {
                 "season_index": 5,
                 "season_label": "Y3 Dry (Dec–May)",
                 "season_type": "dry",
-                "crop_id": "peanut",
-                "crop_name": "Peanut",
+                "crop_id": "mungbean",
+                "crop_name": "Mungbean (Monggo)",
                 "family": "Fabaceae",
-                "demand_mm": 326.4,
-                "supply_mm": 660.2,
+                "demand_mm": 189.6,
+                "supply_mm": 277.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.251,
-                "pest_loss": 0.038,
-                "pest_broken_badge": false,
-                "soil_n": 94.0,
+                "pest_level": 0.003,
+                "pest_loss": 0.0,
+                "pest_broken_badge": true,
+                "soil_n": 96.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 44.1,
-                "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 1.73,
-                "profit_php": 53144.0
+                "erosion_index": 39.8,
+                "bare_soil_erosion_months": [
+                  5
+                ],
+                "effective_yield_t_ha": 1.2,
+                "profit_php": 52364.0
               }
             ],
             "why_bullets": [
               "Breaks pest cycles 4 times across 3 years using 4 nitrogen-fixing legume season(s).",
-              "Ends with Soil N at 94 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
-              "Excludes high-water crops to protect against drought: El Niño profit change is +0.0% (vs +0.0% in Plan A)."
+              "Ends with Soil N at 96 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
+              "Excludes high-water crops to protect against drought: El Niño profit change is +0.0% (vs -44.2% in Plan A)."
             ]
           }
         }
@@ -1489,7 +1814,7 @@
             "kpis": {
               "total_profit_php": 128995.0,
               "worst_season_profit_php": 8550.0,
-              "profit_elnino_delta_pct": 0.0,
+              "profit_elnino_delta_pct": -39.2,
               "total_water_gap_mm": 0.0,
               "total_pumped_mm": 0.0,
               "final_soil_n": 10.0,
@@ -1499,7 +1824,7 @@
               "pest_break_count": 0,
               "water_score": 100.0,
               "soil_score": 29.2,
-              "economy_score": 12.6
+              "economy_score": 14.6
             },
             "seasons": [
               {
@@ -1509,8 +1834,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 447.9,
-                "supply_mm": 1161.3,
+                "demand_mm": 449.7,
+                "supply_mm": 805.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1535,8 +1860,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 441.3,
-                "supply_mm": 868.6,
+                "demand_mm": 412.1,
+                "supply_mm": 617.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1559,8 +1884,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 447.9,
-                "supply_mm": 1170.4,
+                "demand_mm": 449.7,
+                "supply_mm": 815.0,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1585,8 +1910,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 441.3,
-                "supply_mm": 868.6,
+                "demand_mm": 412.1,
+                "supply_mm": 617.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1609,8 +1934,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 447.9,
-                "supply_mm": 1170.4,
+                "demand_mm": 449.7,
+                "supply_mm": 815.0,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1635,8 +1960,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 441.3,
-                "supply_mm": 868.6,
+                "demand_mm": 412.1,
+                "supply_mm": 617.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1656,7 +1981,7 @@
             "why_bullets": [
               "Repeats Yellow/White Corn for all 6 seasons, ending with Soil N at 10 kg/ha (-55.0).",
               "Requires PHP 35,460 in extra urea top-up to offset nitrogen depletion.",
-              "Zero botanical family breaks: pest pressure compounds across seasons (+0.0% profit change under El Niño)."
+              "Zero botanical family breaks: pest pressure compounds across seasons (-39.2% profit change under El Niño)."
             ]
           },
           "plan_b": {
@@ -1666,7 +1991,7 @@
             "kpis": {
               "total_profit_php": 342522.0,
               "worst_season_profit_php": 53144.0,
-              "profit_elnino_delta_pct": 0.0,
+              "profit_elnino_delta_pct": -4.7,
               "total_water_gap_mm": 0.0,
               "total_pumped_mm": 0.0,
               "final_soil_n": 90.0,
@@ -1676,7 +2001,7 @@
               "pest_break_count": 4,
               "water_score": 100.0,
               "soil_score": 82.5,
-              "economy_score": 96.1
+              "economy_score": 96.2
             },
             "seasons": [
               {
@@ -1686,8 +2011,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 383.2,
-                "supply_mm": 1161.3,
+                "demand_mm": 382.6,
+                "supply_mm": 805.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1712,8 +2037,8 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 377.6,
-                "supply_mm": 868.6,
+                "demand_mm": 346.6,
+                "supply_mm": 617.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1736,8 +2061,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 383.2,
-                "supply_mm": 1170.4,
+                "demand_mm": 382.6,
+                "supply_mm": 815.0,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1762,8 +2087,8 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 377.6,
-                "supply_mm": 868.6,
+                "demand_mm": 346.6,
+                "supply_mm": 617.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1786,8 +2111,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 383.2,
-                "supply_mm": 1170.4,
+                "demand_mm": 382.6,
+                "supply_mm": 815.0,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1812,8 +2137,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 377.6,
-                "supply_mm": 868.6,
+                "demand_mm": 346.6,
+                "supply_mm": 617.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1833,7 +2158,7 @@
             "why_bullets": [
               "Breaks pest cycles 4 times across 3 years using 4 nitrogen-fixing legume season(s).",
               "Ends with Soil N at 90 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
-              "Net 3-year profit is PHP 342,522 (+213,527 vs Status Quo) with +0.0% El Niño shift."
+              "Net 3-year profit is PHP 342,522 (+213,527 vs Status Quo) with -4.7% El Niño shift."
             ]
           },
           "plan_c": {
@@ -1841,19 +2166,19 @@
             "title": "Plan C: Drought-Safe",
             "subtitle": "Max Water & Soil Protection",
             "kpis": {
-              "total_profit_php": 341019.0,
-              "worst_season_profit_php": 52985.0,
+              "total_profit_php": 327920.0,
+              "worst_season_profit_php": 47936.0,
               "profit_elnino_delta_pct": 0.0,
               "total_water_gap_mm": 0.0,
               "total_pumped_mm": 0.0,
-              "final_soil_n": 90.0,
-              "soil_n_delta": 25.0,
-              "mean_erosion_index": 36.2,
+              "final_soil_n": 96.0,
+              "soil_n_delta": 31.0,
+              "mean_erosion_index": 40.0,
               "bare_month_count": 3,
               "pest_break_count": 4,
               "water_score": 100.0,
-              "soil_score": 82.2,
-              "economy_score": 95.5
+              "soil_score": 83.6,
+              "economy_score": 90.3
             },
             "seasons": [
               {
@@ -1863,8 +2188,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 383.2,
-                "supply_mm": 1161.3,
+                "demand_mm": 382.6,
+                "supply_mm": 805.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -1886,75 +2211,75 @@
                 "season_index": 1,
                 "season_label": "Y1 Dry (Dec–May)",
                 "season_type": "dry",
-                "crop_id": "sweet_potato",
-                "crop_name": "Sweet Potato (Camote)",
-                "family": "Convolvulaceae",
-                "demand_mm": 377.6,
-                "supply_mm": 868.6,
+                "crop_id": "mungbean",
+                "crop_name": "Mungbean (Monggo)",
+                "family": "Fabaceae",
+                "demand_mm": 199.9,
+                "supply_mm": 549.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.045,
-                "pest_loss": 0.007,
-                "pest_broken_badge": true,
-                "soil_n": 69.0,
+                "pest_level": 0.4,
+                "pest_loss": 0.06,
+                "pest_broken_badge": false,
+                "soil_n": 84.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 28.4,
+                "erosion_index": 39.1,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 10.93,
-                "profit_php": 60869.0
+                "effective_yield_t_ha": 1.13,
+                "profit_php": 47936.0
               },
               {
                 "season_index": 2,
                 "season_label": "Y2 Wet (Jun–Nov)",
                 "season_type": "wet",
-                "crop_id": "peanut",
-                "crop_name": "Peanut",
-                "family": "Fabaceae",
-                "demand_mm": 383.2,
-                "supply_mm": 1170.4,
+                "crop_id": "sweet_potato",
+                "crop_name": "Sweet Potato (Camote)",
+                "family": "Convolvulaceae",
+                "demand_mm": 382.6,
+                "supply_mm": 815.0,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.013,
-                "pest_loss": 0.002,
+                "pest_level": 0.12,
+                "pest_loss": 0.018,
                 "pest_broken_badge": true,
-                "soil_n": 79.0,
+                "soil_n": 78.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 43.5,
+                "erosion_index": 39.5,
                 "bare_soil_erosion_months": [
                   10
                 ],
-                "effective_yield_t_ha": 1.8,
-                "profit_php": 56225.0
+                "effective_yield_t_ha": 10.8,
+                "profit_php": 59817.0
               },
               {
                 "season_index": 3,
                 "season_label": "Y2 Dry (Dec–May)",
                 "season_type": "dry",
-                "crop_id": "peanut",
-                "crop_name": "Peanut",
+                "crop_id": "mungbean",
+                "crop_name": "Mungbean (Monggo)",
                 "family": "Fabaceae",
-                "demand_mm": 377.6,
-                "supply_mm": 868.6,
+                "demand_mm": 199.9,
+                "supply_mm": 549.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.264,
-                "pest_loss": 0.04,
-                "pest_broken_badge": false,
-                "soil_n": 86.0,
+                "pest_level": 0.036,
+                "pest_loss": 0.005,
+                "pest_broken_badge": true,
+                "soil_n": 90.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 31.2,
+                "erosion_index": 39.1,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 1.73,
-                "profit_php": 52985.0
+                "effective_yield_t_ha": 1.19,
+                "profit_php": 51998.0
               },
               {
                 "season_index": 4,
@@ -1963,54 +2288,54 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 383.2,
-                "supply_mm": 1170.4,
+                "demand_mm": 382.6,
+                "supply_mm": 815.0,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.079,
-                "pest_loss": 0.012,
+                "pest_level": 0.011,
+                "pest_loss": 0.002,
                 "pest_broken_badge": true,
-                "soil_n": 80.0,
+                "soil_n": 84.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
                 "erosion_index": 39.5,
                 "bare_soil_erosion_months": [
                   10
                 ],
-                "effective_yield_t_ha": 10.87,
-                "profit_php": 60391.0
+                "effective_yield_t_ha": 10.98,
+                "profit_php": 61349.0
               },
               {
                 "season_index": 5,
                 "season_label": "Y3 Dry (Dec–May)",
                 "season_type": "dry",
-                "crop_id": "peanut",
-                "crop_name": "Peanut",
+                "crop_id": "mungbean",
+                "crop_name": "Mungbean (Monggo)",
                 "family": "Fabaceae",
-                "demand_mm": 377.6,
-                "supply_mm": 868.6,
+                "demand_mm": 199.9,
+                "supply_mm": 549.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.024,
-                "pest_loss": 0.004,
+                "pest_level": 0.003,
+                "pest_loss": 0.0,
                 "pest_broken_badge": true,
-                "soil_n": 90.0,
+                "soil_n": 96.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 31.2,
+                "erosion_index": 39.1,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 1.79,
-                "profit_php": 56093.0
+                "effective_yield_t_ha": 1.2,
+                "profit_php": 52364.0
               }
             ],
             "why_bullets": [
               "Breaks pest cycles 4 times across 3 years using 4 nitrogen-fixing legume season(s).",
-              "Ends with Soil N at 90 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
-              "Excludes high-water crops to protect against drought: El Niño profit change is +0.0% (vs +0.0% in Plan A)."
+              "Ends with Soil N at 96 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
+              "Excludes high-water crops to protect against drought: El Niño profit change is +0.0% (vs -39.2% in Plan A)."
             ]
           }
         },
@@ -2020,19 +2345,19 @@
             "title": "Plan A: Status Quo",
             "subtitle": "Continuous Monoculture (El Niño)",
             "kpis": {
-              "total_profit_php": 128995.0,
-              "worst_season_profit_php": 8550.0,
-              "profit_elnino_delta_pct": 0.0,
-              "total_water_gap_mm": 0.0,
+              "total_profit_php": 78431.0,
+              "worst_season_profit_php": -6338.0,
+              "profit_elnino_delta_pct": -39.2,
+              "total_water_gap_mm": 310.1,
               "total_pumped_mm": 0.0,
               "final_soil_n": 10.0,
               "soil_n_delta": -55.0,
-              "mean_erosion_index": 30.4,
+              "mean_erosion_index": 32.7,
               "bare_month_count": 3,
               "pest_break_count": 0,
-              "water_score": 100.0,
-              "soil_score": 32.2,
-              "economy_score": 12.6
+              "water_score": 56.5,
+              "soil_score": 31.5,
+              "economy_score": 12.0
             },
             "seasons": [
               {
@@ -2042,8 +2367,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 461.9,
-                "supply_mm": 881.2,
+                "demand_mm": 438.3,
+                "supply_mm": 809.5,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2054,7 +2379,7 @@
                 "soil_n": 47.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 35.4,
+                "erosion_index": 47.7,
                 "bare_soil_erosion_months": [
                   10
                 ],
@@ -2068,11 +2393,11 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 455.3,
-                "supply_mm": 671.3,
-                "water_gap_mm": 0.0,
+                "demand_mm": 464.7,
+                "supply_mm": 361.3,
+                "water_gap_mm": 103.4,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
+                "water_yield_loss": 0.278,
                 "heat_loss": 0.0,
                 "pest_level": 0.4,
                 "pest_loss": 0.06,
@@ -2080,10 +2405,10 @@
                 "soil_n": 26.0,
                 "urea_cost_php": 2340.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 25.4,
+                "erosion_index": 17.7,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 4.22,
-                "profit_php": 35488.0
+                "effective_yield_t_ha": 3.05,
+                "profit_php": 14962.0
               },
               {
                 "season_index": 2,
@@ -2092,8 +2417,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 461.9,
-                "supply_mm": 897.9,
+                "demand_mm": 438.3,
+                "supply_mm": 787.4,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2104,7 +2429,7 @@
                 "soil_n": 10.0,
                 "urea_cost_php": 6120.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 35.4,
+                "erosion_index": 47.7,
                 "bare_soil_erosion_months": [
                   10
                 ],
@@ -2118,11 +2443,11 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 455.3,
-                "supply_mm": 671.3,
-                "water_gap_mm": 0.0,
+                "demand_mm": 464.7,
+                "supply_mm": 361.3,
+                "water_gap_mm": 103.4,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
+                "water_yield_loss": 0.278,
                 "heat_loss": 0.0,
                 "pest_level": 0.9,
                 "pest_loss": 0.135,
@@ -2130,10 +2455,10 @@
                 "soil_n": 10.0,
                 "urea_cost_php": 9000.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 25.4,
+                "erosion_index": 17.7,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 3.11,
-                "profit_php": 9495.0
+                "effective_yield_t_ha": 2.25,
+                "profit_php": -5656.0
               },
               {
                 "season_index": 4,
@@ -2142,8 +2467,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 461.9,
-                "supply_mm": 897.9,
+                "demand_mm": 438.3,
+                "supply_mm": 787.4,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2154,7 +2479,7 @@
                 "soil_n": 10.0,
                 "urea_cost_php": 9000.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 35.4,
+                "erosion_index": 47.7,
                 "bare_soil_erosion_months": [
                   10
                 ],
@@ -2168,11 +2493,11 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 455.3,
-                "supply_mm": 671.3,
-                "water_gap_mm": 0.0,
+                "demand_mm": 464.7,
+                "supply_mm": 361.3,
+                "water_gap_mm": 103.4,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
+                "water_yield_loss": 0.278,
                 "heat_loss": 0.0,
                 "pest_level": 1.0,
                 "pest_loss": 0.15,
@@ -2180,16 +2505,16 @@
                 "soil_n": 10.0,
                 "urea_cost_php": 9000.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 25.4,
+                "erosion_index": 17.7,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 3.06,
-                "profit_php": 8550.0
+                "effective_yield_t_ha": 2.21,
+                "profit_php": -6338.0
               }
             ],
             "why_bullets": [
               "Repeats Yellow/White Corn for all 6 seasons, ending with Soil N at 10 kg/ha (-55.0).",
               "Requires PHP 35,460 in extra urea top-up to offset nitrogen depletion.",
-              "Zero botanical family breaks: pest pressure compounds across seasons (+0.0% profit change under El Niño)."
+              "Zero botanical family breaks: pest pressure compounds across seasons (-39.2% profit change under El Niño)."
             ]
           },
           "plan_b": {
@@ -2197,19 +2522,19 @@
             "title": "Plan B: Balanced Optimal",
             "subtitle": "Recommended Route (El Niño)",
             "kpis": {
-              "total_profit_php": 342522.0,
-              "worst_season_profit_php": 53144.0,
-              "profit_elnino_delta_pct": 0.0,
-              "total_water_gap_mm": 0.0,
+              "total_profit_php": 326401.0,
+              "worst_season_profit_php": 48812.0,
+              "profit_elnino_delta_pct": -4.7,
+              "total_water_gap_mm": 87.2,
               "total_pumped_mm": 0.0,
               "final_soil_n": 90.0,
               "soil_n_delta": 25.0,
-              "mean_erosion_index": 27.3,
-              "bare_month_count": 3,
+              "mean_erosion_index": 29.6,
+              "bare_month_count": 6,
               "pest_break_count": 4,
-              "water_score": 100.0,
-              "soil_score": 85.3,
-              "economy_score": 96.1
+              "water_score": 87.8,
+              "soil_score": 84.6,
+              "economy_score": 95.8
             },
             "seasons": [
               {
@@ -2219,8 +2544,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 395.2,
-                "supply_mm": 881.2,
+                "demand_mm": 375.4,
+                "supply_mm": 809.5,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2231,8 +2556,9 @@
                 "soil_n": 75.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 32.6,
+                "erosion_index": 43.9,
                 "bare_soil_erosion_months": [
+                  9,
                   10
                 ],
                 "effective_yield_t_ha": 1.76,
@@ -2245,11 +2571,11 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 389.6,
-                "supply_mm": 671.3,
-                "water_gap_mm": 0.0,
+                "demand_mm": 390.4,
+                "supply_mm": 361.3,
+                "water_gap_mm": 29.1,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
+                "water_yield_loss": 0.063,
                 "heat_loss": 0.0,
                 "pest_level": 0.045,
                 "pest_loss": 0.007,
@@ -2257,10 +2583,10 @@
                 "soil_n": 69.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 21.3,
+                "erosion_index": 14.8,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 10.93,
-                "profit_php": 60869.0
+                "effective_yield_t_ha": 10.23,
+                "profit_php": 54993.0
               },
               {
                 "season_index": 2,
@@ -2269,8 +2595,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 395.2,
-                "supply_mm": 897.9,
+                "demand_mm": 375.4,
+                "supply_mm": 787.4,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2281,8 +2607,9 @@
                 "soil_n": 79.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 32.6,
+                "erosion_index": 43.9,
                 "bare_soil_erosion_months": [
+                  9,
                   10
                 ],
                 "effective_yield_t_ha": 1.8,
@@ -2295,11 +2622,11 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 389.6,
-                "supply_mm": 671.3,
-                "water_gap_mm": 0.0,
+                "demand_mm": 390.4,
+                "supply_mm": 361.3,
+                "water_gap_mm": 29.1,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
+                "water_yield_loss": 0.063,
                 "heat_loss": 0.0,
                 "pest_level": 0.004,
                 "pest_loss": 0.001,
@@ -2307,10 +2634,10 @@
                 "soil_n": 73.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 21.3,
+                "erosion_index": 14.8,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 10.99,
-                "profit_php": 61443.0
+                "effective_yield_t_ha": 10.3,
+                "profit_php": 55531.0
               },
               {
                 "season_index": 4,
@@ -2319,8 +2646,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 395.2,
-                "supply_mm": 897.9,
+                "demand_mm": 375.4,
+                "supply_mm": 787.4,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2331,8 +2658,9 @@
                 "soil_n": 83.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 32.6,
+                "erosion_index": 43.9,
                 "bare_soil_erosion_months": [
+                  9,
                   10
                 ],
                 "effective_yield_t_ha": 1.8,
@@ -2345,11 +2673,11 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 389.6,
-                "supply_mm": 671.3,
-                "water_gap_mm": 0.0,
+                "demand_mm": 390.4,
+                "supply_mm": 361.3,
+                "water_gap_mm": 29.1,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
+                "water_yield_loss": 0.052,
                 "heat_loss": 0.0,
                 "pest_level": 0.251,
                 "pest_loss": 0.038,
@@ -2357,16 +2685,16 @@
                 "soil_n": 90.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 23.4,
+                "erosion_index": 16.3,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 1.73,
-                "profit_php": 53144.0
+                "effective_yield_t_ha": 1.64,
+                "profit_php": 48812.0
               }
             ],
             "why_bullets": [
               "Breaks pest cycles 4 times across 3 years using 4 nitrogen-fixing legume season(s).",
               "Ends with Soil N at 90 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
-              "Net 3-year profit is PHP 342,522 (+213,527 vs Status Quo) with +0.0% El Niño shift."
+              "Net 3-year profit is PHP 326,401 (+247,970 vs Status Quo) with -4.7% El Niño shift."
             ]
           },
           "plan_c": {
@@ -2374,19 +2702,19 @@
             "title": "Plan C: Drought-Safe",
             "subtitle": "Max Water & Soil Protection (El Niño)",
             "kpis": {
-              "total_profit_php": 341019.0,
-              "worst_season_profit_php": 52985.0,
+              "total_profit_php": 327920.0,
+              "worst_season_profit_php": 47936.0,
               "profit_elnino_delta_pct": 0.0,
               "total_water_gap_mm": 0.0,
               "total_pumped_mm": 0.0,
-              "final_soil_n": 90.0,
-              "soil_n_delta": 25.0,
-              "mean_erosion_index": 27.2,
-              "bare_month_count": 3,
+              "final_soil_n": 96.0,
+              "soil_n_delta": 31.0,
+              "mean_erosion_index": 30.8,
+              "bare_month_count": 6,
               "pest_break_count": 4,
               "water_score": 100.0,
-              "soil_score": 84.9,
-              "economy_score": 95.5
+              "soil_score": 86.3,
+              "economy_score": 96.1
             },
             "seasons": [
               {
@@ -2396,8 +2724,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 395.2,
-                "supply_mm": 881.2,
+                "demand_mm": 375.4,
+                "supply_mm": 809.5,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2408,8 +2736,9 @@
                 "soil_n": 75.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 32.6,
+                "erosion_index": 43.9,
                 "bare_soil_erosion_months": [
+                  9,
                   10
                 ],
                 "effective_yield_t_ha": 1.76,
@@ -2419,75 +2748,76 @@
                 "season_index": 1,
                 "season_label": "Y1 Dry (Dec–May)",
                 "season_type": "dry",
-                "crop_id": "sweet_potato",
-                "crop_name": "Sweet Potato (Camote)",
-                "family": "Convolvulaceae",
-                "demand_mm": 389.6,
-                "supply_mm": 671.3,
+                "crop_id": "mungbean",
+                "crop_name": "Mungbean (Monggo)",
+                "family": "Fabaceae",
+                "demand_mm": 230.5,
+                "supply_mm": 328.1,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.045,
-                "pest_loss": 0.007,
-                "pest_broken_badge": true,
-                "soil_n": 69.0,
+                "pest_level": 0.4,
+                "pest_loss": 0.06,
+                "pest_broken_badge": false,
+                "soil_n": 84.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 21.3,
+                "erosion_index": 20.4,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 10.93,
-                "profit_php": 60869.0
+                "effective_yield_t_ha": 1.13,
+                "profit_php": 47936.0
               },
               {
                 "season_index": 2,
                 "season_label": "Y2 Wet (Jun–Nov)",
                 "season_type": "wet",
-                "crop_id": "peanut",
-                "crop_name": "Peanut",
-                "family": "Fabaceae",
-                "demand_mm": 395.2,
-                "supply_mm": 897.9,
+                "crop_id": "sweet_potato",
+                "crop_name": "Sweet Potato (Camote)",
+                "family": "Convolvulaceae",
+                "demand_mm": 375.4,
+                "supply_mm": 799.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.013,
-                "pest_loss": 0.002,
+                "pest_level": 0.12,
+                "pest_loss": 0.018,
                 "pest_broken_badge": true,
-                "soil_n": 79.0,
+                "soil_n": 78.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 32.6,
+                "erosion_index": 39.9,
                 "bare_soil_erosion_months": [
+                  9,
                   10
                 ],
-                "effective_yield_t_ha": 1.8,
-                "profit_php": 56225.0
+                "effective_yield_t_ha": 10.8,
+                "profit_php": 59817.0
               },
               {
                 "season_index": 3,
                 "season_label": "Y2 Dry (Dec–May)",
                 "season_type": "dry",
-                "crop_id": "peanut",
-                "crop_name": "Peanut",
+                "crop_id": "mungbean",
+                "crop_name": "Mungbean (Monggo)",
                 "family": "Fabaceae",
-                "demand_mm": 389.6,
-                "supply_mm": 671.3,
+                "demand_mm": 230.5,
+                "supply_mm": 328.1,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.264,
-                "pest_loss": 0.04,
-                "pest_broken_badge": false,
-                "soil_n": 86.0,
+                "pest_level": 0.036,
+                "pest_loss": 0.005,
+                "pest_broken_badge": true,
+                "soil_n": 90.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 23.4,
+                "erosion_index": 20.4,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 1.73,
-                "profit_php": 52985.0
+                "effective_yield_t_ha": 1.19,
+                "profit_php": 51998.0
               },
               {
                 "season_index": 4,
@@ -2496,54 +2826,55 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 395.2,
-                "supply_mm": 897.9,
+                "demand_mm": 375.4,
+                "supply_mm": 799.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.079,
-                "pest_loss": 0.012,
+                "pest_level": 0.011,
+                "pest_loss": 0.002,
                 "pest_broken_badge": true,
-                "soil_n": 80.0,
+                "soil_n": 84.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 29.7,
+                "erosion_index": 39.9,
                 "bare_soil_erosion_months": [
+                  9,
                   10
                 ],
-                "effective_yield_t_ha": 10.87,
-                "profit_php": 60391.0
+                "effective_yield_t_ha": 10.98,
+                "profit_php": 61349.0
               },
               {
                 "season_index": 5,
                 "season_label": "Y3 Dry (Dec–May)",
                 "season_type": "dry",
-                "crop_id": "peanut",
-                "crop_name": "Peanut",
+                "crop_id": "mungbean",
+                "crop_name": "Mungbean (Monggo)",
                 "family": "Fabaceae",
-                "demand_mm": 389.6,
-                "supply_mm": 671.3,
+                "demand_mm": 230.5,
+                "supply_mm": 328.1,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
                 "heat_loss": 0.0,
-                "pest_level": 0.024,
-                "pest_loss": 0.004,
+                "pest_level": 0.003,
+                "pest_loss": 0.0,
                 "pest_broken_badge": true,
-                "soil_n": 90.0,
+                "soil_n": 96.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 23.4,
+                "erosion_index": 20.4,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 1.79,
-                "profit_php": 56093.0
+                "effective_yield_t_ha": 1.2,
+                "profit_php": 52364.0
               }
             ],
             "why_bullets": [
               "Breaks pest cycles 4 times across 3 years using 4 nitrogen-fixing legume season(s).",
-              "Ends with Soil N at 90 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
-              "Excludes high-water crops to protect against drought: El Niño profit change is +0.0% (vs +0.0% in Plan A)."
+              "Ends with Soil N at 96 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
+              "Excludes high-water crops to protect against drought: El Niño profit change is +0.0% (vs -39.2% in Plan A)."
             ]
           }
         }
@@ -2561,7 +2892,7 @@
             "kpis": {
               "total_profit_php": 128995.0,
               "worst_season_profit_php": 8550.0,
-              "profit_elnino_delta_pct": -4.2,
+              "profit_elnino_delta_pct": -20.5,
               "total_water_gap_mm": 0.0,
               "total_pumped_mm": 0.0,
               "final_soil_n": 10.0,
@@ -2571,7 +2902,7 @@
               "pest_break_count": 0,
               "water_score": 100.0,
               "soil_score": 25.3,
-              "economy_score": 12.6
+              "economy_score": 28.3
             },
             "seasons": [
               {
@@ -2581,8 +2912,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 412.3,
-                "supply_mm": 1516.5,
+                "demand_mm": 467.2,
+                "supply_mm": 914.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2608,8 +2939,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 386.2,
-                "supply_mm": 975.2,
+                "demand_mm": 315.2,
+                "supply_mm": 750.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2634,8 +2965,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 412.3,
-                "supply_mm": 1525.0,
+                "demand_mm": 467.2,
+                "supply_mm": 923.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2661,8 +2992,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 386.2,
-                "supply_mm": 975.2,
+                "demand_mm": 315.2,
+                "supply_mm": 750.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2687,8 +3018,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 412.3,
-                "supply_mm": 1525.0,
+                "demand_mm": 467.2,
+                "supply_mm": 923.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2714,8 +3045,8 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 386.2,
-                "supply_mm": 975.2,
+                "demand_mm": 315.2,
+                "supply_mm": 750.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2737,7 +3068,7 @@
             "why_bullets": [
               "Repeats Yellow/White Corn for all 6 seasons, ending with Soil N at 10 kg/ha (-55.0).",
               "Requires PHP 35,460 in extra urea top-up to offset nitrogen depletion.",
-              "Zero botanical family breaks: pest pressure compounds across seasons (-4.2% profit change under El Niño)."
+              "Zero botanical family breaks: pest pressure compounds across seasons (-20.5% profit change under El Niño)."
             ]
           },
           "plan_b": {
@@ -2757,7 +3088,7 @@
               "pest_break_count": 4,
               "water_score": 100.0,
               "soil_score": 79.1,
-              "economy_score": 96.1
+              "economy_score": 96.8
             },
             "seasons": [
               {
@@ -2767,8 +3098,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 352.8,
-                "supply_mm": 1516.5,
+                "demand_mm": 403.4,
+                "supply_mm": 914.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2795,8 +3126,8 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 330.4,
-                "supply_mm": 975.2,
+                "demand_mm": 258.2,
+                "supply_mm": 750.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2821,8 +3152,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 352.8,
-                "supply_mm": 1525.0,
+                "demand_mm": 403.4,
+                "supply_mm": 923.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2849,8 +3180,8 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 330.4,
-                "supply_mm": 975.2,
+                "demand_mm": 258.2,
+                "supply_mm": 750.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2875,8 +3206,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 352.8,
-                "supply_mm": 1525.0,
+                "demand_mm": 403.4,
+                "supply_mm": 923.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2903,8 +3234,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 330.4,
-                "supply_mm": 975.2,
+                "demand_mm": 258.2,
+                "supply_mm": 750.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2946,7 +3277,7 @@
               "pest_break_count": 4,
               "water_score": 100.0,
               "soil_score": 78.8,
-              "economy_score": 95.5
+              "economy_score": 96.3
             },
             "seasons": [
               {
@@ -2956,8 +3287,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 352.8,
-                "supply_mm": 1516.5,
+                "demand_mm": 403.4,
+                "supply_mm": 914.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -2984,8 +3315,8 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 330.4,
-                "supply_mm": 975.2,
+                "demand_mm": 258.2,
+                "supply_mm": 750.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3010,8 +3341,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 352.8,
-                "supply_mm": 1525.0,
+                "demand_mm": 403.4,
+                "supply_mm": 923.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3038,8 +3369,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 330.4,
-                "supply_mm": 975.2,
+                "demand_mm": 258.2,
+                "supply_mm": 750.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3064,8 +3395,8 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 352.8,
-                "supply_mm": 1525.0,
+                "demand_mm": 403.4,
+                "supply_mm": 923.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3092,8 +3423,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 330.4,
-                "supply_mm": 975.2,
+                "demand_mm": 258.2,
+                "supply_mm": 750.9,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3115,7 +3446,7 @@
             "why_bullets": [
               "Breaks pest cycles 4 times across 3 years using 4 nitrogen-fixing legume season(s).",
               "Ends with Soil N at 90 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
-              "Excludes high-water crops to protect against drought: El Niño profit change is +0.0% (vs -4.2% in Plan A)."
+              "Excludes high-water crops to protect against drought: El Niño profit change is +0.0% (vs -20.5% in Plan A)."
             ]
           }
         },
@@ -3125,19 +3456,19 @@
             "title": "Plan A: Status Quo",
             "subtitle": "Continuous Monoculture (El Niño)",
             "kpis": {
-              "total_profit_php": 123539.0,
-              "worst_season_profit_php": 6944.0,
-              "profit_elnino_delta_pct": -4.2,
-              "total_water_gap_mm": 0.0,
+              "total_profit_php": 102564.0,
+              "worst_season_profit_php": 1326.0,
+              "profit_elnino_delta_pct": -20.5,
+              "total_water_gap_mm": 3.9,
               "total_pumped_mm": 0.0,
               "final_soil_n": 10.0,
               "soil_n_delta": -55.0,
-              "mean_erosion_index": 40.0,
-              "bare_month_count": 6,
+              "mean_erosion_index": 39.3,
+              "bare_month_count": 3,
               "pest_break_count": 0,
-              "water_score": 100.0,
-              "soil_score": 29.3,
-              "economy_score": 13.5
+              "water_score": 99.5,
+              "soil_score": 29.5,
+              "economy_score": 29.9
             },
             "seasons": [
               {
@@ -3147,25 +3478,24 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 425.4,
-                "supply_mm": 1147.6,
+                "demand_mm": 492.1,
+                "supply_mm": 679.6,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
-                "heat_loss": 0.0,
+                "heat_loss": 0.131,
                 "pest_level": 0.15,
                 "pest_loss": 0.022,
                 "pest_broken_badge": false,
                 "soil_n": 47.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 49.5,
+                "erosion_index": 44.6,
                 "bare_soil_erosion_months": [
-                  10,
-                  11
+                  10
                 ],
-                "effective_yield_t_ha": 4.69,
-                "profit_php": 46110.0
+                "effective_yield_t_ha": 4.08,
+                "profit_php": 35391.0
               },
               {
                 "season_index": 1,
@@ -3174,22 +3504,22 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 400.2,
-                "supply_mm": 750.8,
+                "demand_mm": 320.1,
+                "supply_mm": 677.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
-                "heat_loss": 0.03,
+                "heat_loss": 0.0,
                 "pest_level": 0.4,
                 "pest_loss": 0.06,
                 "pest_broken_badge": false,
                 "soil_n": 26.0,
                 "urea_cost_php": 2340.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 30.5,
+                "erosion_index": 34.0,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 4.09,
-                "profit_php": 33273.0
+                "effective_yield_t_ha": 4.22,
+                "profit_php": 35488.0
               },
               {
                 "season_index": 2,
@@ -3198,25 +3528,24 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 425.4,
-                "supply_mm": 1163.9,
-                "water_gap_mm": 0.0,
+                "demand_mm": 492.1,
+                "supply_mm": 672.7,
+                "water_gap_mm": 2.0,
                 "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
-                "heat_loss": 0.0,
+                "water_yield_loss": 0.005,
+                "heat_loss": 0.131,
                 "pest_level": 0.65,
                 "pest_loss": 0.098,
                 "pest_broken_badge": false,
                 "soil_n": 10.0,
                 "urea_cost_php": 6120.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 49.5,
+                "erosion_index": 44.6,
                 "bare_soil_erosion_months": [
-                  10,
-                  11
+                  10
                 ],
-                "effective_yield_t_ha": 3.6,
-                "profit_php": 20802.0
+                "effective_yield_t_ha": 3.11,
+                "profit_php": 12314.0
               },
               {
                 "season_index": 3,
@@ -3225,22 +3554,22 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 400.2,
-                "supply_mm": 750.8,
+                "demand_mm": 320.1,
+                "supply_mm": 677.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
-                "heat_loss": 0.03,
+                "heat_loss": 0.0,
                 "pest_level": 0.9,
                 "pest_loss": 0.135,
                 "pest_broken_badge": false,
                 "soil_n": 10.0,
                 "urea_cost_php": 9000.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 30.5,
+                "erosion_index": 34.0,
                 "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 3.02,
-                "profit_php": 7860.0
+                "effective_yield_t_ha": 3.11,
+                "profit_php": 9495.0
               },
               {
                 "season_index": 4,
@@ -3249,8 +3578,34 @@
                 "crop_id": "corn",
                 "crop_name": "Yellow/White Corn",
                 "family": "Poaceae",
-                "demand_mm": 425.4,
-                "supply_mm": 1163.9,
+                "demand_mm": 492.1,
+                "supply_mm": 672.7,
+                "water_gap_mm": 2.0,
+                "pumped_mm": 0.0,
+                "water_yield_loss": 0.005,
+                "heat_loss": 0.131,
+                "pest_level": 1.0,
+                "pest_loss": 0.15,
+                "pest_broken_badge": false,
+                "soil_n": 10.0,
+                "urea_cost_php": 9000.0,
+                "pump_cost_php": 0.0,
+                "erosion_index": 44.6,
+                "bare_soil_erosion_months": [
+                  10
+                ],
+                "effective_yield_t_ha": 2.65,
+                "profit_php": 1326.0
+              },
+              {
+                "season_index": 5,
+                "season_label": "Y3 Dry (Dec–May)",
+                "season_type": "dry",
+                "crop_id": "corn",
+                "crop_name": "Yellow/White Corn",
+                "family": "Poaceae",
+                "demand_mm": 320.1,
+                "supply_mm": 677.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3261,43 +3616,16 @@
                 "soil_n": 10.0,
                 "urea_cost_php": 9000.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 49.5,
-                "bare_soil_erosion_months": [
-                  10,
-                  11
-                ],
+                "erosion_index": 34.0,
+                "bare_soil_erosion_months": [],
                 "effective_yield_t_ha": 3.06,
                 "profit_php": 8550.0
-              },
-              {
-                "season_index": 5,
-                "season_label": "Y3 Dry (Dec–May)",
-                "season_type": "dry",
-                "crop_id": "corn",
-                "crop_name": "Yellow/White Corn",
-                "family": "Poaceae",
-                "demand_mm": 400.2,
-                "supply_mm": 750.8,
-                "water_gap_mm": 0.0,
-                "pumped_mm": 0.0,
-                "water_yield_loss": 0.0,
-                "heat_loss": 0.03,
-                "pest_level": 1.0,
-                "pest_loss": 0.15,
-                "pest_broken_badge": false,
-                "soil_n": 10.0,
-                "urea_cost_php": 9000.0,
-                "pump_cost_php": 0.0,
-                "erosion_index": 30.5,
-                "bare_soil_erosion_months": [],
-                "effective_yield_t_ha": 2.97,
-                "profit_php": 6944.0
               }
             ],
             "why_bullets": [
               "Repeats Yellow/White Corn for all 6 seasons, ending with Soil N at 10 kg/ha (-55.0).",
               "Requires PHP 35,460 in extra urea top-up to offset nitrogen depletion.",
-              "Zero botanical family breaks: pest pressure compounds across seasons (-4.2% profit change under El Niño)."
+              "Zero botanical family breaks: pest pressure compounds across seasons (-20.5% profit change under El Niño)."
             ]
           },
           "plan_b": {
@@ -3312,12 +3640,12 @@
               "total_pumped_mm": 0.0,
               "final_soil_n": 90.0,
               "soil_n_delta": 25.0,
-              "mean_erosion_index": 36.0,
-              "bare_month_count": 6,
+              "mean_erosion_index": 35.2,
+              "bare_month_count": 3,
               "pest_break_count": 4,
               "water_score": 100.0,
-              "soil_score": 82.7,
-              "economy_score": 96.2
+              "soil_score": 82.9,
+              "economy_score": 97.2
             },
             "seasons": [
               {
@@ -3327,8 +3655,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 364.0,
-                "supply_mm": 1147.6,
+                "demand_mm": 421.0,
+                "supply_mm": 679.6,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3339,10 +3667,9 @@
                 "soil_n": 75.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 45.6,
+                "erosion_index": 41.1,
                 "bare_soil_erosion_months": [
-                  10,
-                  11
+                  10
                 ],
                 "effective_yield_t_ha": 1.76,
                 "profit_php": 54456.0
@@ -3354,8 +3681,8 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 342.4,
-                "supply_mm": 750.8,
+                "demand_mm": 267.0,
+                "supply_mm": 677.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3366,7 +3693,7 @@
                 "soil_n": 69.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 25.5,
+                "erosion_index": 28.5,
                 "bare_soil_erosion_months": [],
                 "effective_yield_t_ha": 10.93,
                 "profit_php": 60869.0
@@ -3378,8 +3705,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 364.0,
-                "supply_mm": 1163.9,
+                "demand_mm": 421.0,
+                "supply_mm": 685.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3390,10 +3717,9 @@
                 "soil_n": 79.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 45.6,
+                "erosion_index": 41.1,
                 "bare_soil_erosion_months": [
-                  10,
-                  11
+                  10
                 ],
                 "effective_yield_t_ha": 1.8,
                 "profit_php": 56225.0
@@ -3405,8 +3731,8 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 342.4,
-                "supply_mm": 750.8,
+                "demand_mm": 267.0,
+                "supply_mm": 677.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3417,7 +3743,7 @@
                 "soil_n": 73.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 25.5,
+                "erosion_index": 28.5,
                 "bare_soil_erosion_months": [],
                 "effective_yield_t_ha": 10.99,
                 "profit_php": 61443.0
@@ -3429,8 +3755,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 364.0,
-                "supply_mm": 1163.9,
+                "demand_mm": 421.0,
+                "supply_mm": 685.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3441,10 +3767,9 @@
                 "soil_n": 83.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 45.6,
+                "erosion_index": 41.1,
                 "bare_soil_erosion_months": [
-                  10,
-                  11
+                  10
                 ],
                 "effective_yield_t_ha": 1.8,
                 "profit_php": 56384.0
@@ -3456,8 +3781,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 342.4,
-                "supply_mm": 750.8,
+                "demand_mm": 267.0,
+                "supply_mm": 677.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3468,7 +3793,7 @@
                 "soil_n": 90.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 28.1,
+                "erosion_index": 31.3,
                 "bare_soil_erosion_months": [],
                 "effective_yield_t_ha": 1.73,
                 "profit_php": 53144.0
@@ -3477,7 +3802,7 @@
             "why_bullets": [
               "Breaks pest cycles 4 times across 3 years using 4 nitrogen-fixing legume season(s).",
               "Ends with Soil N at 90 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
-              "Net 3-year profit is PHP 342,522 (+218,983 vs Status Quo) with +0.0% El Niño shift."
+              "Net 3-year profit is PHP 342,522 (+239,958 vs Status Quo) with +0.0% El Niño shift."
             ]
           },
           "plan_c": {
@@ -3492,12 +3817,12 @@
               "total_pumped_mm": 0.0,
               "final_soil_n": 90.0,
               "soil_n_delta": 25.0,
-              "mean_erosion_index": 35.7,
-              "bare_month_count": 6,
+              "mean_erosion_index": 35.1,
+              "bare_month_count": 3,
               "pest_break_count": 4,
               "water_score": 100.0,
-              "soil_score": 82.4,
-              "economy_score": 95.7
+              "soil_score": 82.6,
+              "economy_score": 96.8
             },
             "seasons": [
               {
@@ -3507,8 +3832,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 364.0,
-                "supply_mm": 1147.6,
+                "demand_mm": 421.0,
+                "supply_mm": 679.6,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3519,10 +3844,9 @@
                 "soil_n": 75.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 45.6,
+                "erosion_index": 41.1,
                 "bare_soil_erosion_months": [
-                  10,
-                  11
+                  10
                 ],
                 "effective_yield_t_ha": 1.76,
                 "profit_php": 54456.0
@@ -3534,8 +3858,8 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 342.4,
-                "supply_mm": 750.8,
+                "demand_mm": 267.0,
+                "supply_mm": 677.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3546,7 +3870,7 @@
                 "soil_n": 69.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 25.5,
+                "erosion_index": 28.5,
                 "bare_soil_erosion_months": [],
                 "effective_yield_t_ha": 10.93,
                 "profit_php": 60869.0
@@ -3558,8 +3882,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 364.0,
-                "supply_mm": 1163.9,
+                "demand_mm": 421.0,
+                "supply_mm": 685.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3570,10 +3894,9 @@
                 "soil_n": 79.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 45.6,
+                "erosion_index": 41.1,
                 "bare_soil_erosion_months": [
-                  10,
-                  11
+                  10
                 ],
                 "effective_yield_t_ha": 1.8,
                 "profit_php": 56225.0
@@ -3585,8 +3908,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 342.4,
-                "supply_mm": 750.8,
+                "demand_mm": 267.0,
+                "supply_mm": 677.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3597,7 +3920,7 @@
                 "soil_n": 86.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 28.1,
+                "erosion_index": 31.3,
                 "bare_soil_erosion_months": [],
                 "effective_yield_t_ha": 1.73,
                 "profit_php": 52985.0
@@ -3609,8 +3932,8 @@
                 "crop_id": "sweet_potato",
                 "crop_name": "Sweet Potato (Camote)",
                 "family": "Convolvulaceae",
-                "demand_mm": 364.0,
-                "supply_mm": 1163.9,
+                "demand_mm": 421.0,
+                "supply_mm": 685.8,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3621,10 +3944,9 @@
                 "soil_n": 80.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 41.4,
+                "erosion_index": 37.3,
                 "bare_soil_erosion_months": [
-                  10,
-                  11
+                  10
                 ],
                 "effective_yield_t_ha": 10.87,
                 "profit_php": 60391.0
@@ -3636,8 +3958,8 @@
                 "crop_id": "peanut",
                 "crop_name": "Peanut",
                 "family": "Fabaceae",
-                "demand_mm": 342.4,
-                "supply_mm": 750.8,
+                "demand_mm": 267.0,
+                "supply_mm": 677.3,
                 "water_gap_mm": 0.0,
                 "pumped_mm": 0.0,
                 "water_yield_loss": 0.0,
@@ -3648,7 +3970,7 @@
                 "soil_n": 90.0,
                 "urea_cost_php": 0.0,
                 "pump_cost_php": 0.0,
-                "erosion_index": 28.1,
+                "erosion_index": 31.3,
                 "bare_soil_erosion_months": [],
                 "effective_yield_t_ha": 1.79,
                 "profit_php": 56093.0
@@ -3657,7 +3979,7 @@
             "why_bullets": [
               "Breaks pest cycles 4 times across 3 years using 4 nitrogen-fixing legume season(s).",
               "Ends with Soil N at 90 kg/ha (vs 10 in Plan A) and urea cost PHP 0.",
-              "Excludes high-water crops to protect against drought: El Niño profit change is +0.0% (vs -4.2% in Plan A)."
+              "Excludes high-water crops to protect against drought: El Niño profit change is +0.0% (vs -20.5% in Plan A)."
             ]
           }
         }
