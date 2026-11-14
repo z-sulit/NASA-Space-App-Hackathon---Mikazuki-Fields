@@ -1,0 +1,282 @@
+{
+  "location": {
+    "preset_id": "davao_del_sur",
+    "name": "Digos, Davao del Sur",
+    "lat": 6.75,
+    "lon": 125.36,
+    "is_custom_pin": false
+  },
+  "terrain": {
+    "elevation_m": 19.0,
+    "slope_pct": 2.9,
+    "erosion_risk_label": "Low (Flat Plains)"
+  },
+  "ndvi_profile": {
+    "mean_ndvi": 0.36,
+    "historical_bare_months": [
+      2,
+      3
+    ],
+    "el_nino_ndvi_drop_pct": 5.0
+  },
+  "climate": {
+    "normal": {
+      "wet": {
+        "rain_mm": 1324.4,
+        "t2m_c": 28.09,
+        "tmax_c": 32.77,
+        "gwetroot": 0.848,
+        "allsky_mj": 18.94,
+        "et0_mm_day": 4.79,
+        "heavy_rain_months": [
+          6,
+          7,
+          8,
+          10
+        ],
+        "monthly_rain_mm": [
+          226.1,
+          257.7,
+          204.5,
+          191.9,
+          303.1,
+          141.0
+        ],
+        "monthly_tmax_c": [
+          33.06,
+          32.66,
+          32.21,
+          32.58,
+          33.18,
+          32.95
+        ],
+        "monthly_et0_mm_day": [
+          4.71,
+          4.67,
+          4.87,
+          5.08,
+          4.86,
+          4.53
+        ]
+      },
+      "dry": {
+        "rain_mm": 949.5,
+        "t2m_c": 27.5,
+        "tmax_c": 32.67,
+        "gwetroot": 0.816,
+        "allsky_mj": 18.91,
+        "et0_mm_day": 4.72,
+        "heavy_rain_months": [
+          1
+        ],
+        "monthly_rain_mm": [
+          180.1,
+          230.9,
+          140.0,
+          85.1,
+          118.3,
+          195.1
+        ],
+        "monthly_tmax_c": [
+          32.14,
+          31.44,
+          31.59,
+          33.0,
+          33.74,
+          34.08
+        ],
+        "monthly_et0_mm_day": [
+          4.14,
+          3.98,
+          4.6,
+          5.16,
+          5.42,
+          5.02
+        ]
+      }
+    },
+    "elnino": {
+      "wet": {
+        "rain_mm": 1336.7,
+        "t2m_c": 27.76,
+        "tmax_c": 32.81,
+        "gwetroot": 0.815,
+        "allsky_mj": 18.54,
+        "et0_mm_day": 4.65,
+        "heavy_rain_months": [
+          6,
+          7,
+          9,
+          10
+        ],
+        "monthly_rain_mm": [
+          265.8,
+          217.9,
+          168.6,
+          237.3,
+          298.8,
+          148.2
+        ],
+        "monthly_tmax_c": [
+          34.67,
+          31.47,
+          32.3,
+          32.96,
+          32.03,
+          33.43
+        ],
+        "monthly_et0_mm_day": [
+          4.46,
+          4.94,
+          4.7,
+          4.63,
+          4.61,
+          4.57
+        ]
+      },
+      "dry": {
+        "rain_mm": 496.5,
+        "t2m_c": 27.61,
+        "tmax_c": 32.75,
+        "gwetroot": 0.697,
+        "allsky_mj": 20.8,
+        "et0_mm_day": 5.2,
+        "heavy_rain_months": [],
+        "monthly_rain_mm": [
+          154.1,
+          36.9,
+          91.9,
+          41.5,
+          47.4,
+          124.6
+        ],
+        "monthly_tmax_c": [
+          32.06,
+          31.69,
+          32.11,
+          32.94,
+          34.18,
+          33.52
+        ],
+        "monthly_et0_mm_day": [
+          4.62,
+          4.81,
+          4.88,
+          5.87,
+          5.94,
+          5.11
+        ]
+      }
+    },
+    "elnino_basis": "observed_2015_2016"
+  },
+  "banner_metrics": [
+    {
+      "id": "soil_thirst",
+      "scientific_term": "GWETROOT (0.82 Dry / 0.85 Wet)",
+      "farmer_label": "Soil Thirst Level",
+      "value_display": "Soaked in Dry Season",
+      "status": "good",
+      "source": "NASA POWER (MERRA-2)",
+      "tooltip": "Water left where roots drink, top ~1 m. 0 is bone dry, 1 is soaked."
+    },
+    {
+      "id": "daily_water_use",
+      "scientific_term": "ET0 Hargreaves (4.72 Dry / 4.79 Wet mm/day)",
+      "farmer_label": "Daily Water Use",
+      "value_display": "4.8 mm/day (~47,900 L/ha)",
+      "status": "warning",
+      "source": "NASA POWER (T2M + ALLSKY_SFC_SW_DWN)",
+      "tooltip": "Water that sun and heat pull from soil and leaves. 5 mm a day is 50,000 litres per hectare."
+    },
+    {
+      "id": "seasonal_rain",
+      "scientific_term": "PRECTOTCORR (1324 mm Wet / 950 mm Dry)",
+      "farmer_label": "Rain You Can Count On",
+      "value_display": "1324 mm Wet · 950 mm Dry",
+      "status": "good",
+      "source": "NASA POWER (2015–2024)",
+      "tooltip": "Average rain for this season from 10 years of NASA records (2015–2024)."
+    },
+    {
+      "id": "erosion_slope",
+      "scientific_term": "SRTM 30m Slope (2.9%)",
+      "farmer_label": "Erosion Slope Risk",
+      "value_display": "2.9% slope · Low (Flat Plains)",
+      "status": "good",
+      "source": "NASA SRTM 30m (OpenTopoData)",
+      "tooltip": "How steep your field is. Steep + bare + heavy rain washes topsoil away."
+    },
+    {
+      "id": "green_cover",
+      "scientific_term": "MODIS MOD13Q1 NDVI (mean 0.36)",
+      "farmer_label": "Green Cover Score",
+      "value_display": "NDVI 0.36 · bare in Feb, Mar",
+      "status": "warning",
+      "source": "NASA MODIS MOD13Q1 (ORNL DAAC, 2015–2024)",
+      "tooltip": "How green your land looks from space. Below 0.3 is mostly bare soil."
+    }
+  ],
+  "provenance": {
+    "terrain": {
+      "method": "pin_central_difference",
+      "pin_slope_pct": 2.86
+    },
+    "ndvi": {
+      "monthly_median_ndvi": {
+        "1": 0.338,
+        "2": 0.348,
+        "3": 0.353,
+        "4": 0.366,
+        "5": 0.378,
+        "6": 0.346,
+        "7": 0.369,
+        "8": 0.359,
+        "9": 0.357,
+        "10": 0.362,
+        "11": 0.365,
+        "12": 0.377
+      },
+      "raw_bare_months_below_0.30": [],
+      "bare_months_method": "dry_season_post_harvest_trough",
+      "normal_peak_dry_ndvi_mean": 0.354,
+      "el_nino_drop_method": "modis_peak_dry_trough_[2, 3, 4]",
+      "el_nino_events": {
+        "2015_2016": {
+          "peak_dry_ndvi_mean": 0.333,
+          "drop_pct_vs_normal_peak_dry": 6.0,
+          "n_composites": 6
+        },
+        "2023_2024": {
+          "peak_dry_ndvi_mean": 0.34,
+          "drop_pct_vs_normal_peak_dry": 4.0,
+          "n_composites": 6
+        }
+      }
+    },
+    "historical_el_nino_validation": {
+      "2015_2016": {
+        "dry_rain_mm": 496.5,
+        "normal_dry_rain_mm": 949.5,
+        "rain_change_pct": -47.7,
+        "dry_tmax_c": 32.75,
+        "tmax_delta_c": 0.08,
+        "dry_gwetroot": 0.697,
+        "gwetroot_change_pct": -14.6,
+        "dry_allsky_mj": 20.8,
+        "allsky_change_pct": 10.0
+      },
+      "2023_2024": {
+        "dry_rain_mm": 660.9,
+        "normal_dry_rain_mm": 949.5,
+        "rain_change_pct": -30.4,
+        "dry_tmax_c": 32.98,
+        "tmax_delta_c": 0.31,
+        "dry_gwetroot": 0.747,
+        "gwetroot_change_pct": -8.5,
+        "dry_allsky_mj": 19.45,
+        "allsky_change_pct": 2.9
+      }
+    }
+  }
+}
