@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Languages, Loader2, Sun } from "lucide-react";
-import { Hero } from "./components/Hero";
-import { Boot } from "./components/Boot";
+import { Mission } from "./components/mission/Mission";
 import { CropHangar } from "./components/CropHangar";
 import { Field3D } from "./components/Field3D";
 import presetsJson from "./data/presets.json";
@@ -127,8 +126,6 @@ export default function App() {
 
   return (
     <div className="min-h-dvh">
-      <Boot presets={PRESETS} onDone={onBooted} />
-
       {lang === null && booted && (
         <LanguagePicker
           onPick={(l) => {
@@ -138,9 +135,21 @@ export default function App() {
         />
       )}
 
-      <Hero
-        preset={preset}
-        ready={booted}
+      <Mission
+        presets={PRESETS}
+        result={result}
+        resultFor={busy ? null : (planned?.presetId ?? null)}
+        ready={result !== null}
+        scenario={scenario}
+        onScenario={toggleScenario}
+        onTarget={(id) => {
+          const next = { ...req, presetId: id };
+          setPin(null);
+          setReq(next);
+          void plan(next);
+        }}
+        onReady={onBooted}
+        onOpenPlanner={() => document.getElementById("planner")?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth" })}
         topRight={
           <>
           {result?.source === "demo" && (

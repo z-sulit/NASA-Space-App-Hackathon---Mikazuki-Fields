@@ -14,6 +14,7 @@ npm run dev        # http://localhost:5173
 
 ## What works
 
+- **Opening mission** (`src/components/mission/`, from the team sketch): 1) an interactive WebGL field of green tiles (tiles rise around the pointer, tap to plant a patch) with a loading bar that becomes START; 2) a cockpit targeting view over the real map with a reticle and data panels; 3) lock a farm and the camera flies down to it; 4) a 3D field plants itself season by season and the field-data panel slides in (switch routes A/B/C, toggle the dry spell, jump to the full planner).
 - All 4 regions: **Your farm** sidebar (Leaflet map, presets, soil, water, goal, 3 priority sliders, ground-truth drawer), **What NASA sees** banner with tap-to-open plain-English tooltips, **Compare 3 routes** with the El Niño toggle, Pest Cycle Broken and Bare-Soil badges, KPI strips, "Why this route" bullets and charts, and the **limitations** box.
 - Phone layout: the farm card collapses after planning, NASA chips scroll sideways, plans become A / B / C tabs (no horizontal page scroll at 375 px).
 - First-run language picker (English only for now; other languages fall back to English).
