@@ -84,8 +84,9 @@ export function TargetMap({
     m.setView(home(), homeZoom(), { animate: false });
 
     presets.forEach((p) => {
-      const icon = L.divIcon({ className: "", html: `<span class="tgt"><i></i><b>${p.name.split(" (")[0]}</b></span>`, iconSize: [0, 0] });
-      L.marker([p.lat, p.lon], { icon, keyboard: true, title: p.name, bubblingMouseEvents: false })
+      const short = p.name.split(" (")[0];
+      const icon = L.divIcon({ className: "", html: `<span class="tgt"><i></i><b>${short} · Ref</b></span>`, iconSize: [0, 0] });
+      L.marker([p.lat, p.lon], { icon, keyboard: true, title: `Reference site: ${p.name}`, bubblingMouseEvents: false })
         .on("mouseover", () => handlers.current.onHover(p.id))
         .on("mouseout", () => handlers.current.onHover(null))
         .on("click", (e) => {
