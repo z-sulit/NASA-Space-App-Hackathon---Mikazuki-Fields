@@ -52,6 +52,15 @@
   li {
     text-wrap: pretty;
   }
+  /* Tailwind v4 resets buttons to the default cursor; controls should say they are clickable. */
+  button:not(:disabled),
+  [role="button"],
+  [role="option"],
+  [role="switch"],
+  summary,
+  label:has(> [role="switch"]) {
+    cursor: pointer;
+  }
 }
 
 @layer components {
