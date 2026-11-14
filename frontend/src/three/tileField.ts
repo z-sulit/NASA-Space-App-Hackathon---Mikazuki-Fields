@@ -212,7 +212,8 @@ export function createTileField(host: HTMLElement): FieldHandle {
       let target: number;
       if (exiting) {
         const k = (now - exitStart) / 1000 - tile.exitAt;
-        target = k > 0 ? -9 : 0;
+        // Anticipation: each tile lifts a little just before it falls.
+        target = k > 0 ? -9 : k > -0.14 ? 0.45 : 0;
       } else if (t < tile.enter) {
         target = -3;
       } else {

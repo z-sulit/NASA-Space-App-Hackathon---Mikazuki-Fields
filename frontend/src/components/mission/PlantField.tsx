@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import type { PlantHandle, PlotSpec } from "../../three/plantScene";
 
 /** React wrapper for the WebGL plantation. Shows a simple message if WebGL is missing. */
@@ -61,7 +62,12 @@ export function PlantField({ plots, plantKey, onSeason, drought = false, focus =
 
   return (
     <div ref={host} className="absolute inset-0" aria-label="3D view of your field being planted, one plot per season">
-      {failed && <p className="micro absolute top-1/2 left-1/2 -translate-x-1/2 text-[#f6efeb]/80">3D view needs WebGL; your field data is on the right.</p>}
+      {!ready && !failed && (
+        <p className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 text-sm text-ink/80">
+          <Loader2 className="size-4 animate-spin" aria-hidden /> Preparing your 3D field…
+        </p>
+      )}
+      {failed && <p className="micro absolute top-1/2 left-1/2 -translate-x-1/2 text-ink/80">3D view needs WebGL; your field data is on the right.</p>}
     </div>
   );
 }
