@@ -147,7 +147,7 @@ npm run dev
 ## Team Tekkadan Roster
 
 - **Lorenzo Sulit (Data Engineer & API Infrastructure):** NASA multi-dataset ingestion pipeline (`NASA POWER`, `SRTM 30m`, `MODIS MOD13Q1`), Philippine farm preset JSONs, FastAPI backend endpoints, live custom map-pin caching, historical El Niño anomaly validation, and cloud/serverless deployment infrastructure.
-- **Micku Lamsin (Agronomic Modeler, Vectorized Optimizer, QA & Data Verification):** 8-crop library calibration (`FAO-56`, `FAO-33`, `PSA OpenSTAT`), vectorized NumPy 6-season simulation engine ($8^6 = 262,144$ rotations), deterministic explanations, automated `pytest` verification suite, and end-to-end QA & data verification.
+- **Micku Lamsin (Agronomic Modeler, Vectorized Optimizer, QA & Data Science):** 8-crop library calibration (`FAO-56`, `FAO-33`, `PSA OpenSTAT`), vectorized NumPy 6-season simulation engine ($8^6 = 262,144$ rotations), deterministic explanations, automated `pytest` verification suite, and end-to-end QA & data verification.
 - **Ezekiel Corpuz (Frontend Lead, UI/UX & Pitching):** 4-region React + Vite + TypeScript + Three.js interface, interactive map picker, 3-plan comparison cards, Recharts graphs, plain-English jargon translator UI, and project pitch & live demo presentation.
 
 ---
