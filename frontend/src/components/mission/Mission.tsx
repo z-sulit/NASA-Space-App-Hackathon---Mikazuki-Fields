@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { ArrowLeft, ArrowRight, Crosshair, Info, Loader2, Lock, MapPin, Sprout } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
@@ -12,6 +12,9 @@ import { TargetMap, type LatLon, type TargetMapHandle } from "./TargetMap";
 import { PickPlants, type Choice } from "./PickPlants";
 import { PlantField } from "./PlantField";
 import type { FieldHandle } from "../../three/tileField";
+
+/** Must match EXIT_MS in three/tileField.ts (kept here so the 3D chunk stays lazy). */
+const EXIT_MS = 1150;
 
 /**
  * The whole app as one step-by-step mission (from the team's sketch):
@@ -82,20 +85,21 @@ function TileField({ exiting, onExited }: { exiting: boolean; onExited: () => vo
     if (!exiting) return;
     if (handle.current) handle.current.exit(() => exitRef.current());
     else {
-      const t = setTimeout(() => exitRef.current(), prefersReducedMotion() ? 0 : 500);
+      const t = setTimeout(() => exitRef.current(), prefersReducedMotion() ? 0 : EXIT_MS);
       return () => clearTimeout(t);
     }
   }, [exiting]);
 
   return (
-    <div ref={host} className={`absolute inset-0 transition-opacity duration-700 ${exiting && !gl ? "opacity-0" : ""}`}>
+    // Fades out over the map underneath while the camera dives (see .tile-stage).
+    <div ref={host} className={`tile-stage ${exiting ? "is-leaving" : ""}`}>
       {!gl && <div className="tile-fallback absolute inset-0" aria-hidden />}
     </div>
   );
 }
 
-function Readout({ label, value }: { label: string; value: string }) {
-  const shown = useScramble(value, true, 520);
+function Readout({ label, value, live }: { label: string; value: string; live: boolean }) {
+  const shown = useScramble(value, live, 520);
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-[#f6efeb]/10 py-1.5">
       <dt className="micro text-[10.5px] text-[#f6efeb]/60">{label}</dt>
@@ -107,9 +111,12 @@ function Readout({ label, value }: { label: string; value: string }) {
 }
 
 /** Cockpit glass: canopy struts, heading tape, altitude ladder. Purely decorative. */
-function Canopy({ stage }: { stage: Stage }) {
+function Canopy({ stage, ref }: { stage: Stage; ref?: Ref<HTMLDivElement> }) {
+  // Outer: closes in around you once (and takes the pointer parallax). Inner: hover / thrust motion.
+  const cls = stage === "intro" ? "is-pre" : stage === "flying" || stage === "rising" ? "is-flying" : "";
   return (
-    <div className={`canopy ${stage === "flying" || stage === "rising" ? "is-flying" : ""}`} aria-hidden>
+    <div ref={ref} className={`canopy ${cls}`} aria-hidden>
+      <div className="canopy-body">
       <svg className="canopy-frame" viewBox="0 0 1600 900" preserveAspectRatio="none">
         <defs>
           <linearGradient id="strut" x1="0" x2="1">
@@ -133,6 +140,7 @@ function Canopy({ stage }: { stage: Stage }) {
         <span className="alt-ticks" />
       </div>
       <div className="glass-glare" />
+      </div>
     </div>
   );
 }
@@ -154,15 +162,20 @@ export function Mission({ presets, onReady, topRight }: { presets: Preset[]; onR
   const [customRotation, setCustomRotation] = useState<CropId[]>(["corn", "mungbean", "corn", "sweet_potato", "corn", "peanut"]);
   const [season, setSeason] = useState(-1);
   const mapRef = useRef<TargetMapHandle>(null);
-  const root = useRef<HTMLElement>(null);
+  const viewRef = useRef<HTMLDivElement>(null);
+  const canopyRef = useRef<HTMLDivElement>(null);
+  const [tilesAlive, setTilesAlive] = useState(true);
   const reduced = prefersReducedMotion();
 
+  const planSeq = useRef(0);
   const plan = useCallback(async (r: PlanRequest, p: Preset) => {
+    const seq = ++planSeq.current;
     setBusy(true);
     try {
-      setResult(await fetchPlans({ ...r, presetId: p.id }, p));
+      const res = await fetchPlans({ ...r, presetId: p.id }, p);
+      if (seq === planSeq.current) setResult(res); // ignore answers to older requests
     } finally {
-      setBusy(false);
+      if (seq === planSeq.current) setBusy(false);
     }
   }, []);
   // Warm the planner up during the intro so step 01 has something real to load.
@@ -189,18 +202,37 @@ export function Mission({ presets, onReady, topRight }: { presets: Preset[]; onR
     if (loaded) onReady();
   }, [loaded, onReady]);
 
-  // Cockpit parallax: the view shifts a little with the pointer.
+  // Cockpit parallax: the far map and the near canopy shift opposite ways with the pointer.
+  // Written straight to the two layers once per frame (cheap, compositor-only).
   useEffect(() => {
-    const el = root.current;
-    if (!el || reduced) return;
+    if (reduced) return;
+    let raf = 0;
+    let x = 0;
+    let y = 0;
+    const apply = () => {
+      raf = 0;
+      viewRef.current?.style.setProperty("translate", `${(-10 * x).toFixed(1)}px ${(-8 * y).toFixed(1)}px`);
+      canopyRef.current?.style.setProperty("translate", `${(16 * x).toFixed(1)}px ${(12 * y).toFixed(1)}px`);
+    };
     const move = (e: PointerEvent) => {
       if (e.pointerType !== "mouse") return;
-      el.style.setProperty("--mx", ((e.clientX / window.innerWidth) * 2 - 1).toFixed(3));
-      el.style.setProperty("--my", ((e.clientY / window.innerHeight) * 2 - 1).toFixed(3));
+      x = (e.clientX / window.innerWidth) * 2 - 1;
+      y = (e.clientY / window.innerHeight) * 2 - 1;
+      if (!raf) raf = requestAnimationFrame(apply);
     };
     window.addEventListener("pointermove", move);
-    return () => window.removeEventListener("pointermove", move);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      cancelAnimationFrame(raf);
+    };
   }, [reduced]);
+
+  // Tiles have faded out: hand over to the cockpit, and free the tile scene's GPU
+  // context only once the cockpit has settled (tearing it down mid-move stalls frames).
+  const tilesGone = useCallback(() => {
+    setStage((s) => (s === "leaving" ? "target" : s));
+    setTimeout(() => setTilesAlive(false), 2500);
+  }, []);
 
   const hovered = hoverId ? presets.find((p) => p.id === hoverId)! : null;
   const focus: Preset = stage === "target" && hovered ? hovered : target;
@@ -277,20 +309,19 @@ export function Mission({ presets, onReady, topRight }: { presets: Preset[]; onR
     : [];
   const onSeason = useCallback((i: number) => setSeason(i), []);
   const stepIndex = STEPS.findIndex((s) => s.stages.includes(stage));
-  const showMap = stage !== "intro";
+  const hudLive = stage !== "leaving";
+  const canopyOn = ["intro", "leaving", "target", "locking", "flying", "rising"].includes(stage);
   const current = chosen && season >= 0 && season < 6 ? chosen.now.seasons[season] : null;
 
   return (
     <section
-      ref={root}
       aria-label="Mikazuki Fields"
       className="mission relative h-[100svh] overflow-clip text-[#f6efeb]"
       data-stage={stage}
-      style={{ "--mx": 0, "--my": 0 } as CSSProperties}
     >
-      {/* Map (steps 02–05), revealed as the tiles fall away */}
-      {showMap && (
-        <div className={`cockpit-view absolute inset-0 transition-opacity duration-1000 ${stage === "leaving" ? "opacity-0" : "opacity-100"}`}>
+      {/* Map: mounted (and painted) from the start under the tiles, so it is ready
+          the moment they fall away. Leaflet stays still; the zoom-in is a CSS scale. */}
+      <div ref={viewRef} className="cockpit-view absolute inset-0">
           <TargetMap
             ref={mapRef}
             presets={presets}
@@ -303,14 +334,13 @@ export function Mission({ presets, onReady, topRight }: { presets: Preset[]; onR
           />
           <div className={`mission-dim ${stage === "plants" || stage === "planting" ? "is-on" : ""}`} aria-hidden />
           <div className="hud-scan" aria-hidden />
-        </div>
-      )}
+      </div>
 
       {/* Step 01: tiles */}
-      {(stage === "intro" || stage === "leaving") && <TileField exiting={stage === "leaving"} onExited={() => setStage("target")} />}
+      {tilesAlive && <TileField exiting={stage !== "intro"} onExited={tilesGone} />}
 
-      {/* Cockpit glass over steps 02–03 */}
-      {["target", "locking", "flying", "rising"].includes(stage) && <Canopy stage={stage} />}
+      {/* Cockpit glass over steps 02–03 (pre-mounted, invisible, during the intro) */}
+      {canopyOn && <Canopy ref={canopyRef} stage={stage} />}
 
       <div className="hud-frame" aria-hidden />
 
@@ -366,9 +396,10 @@ export function Mission({ presets, onReady, topRight }: { presets: Preset[]; onR
         </div>
       )}
 
-      {/* Step 02: cockpit targeting */}
-      {(stage === "target" || stage === "locking") && (
-        <div className="cockpit-hud">
+      {/* Step 02: cockpit targeting. Mounted (hidden) from START so its layout and paint
+          happen while the tiles still cover the screen; revealed at the handover. */}
+      {(stage === "leaving" || stage === "target" || stage === "locking") && (
+        <div className={`cockpit-hud ${stage === "leaving" ? "is-pre" : ""}`} aria-hidden={stage === "leaving" || undefined}>
           <div className="hud-title">
             <p className="micro text-sakura">Step 02 / Targeting</p>
             <h2 className="mt-1 font-display text-[clamp(26px,3.4vw,44px)] leading-tight font-normal tracking-[-0.02em]">Select a location</h2>
@@ -387,11 +418,11 @@ export function Mission({ presets, onReady, topRight }: { presets: Preset[]; onR
               {focus.id.startsWith("pin-") ? (liveData ? "Live NASA POWER, 2015–2024" : "Nearest preset climate") : "Preset farm · NASA POWER 2015–2024"}
             </p>
             <dl className="mt-2">
-              <Readout label="Lat / Lon" value={`${lat} / ${lon}`} />
-              <Readout label="Dry-season rain" value={`${Math.round(dry.rain_mm)} MM`} />
-              <Readout label="Afternoon heat" value={`${dry.tmax_c.toFixed(1)} °C`} />
-              <Readout label="Soil thirst" value={dry.gwetroot.toFixed(2)} />
-              <Readout label="Daily water use" value={`${dry.et0_mm_day.toFixed(1)} MM/DAY`} />
+              <Readout live={hudLive} label="Lat / Lon" value={`${lat} / ${lon}`} />
+              <Readout live={hudLive} label="Dry-season rain" value={`${Math.round(dry.rain_mm)} MM`} />
+              <Readout live={hudLive} label="Afternoon heat" value={`${dry.tmax_c.toFixed(1)} °C`} />
+              <Readout live={hudLive} label="Soil thirst" value={dry.gwetroot.toFixed(2)} />
+              <Readout live={hudLive} label="Daily water use" value={`${dry.et0_mm_day.toFixed(1)} MM/DAY`} />
             </dl>
           </aside>
 
@@ -404,9 +435,9 @@ export function Mission({ presets, onReady, topRight }: { presets: Preset[]; onR
               <Switch checked={scenario === "elnino"} onChange={(on) => setScenario(on ? "elnino" : "normal")} label="Simulate El Niño or dry spell" />
             </label>
             <dl className="mt-2">
-              <Readout label="Slope (sample)" value={`${focus.slope_pct}%`} />
-              <Readout label="Green cover (sample)" value={`NDVI ${focus.ndvi_dry_min.toFixed(2)}`} />
-              <Readout label="2015–16 El Niño" value={focus.elnino_2016_dry_rain_pct === null ? "—" : `${Math.round(focus.elnino_2016_dry_rain_pct)}% RAIN`} />
+              <Readout live={hudLive} label="Slope (sample)" value={`${focus.slope_pct}%`} />
+              <Readout live={hudLive} label="Green cover (sample)" value={`NDVI ${focus.ndvi_dry_min.toFixed(2)}`} />
+              <Readout live={hudLive} label="2015–16 El Niño" value={focus.elnino_2016_dry_rain_pct === null ? "—" : `${Math.round(focus.elnino_2016_dry_rain_pct)}% RAIN`} />
             </dl>
             <button
               type="button"
@@ -557,7 +588,7 @@ export function Mission({ presets, onReady, topRight }: { presets: Preset[]; onR
         ))}
       </ol>
 
-      {showMap && (
+      {stage !== "intro" && (
         <p className="map-credit">
           ©{" "}
           <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">

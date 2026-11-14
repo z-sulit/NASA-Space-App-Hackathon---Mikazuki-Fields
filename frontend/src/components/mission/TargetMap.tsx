@@ -70,10 +70,14 @@ export function TargetMap({
     // Attribution is drawn by Mission above the cockpit glass (the canopy would cover Leaflet's).
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(m);
-    m.setView(home(), homeZoom() - 1.2, { animate: false });
-    const intro = prefersReducedMotion() ? 0 : window.setTimeout(() => m.flyTo(home(), homeZoom(), { duration: 1.6 }), 120);
-    if (!intro) m.setView(home(), homeZoom(), { animate: false });
+    })
+      // Decode each tile as it arrives. Browsers otherwise decode lazily at first paint,
+      // which (with the map hidden under the tiles) would land mid-transition as blank squares.
+      .on("tileload", (e: L.TileEvent) => void (e.tile as HTMLImageElement).decode?.().catch(() => {}))
+      .addTo(m);
+    // Final view straight away: the map is pre-painted under the tiles, and the page
+    // does the zoom-in as a GPU scale, so Leaflet never re-renders mid-transition.
+    m.setView(home(), homeZoom(), { animate: false });
 
     presets.forEach((p) => {
       const icon = L.divIcon({ className: "", html: `<span class="tgt"><i></i><b>${p.name.split(" (")[0]}</b></span>`, iconSize: [0, 0] });
@@ -92,7 +96,6 @@ export function TargetMap({
     m.on("move zoom resize", place);
     place();
     return () => {
-      clearTimeout(intro);
       m.remove();
       map.current = null;
     };

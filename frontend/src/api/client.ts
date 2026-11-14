@@ -9,6 +9,47 @@ import { planRoutes } from "../engine/plans";
  */
 let apiDown = false; // after one failed call, stop asking for the rest of the session
 
+// The demo planner runs in a Web Worker so animations keep running while it searches.
+let worker: Worker | null = null;
+let workerBroken = false;
+let nextId = 0;
+const waiting = new Map<number, { resolve: (r: PlansResponse) => void; reject: (e: Error) => void }>();
+
+function getWorker(): Worker | null {
+  if (worker || workerBroken) return worker;
+  try {
+    worker = new Worker(new URL("../engine/planWorker.ts", import.meta.url), { type: "module" });
+    worker.onmessage = (e: MessageEvent<{ id: number; result?: PlansResponse; error?: string }>) => {
+      const job = waiting.get(e.data.id);
+      if (!job) return;
+      waiting.delete(e.data.id);
+      if (e.data.result) job.resolve(e.data.result);
+      else job.reject(new Error(e.data.error ?? "Planning failed."));
+    };
+    worker.onerror = () => {
+      // Could not start (old browser, blocked): plan on the main thread instead.
+      workerBroken = true;
+      worker = null;
+      waiting.forEach((job) => job.reject(new Error("worker failed")));
+      waiting.clear();
+    };
+  } catch {
+    workerBroken = true;
+    worker = null;
+  }
+  return worker;
+}
+
+function demoPlan(req: PlanRequest, preset: Preset): Promise<PlansResponse> {
+  const w = getWorker();
+  if (!w) return new Promise((r) => setTimeout(() => r(planRoutes(req, preset)), 30));
+  const id = ++nextId;
+  return new Promise<PlansResponse>((resolve, reject) => {
+    waiting.set(id, { resolve, reject });
+    w.postMessage({ id, req, preset });
+  }).catch(() => planRoutes(req, preset));
+}
+
 export async function fetchPlans(req: PlanRequest, preset: Preset): Promise<PlansResponse> {
   if (!apiDown) try {
     const ctl = new AbortController();
@@ -26,7 +67,5 @@ export async function fetchPlans(req: PlanRequest, preset: Preset): Promise<Plan
     // Backend not running yet: use the demo planner below.
     apiDown = true;
   }
-  // Let the "Planning…" state paint before the ~0.5 s search blocks the thread.
-  await new Promise((r) => setTimeout(r, 30));
-  return planRoutes(req, preset);
+  return demoPlan(req, preset);
 }

@@ -55,7 +55,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setLang(null)}
-            className="micro inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[#f6efeb]/50 bg-[#1d240a]/40 px-4 text-[#f6efeb] backdrop-blur transition-colors duration-150 hover:bg-[#f6efeb]/10"
+            className="micro inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[#f6efeb]/50 bg-[#1d240a]/55 px-4 text-[#f6efeb] transition-colors duration-150 hover:bg-[#f6efeb]/10"
           >
             <Languages className="size-4" aria-hidden />
             {langLabel ?? "Language"}

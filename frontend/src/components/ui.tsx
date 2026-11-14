@@ -70,11 +70,12 @@ export function Reveal({ children, delay = 0, className = "" }: { children: Reac
 const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/·";
 
 /** Cockpit-style readout: text "decodes" left to right from random glyphs. Re-runs when the text changes. */
+/** Decodes `text` with random glyphs over `ms` each time it changes while `run` is true; shows it as-is otherwise. */
 export function useScramble(text: string, run = true, ms = 700) {
-  const [out, setOut] = useState(run ? text : "");
+  const [out, setOut] = useState(text);
   useEffect(() => {
     if (!run) {
-      setOut("");
+      setOut(text);
       return;
     }
     if (prefersReducedMotion()) {

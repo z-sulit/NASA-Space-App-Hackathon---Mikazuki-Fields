@@ -1,8 +1,10 @@
 /**
  * Frame 1, "Green tiles": a field of rounded olive tiles (one instanced mesh) seen
  * from above at an angle. Tiles ripple gently, rise around the pointer like a
- * crop pushed by wind, and flip to a crop color when tapped. exit() drops them
- * away in a wave from the center, then calls onExited.
+ * crop pushed by wind, and flip to a crop color when tapped. exit() dives the
+ * camera into the field while the tiles drop away in a wave from the center; the
+ * page fades the canvas out over the map underneath, so it reads as one move.
+ * onExited fires at EXIT_MS, and the scene stops rendering after that.
  */
 import {
   ACESFilmicToneMapping,
@@ -36,6 +38,8 @@ const ROWS = 22;
 const GAP = 1.06;
 const OLIVES = ["#3b4719", "#44521f", "#4d5c26", "#56662c", "#5f7033", "#36421a"];
 const CROP_TOPS = ["#a87c0e", "#4d8b3a", "#8e5ba8", "#f5bfcd", "#c99a2e"];
+/** When the cockpit takes over; the page has faded the canvas out by then. */
+export const EXIT_MS = 1150;
 
 export function createTileField(host: HTMLElement): FieldHandle {
   const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -69,6 +73,8 @@ export function createTileField(host: HTMLElement): FieldHandle {
 
   const camera = new PerspectiveCamera(38, 1, 0.1, 60);
   const lookAt = new Vector3(0, 0, 0.6);
+  const basePos = new Vector3();
+  let driftX = 0;
 
   const geo = new RoundedBoxGeometry(0.94, 0.34, 0.94, 3, 0.13);
   const mat = new MeshStandardMaterial({ roughness: 0.62, metalness: 0.08 });
@@ -98,6 +104,7 @@ export function createTileField(host: HTMLElement): FieldHandle {
   const ripples: { x: number; z: number; t: number }[] = [];
   let lastTile = -1;
   let exiting = false;
+  let stopped = false;
   let exitCb: (() => void) | null = null;
   let exitStart = 0;
   let down = { x: 0, y: 0, t: 0 };
@@ -112,7 +119,8 @@ export function createTileField(host: HTMLElement): FieldHandle {
     camera.aspect = w / h;
     // Pull the camera back on narrow screens so the field still fills the frame.
     const dist = w / h < 1 ? 17 : 12.5;
-    camera.position.set(0, dist * 0.82, dist * 0.62);
+    basePos.set(0, dist * 0.82, dist * 0.62);
+    camera.position.copy(basePos);
     camera.lookAt(lookAt);
     camera.updateProjectionMatrix();
   };
@@ -171,8 +179,9 @@ export function createTileField(host: HTMLElement): FieldHandle {
   const tick = (now: number) => {
     if (dead) return;
     raf = requestAnimationFrame(tick);
-    if (!visible) return;
+    if (!visible || stopped) return;
     const t = (now - t0) / 1000;
+    const exitT = exiting ? (now - exitStart) / EXIT_MS : 0;
     if (hasPointer) {
       updateHit();
       const c = Math.round(hit.x / GAP + (COLS - 1) / 2);
@@ -189,17 +198,21 @@ export function createTileField(host: HTMLElement): FieldHandle {
     lamp.intensity += ((hasPointer && !exiting ? 26 : 0) - lamp.intensity) * 0.1;
 
     // The camera drifts a little with the pointer, so the field feels like a place.
-    camera.position.x += ((hasPointer ? pointer.x * 0.9 : Math.sin(t * 0.2) * 0.4) - camera.position.x) * 0.03;
+    driftX += ((hasPointer && !exiting ? pointer.x * 0.9 : Math.sin(t * 0.2) * 0.4) - driftX) * 0.03;
+    camera.position.set(basePos.x + driftX, basePos.y, basePos.z);
+    if (exiting) {
+      // Dive: ease the camera down into the field as the tiles fall away.
+      const k = Math.min(1, exitT);
+      camera.position.lerp(lookAt, 0.55 * k * k * (3 - 2 * k));
+    }
     camera.lookAt(lookAt);
 
-    let allGone = exiting;
     for (let i = 0; i < count; i++) {
       const tile = tiles[i];
       let target: number;
       if (exiting) {
         const k = (now - exitStart) / 1000 - tile.exitAt;
         target = k > 0 ? -9 : 0;
-        if (k < 1.1) allGone = false;
       } else if (t < tile.enter) {
         target = -3;
       } else {
@@ -232,9 +245,10 @@ export function createTileField(host: HTMLElement): FieldHandle {
     mesh.instanceMatrix.needsUpdate = true;
     mesh.instanceColor!.needsUpdate = true;
     renderer.render(scene, camera);
-    if (allGone && exitCb) {
+    if (exiting && exitT >= 1 && exitCb) {
       const cb = exitCb;
       exitCb = null;
+      stopped = true; // hidden from here on: free the GPU for the cockpit
       cb();
     }
   };
@@ -245,7 +259,7 @@ export function createTileField(host: HTMLElement): FieldHandle {
       exiting = true;
       exitStart = performance.now();
       exitCb = onExited;
-      tiles.forEach((tile) => (tile.exitAt = Math.hypot(tile.x, tile.z) * 0.035));
+      tiles.forEach((tile) => (tile.exitAt = Math.hypot(tile.x, tile.z) * 0.022));
     },
     dispose() {
       dead = true;
