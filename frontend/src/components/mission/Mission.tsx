@@ -173,9 +173,9 @@ const PLAN_SOURCE: Record<DataSource, string> = {
   demo: "Plans from the in-browser planner (API not reachable)",
 };
 const FARM_SOURCE: Record<DataSource, string> = {
-  api: "Mikazuki API · NASA POWER, SRTM, MODIS",
-  bundle: "Offline bundle · NASA POWER, SRTM, MODIS",
-  demo: "Preset farm · NASA POWER 2015–2024",
+  api: "Sample reference site · Full cached NASA POWER + SRTM + MODIS",
+  bundle: "Sample reference site (offline) · Cached NASA POWER + SRTM + MODIS",
+  demo: "Sample reference site · Cached NASA POWER + SRTM + MODIS",
 };
 
 /** The last farm and settings, so a returning farmer starts where they left off (this browser only). */
@@ -319,9 +319,9 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   const lat = `${Math.abs(focus.lat).toFixed(2)}° ${focus.lat >= 0 ? "N" : "S"}`;
   const lon = `${Math.abs(focus.lon).toFixed(2)}° ${focus.lon >= 0 ? "E" : "W"}`;
   const shortName = (p: Preset) => (p.id.startsWith("pin-") ? "Your farm" : p.name.split(" (")[0]);
-  /** Where a terrain value comes from: measured, borrowed from the nearest preset, or a sample. */
+  /** Where a terrain value comes from: measured, anchored to the nearest reference site, or a sample. */
   const sampleTag = (p: Preset, key: string, measured: string) =>
-    !p.placeholders.includes(key) ? measured : p.id.startsWith("pin-") && farmSource !== "demo" ? "nearest farm" : "sample";
+    !p.placeholders.includes(key) ? measured : p.id.startsWith("pin-") ? "nearest ref" : "sample";
   /** Mid-sentence form: "in your farm", "in Bukidnon". */
   const inName = (p: Preset) => (p.id.startsWith("pin-") ? "your farm" : shortName(p));
 
@@ -365,7 +365,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     if (seq !== tapSeq.current) return;
     setAcquiring(false);
     setPinVia(via);
-    if (!live) setMapNote("Live NASA data unavailable; using the nearest preset's climate.");
+    if (!live) setMapNote("Live NASA data unavailable; using the nearest reference site's climate & terrain.");
     else if (ground.snapped) setMapNote(`Moved your pin ${Math.round(ground.snapped.meters)} m onto the nearest land.`);
     else if (ground.kind === "unknown") setMapNote("Couldn't check the ground here (map offline); treating it as land.");
     setTarget(preset);
@@ -531,7 +531,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             {!loaded ? (
               <div className="w-[min(320px,80vw)]" role="progressbar" aria-label="Loading" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}>
                 <div className="flex justify-between text-sm text-ink/80">
-                  <span>Loading NASA weather for 3 farms</span>
+                  <span>Loading Philippine NASA reference data</span>
                   <span className="tabular">{String(Math.round(progress)).padStart(3, "0")}%</span>
                 </div>
                 <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-ink/20">
@@ -568,7 +568,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                     ? "Acquiring NASA data…"
                     : tryAgain
                       ? ""
-                      : (mapNote ?? "Tap the map anywhere on land, or pick one of the 3 marked farms")}
+                      : (mapNote ?? "Tap anywhere on land in the Philippines, or choose a sample reference site")}
             </p>
             {tryAgain && stage === "target" && (
               <p key={tryAgain.key} className="try-again" role="alert">
@@ -589,11 +589,9 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             <p className="mt-1 font-display text-xl leading-6">{shortName(focus)}</p>
             <p className="text-[11px] text-ink/70">
               {focus.id.startsWith("pin-")
-                ? pinVia === "api"
-                  ? "Live NASA POWER via the Mikazuki API"
-                  : pinVia === "browser"
-                    ? "Live NASA POWER, 2015–2024"
-                    : "Nearest preset climate"
+                ? pinVia === "api" || pinVia === "browser" || (pinVia === null && /live|Mikazuki API/i.test(focus.source))
+                  ? "Live NASA POWER climate for this pin · Slope & NDVI anchored to nearest reference site"
+                  : "Using nearest reference site climate & terrain"
                 : FARM_SOURCE[farmSource]}
             </p>
             <dl className="mt-2">
