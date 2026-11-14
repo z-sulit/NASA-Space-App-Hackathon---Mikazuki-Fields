@@ -14,6 +14,8 @@ import { PickPlants, SeasonFlags, type Choice } from "./PickPlants";
 import { PlantField } from "./PlantField";
 import { ElNinoReport } from "./ElNinoReport";
 import { ElNinoAtmosphere } from "./ElNinoAtmosphere";
+import { SeasonTimeline } from "./SeasonTimeline";
+import { planSpan, planStartYear, seasonWindows } from "../../data/calendar";
 import type { FieldHandle } from "../../three/tileField";
 
 /** Must match EXIT_MS in three/tileField.ts (kept here so the 3D chunk stays lazy). */
@@ -222,6 +224,12 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   const [choice, setChoice] = useState<Choice>("B");
   const [customRotation, setCustomRotation] = useState<CropId[]>(["corn", "mungbean", "corn", "sweet_potato", "corn", "peanut"]);
   const [season, setSeason] = useState(-1);
+  // Season timeline: the spotlighted season (null = all), the pill being hovered, autoplay.
+  const [focusSeason, setFocusSeason] = useState<number | null>(null);
+  const [hoverSeason, setHoverSeason] = useState<number | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const startYear = useMemo(() => planStartYear(), []);
+  const windows = useMemo(() => seasonWindows(startYear), [startYear]);
   const mapRef = useRef<TargetMapHandle>(null);
   const viewRef = useRef<HTMLDivElement>(null);
   const canopyRef = useRef<HTMLDivElement>(null);
@@ -439,7 +447,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   const plots = chosen
     ? chosen.now.seasons.map((s, i) => ({
         family: CROP[s.crop].family,
-        label: `S${i + 1} · ${CROP[s.crop].short}`,
+        label: `S${i + 1} · ${windows[i].months} ${windows[i].years}\n${CROP[s.crop].short}`,
         // Wilt only where El Niño cut the harvest (irrigated crops that just cost more to pump stay green).
         wilt: scenario === "elnino" && s.yieldT < chosen.normal.seasons[i].yieldT * 0.97,
       }))
@@ -656,6 +664,8 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           busy={busy}
           onPlant={() => {
             setSeason(-1);
+            setFocusSeason(null);
+            setPlaying(false);
             setStage("planting");
           }}
           onBack={() => void backToMap()}
@@ -666,7 +676,13 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       {stage === "planting" && chosen && (
         <div className="absolute inset-0 z-20 flex flex-col lg:flex-row">
           <div className="relative min-h-0 flex-1">
-            <PlantField plots={plots} plantKey={`${choice}-${chosen.now.rotation.join("-")}`} onSeason={onSeason} drought={scenario === "elnino"} />
+            <PlantField
+              plots={plots}
+              plantKey={`${choice}-${chosen.now.rotation.join("-")}`}
+              onSeason={onSeason}
+              drought={scenario === "elnino"}
+              focus={season >= 6 ? focusSeason : null}
+            />
             <div className="pointer-events-none absolute top-20 left-4 z-10 sm:left-8">
               <h2 className="font-display text-[clamp(24px,3.2vw,40px)] leading-tight font-normal tracking-[-0.02em]">
                 {chosen.now.custom ? "Your rotation" : `Route ${chosen.now.id}`} in {inName(target)}
@@ -675,10 +691,24 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                 {current
                   ? `Planting · S${current.index + 1} ${current.kind} · ${CROP[current.crop].short}`
                   : season >= 6
-                    ? "Planted · 6 seasons · 3 years · drag to look around"
+                    ? scenario === "elnino"
+                      ? `El Niño replay (2015–16 weather) · ${planSpan(startYear)} · drag to look around`
+                      : `Planted · ${planSpan(startYear)} (6 seasons) · drag to look around`
                     : "Landing · preparing soil"}
               </p>
             </div>
+            {season >= 6 && (
+              <SeasonTimeline
+                windows={windows}
+                seasons={chosen.now.seasons}
+                focus={focusSeason}
+                onFocus={setFocusSeason}
+                playing={playing}
+                onPlaying={setPlaying}
+                rainFor={(i) => climate(target, windows[i].kind, scenario).rain_mm}
+                tmaxFor={(i) => climate(target, windows[i].kind, scenario).tmax_c}
+              />
+            )}
           </div>
 
           <aside className={`stats-panel ${season >= 6 ? "is-in" : ""}`} aria-labelledby="stats-h">
@@ -695,20 +725,57 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                   {n}
                 </p>
               ))}
-            <ol className="mt-5 grid grid-cols-6 gap-1">
-              {chosen.now.seasons.map((s) => (
-                <li
-                  key={s.index}
-                  className="flex flex-col items-center rounded-sm px-1 py-1.5 text-center"
-                  style={{ background: `color-mix(in srgb, var(--family-${CROP[s.crop].family.toLowerCase()}) 70%, #1d240a)` }}
-                >
-                  <span className="block text-[10px] leading-3 text-ink/80">S{s.index + 1}</span>
-                  <span className="block w-full truncate text-[11px] leading-[14px] font-semibold">{CROP[s.crop].short}</span>
-                  <SeasonFlags season={s} />
-                </li>
-              ))}
+            <ol className="mt-3 grid grid-cols-6 gap-1" onMouseLeave={() => setHoverSeason(null)}>
+              {chosen.now.seasons.map((s) => {
+                const w = windows[s.index];
+                const on = focusSeason === s.index;
+                return (
+                  <li key={s.index}>
+                    <button
+                      type="button"
+                      aria-pressed={on}
+                      aria-label={`Season ${s.index + 1}, ${w.long}, ${CROP[s.crop].short}`}
+                      onClick={() => {
+                        setPlaying(false);
+                        setFocusSeason(on ? null : s.index);
+                      }}
+                      onMouseEnter={() => setHoverSeason(s.index)}
+                      onFocus={() => setHoverSeason(s.index)}
+                      onBlur={() => setHoverSeason(null)}
+                      className={`season-pill ${on ? "is-on" : ""}`}
+                      style={{ background: `color-mix(in srgb, var(--family-${CROP[s.crop].family.toLowerCase()}) 70%, #1d240a)` }}
+                    >
+                      <span className="block text-[10px] leading-3 text-[#f6efeb]/75">S{s.index + 1}</span>
+                      <span className="block w-full truncate text-[11px] leading-[14px] font-semibold">{CROP[s.crop].short}</span>
+                      <span className="mt-0.5 block w-full text-[9.5px] leading-3 text-[#f6efeb]/75 tabular">
+                        {w.months}
+                        <br />
+                        {w.years}
+                      </span>
+                      <SeasonFlags season={s} />
+                    </button>
+                  </li>
+                );
+              })}
             </ol>
-            <p className="mt-1 flex flex-wrap gap-x-3 text-[10.5px] text-ink/70">
+            {(() => {
+              const i = hoverSeason ?? focusSeason;
+              if (i === null) return <p className="mt-1.5 text-[11px] text-[#f6efeb]/55">Tap a season for its dates and weather.</p>;
+              const s = chosen.now.seasons[i];
+              const w = windows[i];
+              const rain = climate(target, w.kind, scenario).rain_mm;
+              return (
+                <p className="season-detail" aria-live="polite">
+                  <span className="font-semibold">
+                    Season {i + 1} ({w.long} · {w.kind === "wet" ? "Wet" : "Dry"}):
+                  </span>{" "}
+                  {CROP[s.crop].short} · Rain <span className="tabular">{Math.round(rain)} mm</span>
+                  {scenario === "elnino" ? " (2015–16 replay)" : ""} · Bare soil in heavy rain: {s.bareMonths.length ? s.bareMonths.join(", ") : "none"} · Pest
+                  cycle: {s.pestBroken ? "broken" : i === 0 ? "starting" : "continues"}
+                </p>
+              );
+            })()}
+            <p className="mt-1 flex flex-wrap gap-x-3 text-[10.5px] text-[#f6efeb]/60">
               <span>
                 <span className="text-[#c9e86a]">●</span> pest cycle broken
               </span>
