@@ -33,7 +33,8 @@ NASA-Space-App-Hackathon---Mikazuki-Fields/
 │   ├── data_infras_execution_checklist.md # Lorenzo Sulit: Data pipeline & backend gate checklist
 │   ├── challenge_data_api_links.md      # Lorenzo Sulit: Official NASA & agronomic dataset URLs
 │   ├── agronomic_model_vectorized_optimizer_spec.md # Micku Lamsin: 8-crop table, NumPy math, sanity suite
-│   └── frontend_spec.md                 # Ezekiel Corpuz: 4 UI regions, jargon copy, pitch assets
+│   ├── frontend_spec.md                 # Ezekiel Corpuz: 4 UI regions, jargon copy, pitch assets
+│   └── UI_STYLE_GUIDE.md                # Ezekiel Corpuz: palette, type, components, motion, accessibility
 ├── data-prep/                           # NASA data ingestion, fusion & offline fallback scripts
 │   ├── presets_config.py                # 3 Philippine farm preset coordinates & metadata
 │   ├── fetch_power.py                   # NASA POWER 2015–2024 monthly cleaner & El Niño validator
