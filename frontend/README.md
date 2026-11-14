@@ -2,6 +2,10 @@
 
 React + Vite + TypeScript + Tailwind v4, built from [`docs/UI_STYLE_GUIDE.md`](../docs/UI_STYLE_GUIDE.md) and [`docs/frontend_spec.md`](../docs/frontend_spec.md).
 
+**Live preview:** https://z-sulit.github.io/NASA-Space-App-Hackathon---Mikazuki-Fields/ (served from the `gh-pages` branch once GitHub Pages is turned on; add `?lang=en` to skip the language picker).
+
+To redeploy the preview: `npx vite build --base=./`, then push the contents of `dist/` to the `gh-pages` branch.
+
 ```bash
 cd frontend
 npm install

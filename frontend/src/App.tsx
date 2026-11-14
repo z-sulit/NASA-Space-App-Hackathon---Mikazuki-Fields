@@ -52,7 +52,12 @@ function km(a: Pin, b: Pin) {
 }
 
 export default function App() {
-  const [lang, setLang] = useState<Lang | null>(() => storage.get("mf-lang") as Lang | null);
+  // ?lang=en (or fil, ceb, ilo) in a shared link skips the picker; otherwise use the saved choice.
+  const [lang, setLang] = useState<Lang | null>(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("lang");
+    if (LANGUAGES.some((l) => l.code === fromUrl)) return fromUrl as Lang;
+    return storage.get("mf-lang") as Lang | null;
+  });
   const [req, setReq] = useState<PlanRequest>(DEFAULT_REQ);
   const [planned, setPlanned] = useState<PlanRequest | null>(null);
   const [result, setResult] = useState<PlansResponse | null>(null);
