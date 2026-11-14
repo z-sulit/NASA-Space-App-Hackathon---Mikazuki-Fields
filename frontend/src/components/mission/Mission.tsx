@@ -2,23 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type
 import { ArrowLeft, ArrowRight, Crosshair, Info, Loader2, Lock, MapPin, RotateCcw, Sprout, Waves } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
-import { customPlan, summarizePlans } from "../../engine/plans";
+import { customPlan } from "../../engine/plans";
 import { fetchPinFarm, fetchPlans, loadFarms, type DataSource } from "../../api/client";
 import { inPhilippines } from "../../api/power";
 import { checkLand } from "../../api/landcheck";
 import { CROP } from "../../data/crops";
 import { Emblem } from "../Emblem";
-import {
-  convertPhp,
-  CountUp,
-  formatCurrency,
-  InfoTip,
-  localizeCurrencyText,
-  prefersReducedMotion,
-  Switch,
-  useScramble,
-  type Currency,
-} from "../ui";
+import { CountUp, formatPhpUsd, formatPhpUsdInText, InfoTip, prefersReducedMotion, Switch, useScramble } from "../ui";
 import { TargetMap, type LatLon, type TargetMapHandle } from "./TargetMap";
 import { PickPlants, SeasonFlags, type Choice } from "./PickPlants";
 import { PlantField } from "./PlantField";
@@ -210,17 +200,7 @@ function saveLastFarm(v: LastFarm) {
   }
 }
 
-export function Mission({
-  presets: bundled,
-  onReady,
-  topRight,
-  currency = "PHP",
-}: {
-  presets: Preset[];
-  onReady: () => void;
-  topRight: ReactNode;
-  currency?: Currency;
-}) {
+export function Mission({ presets: bundled, onReady, topRight }: { presets: Preset[]; onReady: () => void; topRight: ReactNode }) {
   // Preset farms: the app's bundled copy until the backend's measured data arrives.
   const [presets, setPresets] = useState<Preset[]>(bundled);
   const [farmSource, setFarmSource] = useState<DataSource>("demo");
@@ -256,14 +236,12 @@ export function Mission({
   const [tilesAlive, setTilesAlive] = useState(true);
   const reduced = prefersReducedMotion();
 
-  const currencyRef = useRef(currency);
-  currencyRef.current = currency;
   const planSeq = useRef(0);
   const plan = useCallback(async (r: PlanRequest, p: Preset) => {
     const seq = ++planSeq.current;
     setBusy(true);
     try {
-      const res = await fetchPlans({ ...r, presetId: p.id }, p, currencyRef.current);
+      const res = await fetchPlans({ ...r, presetId: p.id }, p);
       if (seq === planSeq.current) setResult(res); // ignore answers to older requests
     } finally {
       if (seq === planSeq.current) setBusy(false);
@@ -491,12 +469,8 @@ export function Mission({
   const chosenWhy = useMemo(() => {
     if (!chosen) return [];
     if (chosen.now.custom) return chosen.now.why;
-    if (result?.source === "demo") {
-      const idx = ["A", "B", "C"].indexOf(chosen.now.id);
-      if (idx >= 0) return summarizePlans(result.normal, result.elnino, req.irrigation, currency)[idx];
-    }
-    return chosen.now.why.map((w) => localizeCurrencyText(w, currency));
-  }, [chosen, result, req.irrigation, currency]);
+    return chosen.now.why.map(formatPhpUsdInText);
+  }, [chosen]);
 
   return (
     <section
@@ -691,7 +665,6 @@ export function Mission({
           req={req}
           onReq={(patch) => setReq((r) => ({ ...r, ...patch }))}
           notes={planNotes}
-          currency={currency}
           busy={busy}
           onPlant={() => {
             setSeason(-1);
@@ -816,13 +789,13 @@ export function Mission({
             </p>
             <div className="mt-5">
               <p className="text-xs font-medium text-ink/70">3-year profit</p>
-              <p className="font-display text-[34px] leading-10 tracking-[-0.02em]">
-                <CountUp value={chosen.now.kpis.totalProfit} format={(v) => formatCurrency(v, currency)} />
+              <p className="font-display text-[22px] leading-8 tracking-[-0.02em] sm:text-[24px]">
+                <CountUp value={chosen.now.kpis.totalProfit} format={formatPhpUsd} />
               </p>
-              {scenario === "elnino" && Math.abs(convertPhp(chosen.now.kpis.totalProfit - chosen.normal.kpis.totalProfit, currency)) >= 0.5 && (
+              {scenario === "elnino" && Math.abs(chosen.now.kpis.totalProfit - chosen.normal.kpis.totalProfit) >= 1 && (
                 <p className="text-xs text-[#f3b49f] tabular">
                   {chosen.now.kpis.totalProfit < chosen.normal.kpis.totalProfit ? "−" : "+"}
-                  {formatCurrency(Math.abs(chosen.now.kpis.totalProfit - chosen.normal.kpis.totalProfit), currency)} vs a normal year
+                  {formatPhpUsd(Math.abs(chosen.now.kpis.totalProfit - chosen.normal.kpis.totalProfit))} vs a normal year
                 </p>
               )}
             </div>
@@ -849,7 +822,7 @@ export function Mission({
               </span>
               <Switch checked={scenario === "elnino"} onChange={(on) => setScenario(on ? "elnino" : "normal")} label="Replay the 2015–16 El Niño" />
             </label>
-            {scenario === "elnino" && <ElNinoReport req={req} preset={target} now={chosen.now} normal={chosen.normal} currency={currency} />}
+            {scenario === "elnino" && <ElNinoReport req={req} preset={target} now={chosen.now} normal={chosen.normal} />}
             <ul className="mt-5 list-disc space-y-1 pl-4 text-sm text-ink/80">
               {chosenWhy.slice(0, 2).map((w) => (
                 <li key={w}>{w}</li>
