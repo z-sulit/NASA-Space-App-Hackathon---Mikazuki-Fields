@@ -44,6 +44,9 @@ export interface SeasonClimate {
   allsky_mj: number;
   gwetroot: number;
   et0_mm_day: number;
+  /** Month by month, in season order (Jun..Nov / Dec..May); drives the monthly water balance. */
+  monthly_tmax_c?: number[];
+  monthly_et0_mm_day?: number[];
 }
 
 export interface Preset {
@@ -52,6 +55,9 @@ export interface Preset {
   lat: number;
   lon: number;
   seasons: Record<SeasonKind, SeasonClimate>;
+  /** El Niño climate: the farm's real Jun 2015–May 2016 months (NASA POWER), when known. */
+  elnino?: Record<SeasonKind, SeasonClimate>;
+  elnino_basis?: "observed_2015_2016" | "synthetic";
   elnino_2016_dry_rain_pct: number | null;
   slope_pct: number;
   ndvi_dry_min: number;
@@ -99,6 +105,10 @@ export interface SeasonResult {
   erosion: number;
   bareMonths: string[];
   coveredMonths: number;
+  /** Month-by-month water while the crop is in the ground (in-browser runs only). */
+  months?: { month: string; rain: number; need: number; inSoil: number; short: number }[];
+  /** Mean afternoon heat over the crop's months, °C (in-browser runs only). */
+  cropTmax?: number;
   yieldT: number;
   ureaCost: number;
   pumpCost: number;
