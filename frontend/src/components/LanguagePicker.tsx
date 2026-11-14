@@ -8,9 +8,16 @@ export const LANGUAGES = [
 ] as const;
 export type Lang = (typeof LANGUAGES)[number]["code"];
 
-export function LanguagePicker({ onPick }: { onPick: (l: Lang) => void }) {
+export function LanguagePicker({ onPick, onClose }: { onPick: (l: Lang) => void; onClose?: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" role="dialog" aria-modal="true" aria-labelledby="lang-h">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="lang-h"
+      onClick={(e) => e.target === e.currentTarget && onClose?.()}
+      onKeyDown={(e) => e.key === "Escape" && onClose?.()}
+    >
       <div className="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-[0_1px_2px_rgb(31_42_30/0.08)]">
         <Emblem size={56} />
         <h2 id="lang-h" className="mt-3 text-[32px] leading-9 font-medium">
