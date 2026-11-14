@@ -7,9 +7,9 @@ import { fetchPinFarm, fetchPlans, loadFarms, type DataSource } from "../../api/
 import { inPhilippines } from "../../api/power";
 import { CROP } from "../../data/crops";
 import { Emblem } from "../Emblem";
-import { peso, prefersReducedMotion, Switch, useScramble } from "../ui";
+import { InfoTip, peso, prefersReducedMotion, Switch, useScramble } from "../ui";
 import { TargetMap, type LatLon, type TargetMapHandle } from "./TargetMap";
-import { PickPlants, type Choice } from "./PickPlants";
+import { PickPlants, SeasonFlags, type Choice } from "./PickPlants";
 import { PlantField } from "./PlantField";
 import { ElNinoReport } from "./ElNinoReport";
 import type { FieldHandle } from "../../three/tileField";
@@ -99,11 +99,28 @@ function TileField({ exiting, onExited }: { exiting: boolean; onExited: () => vo
   );
 }
 
-function Readout({ label, value, live }: { label: string; value: string; live: boolean }) {
+/** Plain-English explanations for the NASA metrics (docs/frontend_spec.md, JargonTooltip table). */
+const TIP = {
+  rain: "Rain You Can Count On (PRECTOTCORR): average rain for this season from 10 years of NASA records (2015–2024).",
+  heat: "Afternoon Heat (T2M_MAX): the usual daily high. Corn and rice flowers get damaged above about 35°C.",
+  thirst: "Soil Thirst Level (GWETROOT): water left where roots drink, top ~1 m. 0 is bone dry, 1 is soaked.",
+  et0: "Daily Water Use (ET0): water that sun and heat pull from soil and leaves. 5 mm a day is 50,000 litres per hectare.",
+  slope: "Erosion Slope Risk (SRTM slope): how steep your field is. Steep + bare + heavy rain washes topsoil away.",
+  ndvi: "Green Cover Score (MODIS NDVI): how green your land looks from space. Below 0.3 is mostly bare soil.",
+} as const;
+
+function Readout({ label, value, live, tip, tipAlign = "left" }: { label: string; value: string; live: boolean; tip?: string; tipAlign?: "left" | "right" }) {
   const shown = useScramble(value, live, 520);
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-[#f6efeb]/10 py-1.5">
-      <dt className="micro text-[10.5px] text-[#f6efeb]/60">{label}</dt>
+      <dt className="micro flex items-center gap-1 text-[10.5px] text-[#f6efeb]/60">
+        {label}
+        {tip && (
+          <InfoTip label={label} light align={tipAlign}>
+            {tip}
+          </InfoTip>
+        )}
+      </dt>
       <dd className="micro text-[13px] whitespace-pre text-[#f6efeb] tabular" aria-label={value}>
         {shown}
       </dd>
@@ -341,6 +358,14 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   const hudLive = stage !== "leaving";
   const canopyOn = ["intro", "leaving", "target", "locking", "flying", "rising"].includes(stage);
   const current = chosen && season >= 0 && season < 6 ? chosen.now.seasons[season] : null;
+  /** Backend ground-truth chips + liming advisory; the in-browser planner does not emit the advisory, so add it. */
+  const planNotes = useMemo(() => {
+    const notes = [...(result?.notes ?? [])];
+    const ph = req.overrides.soilPh;
+    if (ph !== null && ph < 5.5 && !notes.some((n) => /lime|liming/i.test(n)))
+      notes.push(`Liming advisory: soil pH ${ph.toFixed(1)} is below 5.5. Lime before planting legumes; they fix less nitrogen in acid soil.`);
+    return notes;
+  }, [result, req.overrides.soilPh]);
 
   return (
     <section
@@ -454,10 +479,10 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             </p>
             <dl className="mt-2">
               <Readout live={hudLive} label="Lat / Lon" value={`${lat} / ${lon}`} />
-              <Readout live={hudLive} label="Dry-season rain" value={`${Math.round(dry.rain_mm)} MM`} />
-              <Readout live={hudLive} label="Afternoon heat" value={`${dry.tmax_c.toFixed(1)} °C`} />
-              <Readout live={hudLive} label="Soil thirst" value={dry.gwetroot.toFixed(2)} />
-              <Readout live={hudLive} label="Daily water use" value={`${dry.et0_mm_day.toFixed(1)} MM/DAY`} />
+              <Readout live={hudLive} label="Dry-season rain" value={`${Math.round(dry.rain_mm)} MM`} tip={TIP.rain} />
+              <Readout live={hudLive} label="Afternoon heat" value={`${dry.tmax_c.toFixed(1)} °C`} tip={TIP.heat} />
+              <Readout live={hudLive} label="Soil thirst" value={dry.gwetroot.toFixed(2)} tip={TIP.thirst} />
+              <Readout live={hudLive} label="Daily water use" value={`${dry.et0_mm_day.toFixed(1)} MM/DAY`} tip={TIP.et0} />
             </dl>
           </aside>
 
@@ -474,8 +499,8 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               <Switch checked={scenario === "elnino"} onChange={(on) => setScenario(on ? "elnino" : "normal")} label="Simulate El Niño or dry spell" />
             </label>
             <dl className="mt-2">
-              <Readout live={hudLive} label={`Slope (${sampleTag(focus, "slope_pct", "SRTM")})`} value={`${focus.slope_pct}%`} />
-              <Readout live={hudLive} label={`Green cover (${sampleTag(focus, "ndvi_dry_min", "MODIS")})`} value={`NDVI ${focus.ndvi_dry_min.toFixed(2)}`} />
+              <Readout live={hudLive} label={`Slope (${sampleTag(focus, "slope_pct", "SRTM")})`} value={`${focus.slope_pct}%`} tip={TIP.slope} tipAlign="right" />
+              <Readout live={hudLive} label={`Green cover (${sampleTag(focus, "ndvi_dry_min", "MODIS")})`} value={`NDVI ${focus.ndvi_dry_min.toFixed(2)}`} tip={TIP.ndvi} tipAlign="right" />
               <Readout live={hudLive} label="2015–16 El Niño" value={focus.elnino_2016_dry_rain_pct === null ? "—" : `${Math.round(focus.elnino_2016_dry_rain_pct)}% RAIN`} />
             </dl>
             <button
@@ -513,6 +538,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           onCustomRotation={setCustomRotation}
           req={req}
           onReq={(patch) => setReq((r) => ({ ...r, ...patch }))}
+          notes={planNotes}
           busy={busy}
           onPlant={() => {
             setSeason(-1);
@@ -552,7 +578,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               {chosen.now.custom ? "Your rotation, simulated in the browser" : PLAN_SOURCE[result!.source]}
             </p>
             {!chosen.now.custom &&
-              result!.notes.map((n) => (
+              planNotes.map((n) => (
                 <p key={n} className="mt-1 text-xs text-[#f6efeb]/70">
                   {n}
                 </p>
@@ -561,14 +587,23 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               {chosen.now.seasons.map((s) => (
                 <li
                   key={s.index}
-                  className="rounded-sm px-1 py-1.5 text-center"
+                  className="flex flex-col items-center rounded-sm px-1 py-1.5 text-center"
                   style={{ background: `color-mix(in srgb, var(--family-${CROP[s.crop].family.toLowerCase()}) 70%, #1d240a)` }}
                 >
                   <span className="block text-[10px] leading-3 text-[#f6efeb]/75">S{s.index + 1}</span>
-                  <span className="block truncate text-[11px] leading-[14px] font-semibold">{CROP[s.crop].short}</span>
+                  <span className="block w-full truncate text-[11px] leading-[14px] font-semibold">{CROP[s.crop].short}</span>
+                  <SeasonFlags season={s} />
                 </li>
               ))}
             </ol>
+            <p className="mt-1 flex flex-wrap gap-x-3 text-[10.5px] text-[#f6efeb]/60">
+              <span>
+                <span className="text-[#c9e86a]">●</span> pest cycle broken
+              </span>
+              <span>
+                <span className="text-[#8fd3ff]">●</span> bare soil in heavy rain
+              </span>
+            </p>
             <dl className="mt-3 grid grid-cols-2 gap-2">
               {[
                 ["3-year profit", peso(chosen.now.kpis.totalProfit)],

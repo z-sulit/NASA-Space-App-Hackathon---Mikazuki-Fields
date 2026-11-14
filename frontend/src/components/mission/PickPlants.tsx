@@ -1,6 +1,6 @@
 import { Fragment, useState, type CSSProperties } from "react";
-import { ArrowLeft, Bean, BugOff, ChevronDown, Sprout, Wheat } from "lucide-react";
-import type { CropId, Family, PlanId, PlanRequest, PlanResult } from "../../types";
+import { ArrowLeft, Bean, BugOff, ChevronDown, CloudRain, Sprout, TriangleAlert, Wheat } from "lucide-react";
+import type { CropId, Family, PlanId, PlanRequest, PlanResult, SeasonResult } from "../../types";
 import { CROP, CROPS } from "../../data/crops";
 import { peso } from "../ui";
 
@@ -33,7 +33,29 @@ function Seg<T extends string>({ label, value, options, onChange }: { label: str
   );
 }
 
-function Chips({ rotation }: { rotation: CropId[] }) {
+/** Per-season flags: pest cycle broken (green bug), bare soil in heavy-rain months (blue cloud). */
+export function SeasonFlags({ season }: { season: SeasonResult }) {
+  const bare = season.bareMonths.length > 0;
+  if (!season.pestBroken && !bare) return <span className="h-3.5" aria-hidden />;
+  return (
+    <span className="flex h-3.5 items-center gap-0.5">
+      {season.pestBroken && (
+        <span title="Pest cycle broken" className="text-[#c9e86a]">
+          <BugOff className="size-3" aria-hidden />
+          <span className="sr-only">Pest cycle broken</span>
+        </span>
+      )}
+      {bare && (
+        <span title={`Bare soil in heavy rain: ${season.bareMonths.join(", ")}`} className="text-[#8fd3ff]">
+          <CloudRain className="size-3" aria-hidden />
+          <span className="sr-only">Bare-soil erosion months: {season.bareMonths.join(", ")}</span>
+        </span>
+      )}
+    </span>
+  );
+}
+
+function Chips({ rotation, seasons }: { rotation: CropId[]; seasons?: SeasonResult[] }) {
   return (
     <ol className="mt-3 grid grid-cols-6 gap-1">
       {rotation.map((id, i) => {
@@ -43,12 +65,17 @@ function Chips({ rotation }: { rotation: CropId[] }) {
           <li key={i} className="flex flex-col items-center gap-0.5 rounded-md py-1.5" style={{ background: `color-mix(in srgb, ${FAMILY_VAR[c.family]} 55%, #1d240a)` }}>
             <Icon className="size-4" aria-hidden />
             <span className="w-full truncate px-0.5 text-center text-[10px] leading-3">{c.short}</span>
+            {seasons?.[i] && <SeasonFlags season={seasons[i]} />}
           </li>
         );
       })}
     </ol>
   );
 }
+
+const PH_VALUE = { untested: null, acidic: 5.1, neutral: 6.5 } as const;
+type PhChoice = keyof typeof PH_VALUE;
+const phChoice = (ph: number | null): PhChoice => (ph === null ? "untested" : ph < 5.5 ? "acidic" : "neutral");
 
 /**
  * Step 04: pick what goes in the ground. Three computed routes plus "build your own",
@@ -64,6 +91,7 @@ export function PickPlants({
   onCustomRotation,
   req,
   onReq,
+  notes,
   busy,
   onPlant,
   onBack,
@@ -77,6 +105,7 @@ export function PickPlants({
   onCustomRotation: (r: CropId[]) => void;
   req: PlanRequest;
   onReq: (patch: Partial<PlanRequest>) => void;
+  notes: string[];
   busy: boolean;
   onPlant: () => void;
   onBack: () => void;
@@ -100,6 +129,17 @@ export function PickPlants({
           </button>
         </div>
 
+        {notes.length > 0 && (
+          <ul className="mt-3 space-y-1 rounded-xl border border-sun/50 bg-sun/[0.08] px-3 py-2 text-xs text-[#f6efeb]/90" aria-live="polite">
+            {notes.map((n) => (
+              <li key={n} className="flex items-start gap-1.5">
+                <TriangleAlert className="mt-px size-3.5 shrink-0 text-sun" aria-hidden />
+                <span>{n}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <div className={`mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4 ${busy ? "opacity-60" : ""}`} role="radiogroup" aria-label="Route">
           {cards.map(({ id, plan }) => {
             const on = choice === id;
@@ -116,7 +156,7 @@ export function PickPlants({
                 <span className="micro text-[10.5px] text-[#f6efeb]/60">{id === "custom" ? "Your own" : `Route ${id}`}</span>
                 <span className="mt-0.5 block font-display text-xl leading-6">{plan.name}</span>
                 <span className="block text-xs text-[#f6efeb]/65">{plan.promise}</span>
-                <Chips rotation={plan.rotation} />
+                <Chips rotation={plan.rotation} seasons={plan.seasons} />
                 <span className="mt-3 flex justify-between text-xs text-[#f6efeb]/80 tabular">
                   <span>{peso(plan.kpis.totalProfit)}</span>
                   <span>Soil N → {Math.round(plan.kpis.nFinal)}</span>
@@ -205,6 +245,18 @@ export function PickPlants({
                 value={req.overrides.pestLastSeason ? "yes" : "no"}
                 options={[["no", "No"], ["yes", "Yes"]]}
                 onChange={(v) => onReq({ overrides: { ...req.overrides, pestLastSeason: v === "yes" } })}
+              />
+              <Seg
+                label="Soil test: pH"
+                value={phChoice(req.overrides.soilPh)}
+                options={[["untested", "Not tested"], ["acidic", "Acidic 5.1"], ["neutral", "Neutral 6.5"]]}
+                onChange={(v) => onReq({ overrides: { ...req.overrides, soilPh: PH_VALUE[v] } })}
+              />
+              <Seg
+                label="Field floods in"
+                value={req.overrides.floods}
+                options={[["never", "Never"], ["wet", "Wet season"], ["dry", "Dry season"]]}
+                onChange={(floods) => onReq({ overrides: { ...req.overrides, floods } })}
               />
               <div className="sm:col-span-2 lg:col-span-1">
                 <p className="micro text-[10.5px] text-[#f6efeb]/60">What matters most</p>

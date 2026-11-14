@@ -10,8 +10,8 @@ import { fetchPointPreset } from "./power";
  *     the default settings it was exported with.
  *  3. The in-browser planner (src/engine, same engine spec) in a Web Worker, so the
  *     app still works on a static host such as GitHub Pages.
+ * Every call tries the API first; a failure only falls back for that one call.
  */
-let apiDown = false; // after one failed call, stop waiting on the API for the rest of the session
 
 export type DataSource = PlansResponse["source"];
 
@@ -80,12 +80,10 @@ function matchesBundle(req: PlanRequest) {
 // ---------- Public ----------
 
 export async function fetchPlans(req: PlanRequest, preset: Preset): Promise<PlansResponse> {
-  if (!apiDown) {
-    try {
-      return fromBackendPlans(await apiPlans(toBackendRequest(req, preset)), req, "api");
-    } catch {
-      apiDown = true; // not running, or a static host: use the fallbacks below
-    }
+  try {
+    return fromBackendPlans(await apiPlans(toBackendRequest(req, preset)), req, "api");
+  } catch {
+    // Not running, a static host, or a transient timeout: fall back for this call only.
   }
   if (!preset.id.startsWith("pin-") && matchesBundle(req)) {
     const plans = (await fallbackBundle())?.plans[preset.id];
@@ -99,13 +97,11 @@ export async function fetchPlans(req: PlanRequest, preset: Preset): Promise<Plan
  * from the API or else the offline bundle. Falls back to the presets bundled in the app.
  */
 export async function loadFarms(presets: Preset[]): Promise<{ presets: Preset[]; source: DataSource }> {
-  if (!apiDown) {
-    try {
-      const farms = await Promise.all(presets.map((p) => apiFarm({ presetId: p.id })));
-      return { presets: farms.map((f, i) => farmToPreset(f, presets[i])), source: "api" };
-    } catch {
-      apiDown = true;
-    }
+  try {
+    const farms = await Promise.all(presets.map((p) => apiFarm({ presetId: p.id })));
+    return { presets: farms.map((f, i) => farmToPreset(f, presets[i])), source: "api" };
+  } catch {
+    // fall through to the bundle for this call
   }
   const b = await fallbackBundle();
   if (b && presets.every((p) => b.farms[p.id])) return { presets: presets.map((p) => farmToPreset(b.farms[p.id], p)), source: "bundle" };
@@ -117,13 +113,11 @@ export async function loadFarms(presets: Preset[]): Promise<{ presets: Preset[];
  * or a direct POWER request from the browser, or the nearest preset as a last resort.
  */
 export async function fetchPinFarm(lat: number, lon: number, presets: Preset[]): Promise<{ preset: Preset; live: boolean; via: "api" | "browser" | "nearest" }> {
-  if (!apiDown) {
-    try {
-      // The backend waits up to 10 s on NASA POWER itself.
-      return { preset: farmToPreset(await apiFarm({ lat, lon }, 14000)), live: true, via: "api" };
-    } catch {
-      apiDown = true;
-    }
+  try {
+    // The backend waits up to 10 s on NASA POWER itself.
+    return { preset: farmToPreset(await apiFarm({ lat, lon }, 14000)), live: true, via: "api" };
+  } catch {
+    // fall through to the browser lookup for this pin only
   }
   const { preset, live } = await fetchPointPreset(lat, lon, presets);
   return { preset, live, via: live ? "browser" : "nearest" };
