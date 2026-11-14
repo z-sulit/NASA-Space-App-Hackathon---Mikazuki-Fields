@@ -139,7 +139,7 @@ export default function App() {
         topRight={
           <>
           {result?.source === "demo" && (
-            <span className="micro inline-flex min-h-11 items-center gap-1 rounded-full border border-[#f4ede6]/30 px-4 text-[#f4ede6]/85">
+            <span className="micro inline-flex min-h-11 items-center gap-1 rounded-full border border-[#f6efeb]/30 px-4 text-[#f6efeb]/85">
               Demo planner
               <InfoTip label="the demo planner" align="right" light>
                 Routes are computed in your browser with the team's engine spec until the FastAPI backend is running. Rain, heat and soil
@@ -150,7 +150,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setLang(null)}
-            className="micro inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[#f4ede6]/50 px-4 text-[#f4ede6] transition-colors duration-150 hover:bg-[#f4ede6]/10"
+            className="micro inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[#f6efeb]/50 px-4 text-[#f6efeb] transition-colors duration-150 hover:bg-[#f6efeb]/10"
           >
             <Languages className="size-4" aria-hidden />
             {langLabel ?? "Language"}

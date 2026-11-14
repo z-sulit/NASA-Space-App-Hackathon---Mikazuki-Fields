@@ -101,10 +101,10 @@ export function PlanColumn({
       className={`hud relative flex flex-col rounded-lg bg-card p-4 ${recommended ? "border-2 border-primary" : "border border-border"}`}
     >
       {recommended && (
-        <span className="micro absolute -top-3 left-6 rounded-full bg-chartreuse px-3 py-0.5 text-foreground">Recommended</span>
+        <span className="micro absolute -top-3 left-6 rounded-full bg-sakura px-3 py-0.5 text-foreground">Recommended</span>
       )}
       <header className="flex items-center gap-2">
-        <span aria-hidden className={`inline-flex size-8 items-center justify-center rounded-full font-display text-lg font-medium text-[#f4ede6] ${PLAN_DOT[plan.id]}`}>
+        <span aria-hidden className={`inline-flex size-8 items-center justify-center rounded-full font-display text-lg font-medium text-[#f6efeb] ${PLAN_DOT[plan.id]}`}>
           {plan.id}
         </span>
         <div>

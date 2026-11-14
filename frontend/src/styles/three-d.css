@@ -61,8 +61,8 @@
   .crop3d-scene {
     display: block;
     width: 100%;
-    aspect-ratio: 4 / 5;
-    perspective: 700px;
+    height: 132px;
+    perspective: 600px;
     text-align: left;
     border-radius: 14px;
     outline-offset: 6px;
@@ -78,7 +78,7 @@
   }
   .crop3d-scene:hover .crop3d,
   .crop3d-scene:focus-visible .crop3d {
-    --lift: 18px;
+    --lift: 12px;
   }
   .crop3d[data-flipped="true"] {
     --flip: 180deg;
@@ -96,7 +96,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding: 12px;
+    padding: 9px 10px;
     backface-visibility: hidden;
   }
   .crop3d-front {
@@ -108,6 +108,7 @@
     transform: rotateY(180deg) translateZ(6px);
     color: #f4ede6;
     background: linear-gradient(180deg, #4a5622, #26300f);
+    box-shadow: inset 0 -3px 0 var(--sakura);
   }
   .crop3d-shine {
     position: absolute;
@@ -230,5 +231,47 @@
   }
   .f3d-bar[data-on="true"] > i {
     filter: brightness(1.25);
+  }
+}
+
+/* Sakura petals drifting across the hero (decoration only; hidden with reduced motion). */
+@layer components {
+  .petal-drift {
+    position: absolute;
+    top: -6%;
+    pointer-events: none;
+    opacity: 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .petal-drift {
+      animation: petal-fall var(--dur, 14s) linear var(--delay, 0s) infinite;
+    }
+    .petal-drift > svg {
+      animation: petal-sway calc(var(--dur, 14s) / 4) ease-in-out var(--delay, 0s) infinite alternate;
+    }
+  }
+  @keyframes petal-fall {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 0, 0);
+    }
+    8% {
+      opacity: 0.9;
+    }
+    85% {
+      opacity: 0.8;
+    }
+    100% {
+      opacity: 0;
+      transform: translate3d(var(--dx, -120px), 108vh, 0);
+    }
+  }
+  @keyframes petal-sway {
+    from {
+      transform: translateX(-14px) rotate(-30deg);
+    }
+    to {
+      transform: translateX(14px) rotate(50deg);
+    }
   }
 }

@@ -135,13 +135,13 @@ export function Tile3D({ size = 176 }: { size?: number }) {
           <span className="tile3d-shine" />
         </span>
         <span className="tile3d-face tile3d-back" style={{ transform: `rotateY(180deg) translateZ(${DEPTH / 2}px)` }} aria-hidden={!flipped}>
-          <span className="micro block text-chartreuse">Unit 01</span>
+          <span className="micro block text-sakura">Unit 01</span>
           <span className="mt-1 block font-display text-[22px] leading-6 tracking-[-0.02em]">
             Mikazuki
             <br />
             Fields
           </span>
-          <span className="micro mt-auto block text-[#f4ede6]/75">
+          <span className="micro mt-auto block text-[#f6efeb]/75">
             3 routes · 6 seasons
             <br />
             8 crops · 3 farms

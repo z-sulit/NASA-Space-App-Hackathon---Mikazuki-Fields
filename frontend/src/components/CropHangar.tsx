@@ -50,17 +50,17 @@ function CropTile({ crop, index, usedBy }: { crop: Crop; index: number; usedBy: 
         ))}
 
         <span className="crop3d-face crop3d-front" aria-hidden={flipped}>
-          <span aria-hidden className="absolute inset-x-0 top-0 h-1.5" style={{ background: FAMILY_VAR[crop.family] }} />
-          <span className="micro mt-1 flex items-center justify-between text-olive">
+          <span aria-hidden className="absolute inset-x-0 top-0 h-1" style={{ background: FAMILY_VAR[crop.family] }} />
+          <span className="micro mt-0.5 flex items-center justify-between text-[10.5px] text-olive">
             MF-{String(index + 1).padStart(2, "0")}
-            <RotateCw className="size-3.5" aria-hidden />
+            <RotateCw className="size-3" aria-hidden />
           </span>
-          <Icon className="mt-auto size-9" style={{ color: FAMILY_VAR[crop.family] }} aria-hidden />
-          <span className="mt-2 block font-display text-xl leading-6 font-medium tracking-[-0.02em] text-foreground">{crop.short}</span>
-          <span className="block text-xs text-muted-foreground">{FAMILY_LABEL[crop.family]}</span>
-          <span className="mt-2 flex min-h-5 items-center gap-1">
+          <Icon className="mt-auto size-6" style={{ color: FAMILY_VAR[crop.family] }} aria-hidden />
+          <span className="mt-1.5 block font-display text-[15px] leading-[18px] font-medium tracking-[-0.01em] text-foreground">{crop.short}</span>
+          <span className="block truncate text-[11px] leading-[14px] text-muted-foreground">{FAMILY_LABEL[crop.family]}</span>
+          <span className="mt-1 flex min-h-4 items-center gap-0.5">
             {usedBy.map((p) => (
-              <span key={p} className={`inline-flex size-5 items-center justify-center rounded-full text-[11px] font-semibold text-[#f4ede6] ${PLAN_DOT[p]}`}>
+              <span key={p} className={`inline-flex size-4 items-center justify-center rounded-full text-[9.5px] font-semibold text-[#f6efeb] ${PLAN_DOT[p]}`}>
                 {p}
               </span>
             ))}
@@ -70,17 +70,17 @@ function CropTile({ crop, index, usedBy }: { crop: Crop; index: number; usedBy: 
         </span>
 
         <span className="crop3d-face crop3d-back" aria-hidden={!flipped}>
-          <span className="micro text-chartreuse">{crop.short}</span>
-          <span className="mt-auto grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[13px] leading-4">
-            <span className="text-[#f4ede6]/65">Grows</span>
+          <span className="micro text-[10.5px] text-sakura">{crop.short}</span>
+          <span className="mt-auto grid grid-cols-[auto_1fr] gap-x-1.5 gap-y-0.5 text-[11px] leading-[13px]">
+            <span className="text-[#f6efeb]/65">Grows</span>
             <span className="tabular">{crop.days} days</span>
-            <span className="text-[#f4ede6]/65">Water</span>
+            <span className="text-[#f6efeb]/65">Water</span>
             <span>{waterNeed(crop)}</span>
-            <span className="text-[#f4ede6]/65">Soil N</span>
+            <span className="text-[#f6efeb]/65">Soil N</span>
             <span className="tabular">{n > 0 ? `+${n} feeds soil` : `−${Math.abs(n)} drains`}</span>
-            <span className="text-[#f4ede6]/65">Heat</span>
+            <span className="text-[#f6efeb]/65">Heat</span>
             <span className="tabular">to {crop.heat_limit_c} °C</span>
-            <span className="text-[#f4ede6]/65">For</span>
+            <span className="text-[#f6efeb]/65">For</span>
             <span>{crop.fits_goal.map((g) => (g === "cash" ? "cash" : "feed")).join(", ")}</span>
           </span>
         </span>
@@ -97,11 +97,11 @@ export function CropHangar({ plans }: { plans: PlanResult[] | null }) {
         <SectionTitle id="hangar-h" num="00" kicker="Hangar">
           8 crops, ready to deploy
         </SectionTitle>
-        <p className="mt-1 max-w-[60ch] text-muted-foreground">
+        <p className="mt-1 max-w-[60ch] text-sm text-muted-foreground">
           Tap a tile to flip it and see what the crop needs. The letters show which of your 3 routes use it.
         </p>
       </Reveal>
-      <ul className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-8">
+      <ul className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-8">
         {CROPS.map((c, i) => (
           <li key={c.id}>
             <Reveal delay={i * 60}>

@@ -1,5 +1,5 @@
 /*
- * Mikazuki Fields design tokens: "Field Olive" theme (light only for the MVP).
+ * Mikazuki Fields design tokens: "Field Olive × Sakura" theme (light only for the MVP).
  * Editorial olive-and-beige look inspired by the CropTab site (Awwwards SOTD, Feb 2026),
  * plus a Mikazuki layer: crescent emblem, HUD corner brackets, Mars-rust El Niño accent.
  * Written for Tailwind v4 + shadcn/ui. Usage and contrast ratios: docs/UI_STYLE_GUIDE.md
@@ -13,19 +13,19 @@
   --radius: 0.75rem; /* 12px cards; shadcn derives sm/md/lg from this */
 
   /* ---- shadcn/ui base tokens ---- */
-  --background: #f4ede6; /* beige */
-  --foreground: #26300f; /* deep olive, 12.0:1 on background */
-  --card: #fcf9f5;
+  --background: #f6efeb; /* rice-paper beige, a touch of blush */
+  --foreground: #26300f; /* deep olive, 12.2:1 on background */
+  --card: #fdf9f7;
   --card-foreground: #26300f;
-  --popover: #fcf9f5;
+  --popover: #fdf9f7;
   --popover-foreground: #26300f;
   --primary: #404f1d; /* field olive: Plan B, main buttons, links */
-  --primary-foreground: #f4ede6; /* 7.7:1 on primary */
+  --primary-foreground: #f6efeb; /* 7.8:1 on primary */
   --secondary: #ebe3d6;
   --secondary-foreground: #26300f;
   --muted: #efe7dc;
-  --muted-foreground: #5a5e45; /* 5.8:1 on background */
-  --accent: #e6edc9;
+  --muted-foreground: #5a5e45; /* 5.9:1 on background */
+  --accent: #fbe8ed;
   --accent-foreground: #26300f;
   --destructive: #9b2c1f;
   --border: #e2d9cc; /* decorative dividers */
@@ -44,9 +44,11 @@
   --plan-b: var(--chart-2);
   --plan-c: var(--chart-3);
 
-  --olive: #636f3d; /* micro labels, section numbers: 4.7:1 on background */
+  --olive: #636f3d; /* micro labels, section numbers: 4.8:1 on background */
   --sage: #7c914c; /* decoration only */
-  --chartreuse: #d4de72; /* highlight fills (Recommended); dark text on it 9.6:1 */
+  --sakura: #f5bfcd; /* sakura pink: highlight fills (Recommended, CTA); dark text on it 8.7:1 */
+  --sakura-deep: #a8325a; /* sakura text and icons: 5.7:1 on background */
+  --sakura-tint: #fbe8ed; /* soft pink wash */
   --hero-dark: #2f3a14;
   --hero-mid: #556332;
   --hero-glow: #7c914c;
@@ -55,7 +57,7 @@
   --sun: #a9452c; /* toggle fill, heat icons: 5.1:1 on background */
   --sun-strong: #8f3a24; /* rust text: 6.5:1 on background */
   --sun-tint: #f5ded2; /* El Niño-on background */
-  --moon: #e3b341; /* crescent emblem, decorative */
+  --moon: #efe6dc; /* emblem crescent on dark (pearl), decorative */
 
   --family-poaceae: #a87c0e; /* corn, rice, sorghum */
   --family-fabaceae: #4d8b3a; /* mungbean, peanut, cowpea */
@@ -75,7 +77,7 @@
 }
 
 /* Expose project tokens as Tailwind utilities: bg-sun-tint, border-family-fabaceae,
-   stroke-plan-c, text-olive, bg-chartreuse, font-display, ease-field, ... */
+   stroke-plan-c, text-olive, bg-sakura, font-display, ease-field, ... */
 @theme inline {
   --color-plan-a: var(--plan-a);
   --color-plan-b: var(--plan-b);
@@ -83,7 +85,9 @@
 
   --color-olive: var(--olive);
   --color-sage: var(--sage);
-  --color-chartreuse: var(--chartreuse);
+  --color-sakura: var(--sakura);
+  --color-sakura-deep: var(--sakura-deep);
+  --color-sakura-tint: var(--sakura-tint);
   --color-hero-dark: var(--hero-dark);
   --color-hero-mid: var(--hero-mid);
   --color-hero-glow: var(--hero-glow);

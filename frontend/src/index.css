@@ -366,7 +366,7 @@
     z-index: 5;
     pointer-events: none;
     background: var(--olive);
-    box-shadow: 0 0 24px 6px color-mix(in srgb, var(--chartreuse) 60%, transparent);
+    box-shadow: 0 0 24px 6px color-mix(in srgb, var(--sakura) 60%, transparent);
     animation: scan-y 1.1s ease-in-out infinite alternate;
   }
   @keyframes scan-y {

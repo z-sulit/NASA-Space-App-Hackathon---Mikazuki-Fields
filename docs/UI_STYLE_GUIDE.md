@@ -1,8 +1,8 @@
 # Mikazuki Fields — UI Style Guide
 
-**Owner:** Person 3 (Frontend + UI/UX) · **Status:** draft for team review · **Theme:** Field Olive × Mikazuki · **Tokens:** [`frontend/src/styles/tokens.css`](../frontend/src/styles/tokens.css)
+**Owner:** Person 3 (Frontend + UI/UX) · **Status:** draft for team review · **Theme:** Field Olive × Sakura × Mikazuki · **Tokens:** [`frontend/src/styles/tokens.css`](../frontend/src/styles/tokens.css)
 
-Mikazuki Fields should feel like a premium farm brand, not a tech dashboard: an editorial olive-and-beige look in the spirit of the CropTab site (Awwwards Site of the Day, Feb 2026), with a quiet Mikazuki layer of crescent emblem, cockpit corner brackets and a Mars-rust warning color. Under the look, every screen still answers one farmer question — *"What should I plant for the next 3 years, and why?"* — and stays readable in sunlight on a cheap Android phone.
+Mikazuki Fields should feel like a premium farm brand, not a tech dashboard: an editorial olive-and-beige look in the spirit of the CropTab site (Awwwards Site of the Day, Feb 2026), with sakura pink as the accent and a quiet Mikazuki layer of crescent emblem, cockpit corner brackets and a Mars-rust warning color. Olive and beige carry the crops; sakura pink is the highlight. Under the look, every screen still answers one farmer question — *"What should I plant for the next 3 years, and why?"* — and stays readable in sunlight on a cheap Android phone.
 
 ---
 
@@ -10,7 +10,7 @@ Mikazuki Fields should feel like a premium farm brand, not a tech dashboard: an 
 
 1. **Readable outdoors first.** The planner is light (beige cards, deep olive text), 16 px minimum body text, 44 px minimum touch targets. Only the landing hero uses the dark olive backdrop.
 2. **Color carries meaning, never alone.** Every color-coded thing (plan, crop family, badge) also has a word or icon.
-3. **One hero per screen.** Plan B (the recommended route) is the only thing outlined in field olive with a chartreuse **Recommended** tag. Everything else stays quiet.
+3. **One hero per screen.** Plan B (the recommended route) is the only thing outlined in field olive with a sakura-pink **Recommended** tag. Everything else stays quiet.
 4. **Motion with a job.** The landing gets the show: a short boot sequence, masked text reveals and scroll parallax. In the planner, motion only marks cause and effect, and the El Niño flip is the one big moment. No WebGL, no scroll-jacking, and the intro is under 2.5 s and skippable.
 5. **Farmer words first, science second.** Show "Soil Thirst Level"; put `GWETROOT` in the tooltip.
 6. **Theme, not franchise.** The Mikazuki layer uses original artwork only: no franchise logos, characters, mech art or names in the UI (the team name in the footer is the one exception).
@@ -25,15 +25,17 @@ Light planner, dark olive hero. All text pairs pass WCAG AA (4.5:1); all meaning
 
 | Token | Hex | Use | Contrast |
 |---|---|---|---|
-| `--background` (Beige) | `#F4EDE6` | Page background | — |
-| `--card` | `#FCF9F5` | Cards, plan columns, popovers | — |
-| `--foreground` (Deep olive) | `#26300F` | Body text, headings | 12.0:1 on background |
-| `--muted-foreground` | `#5A5E45` | Secondary text, captions | 5.8:1 on background |
-| `--olive` | `#636F3D` | Micro labels, section numbers ("01 / Input") | 4.7:1 on background |
+| `--background` (Rice-paper beige) | `#F6EFEB` | Page background, a touch of blush | — |
+| `--card` | `#FDF9F7` | Cards, plan columns, popovers | — |
+| `--foreground` (Deep olive) | `#26300F` | Body text, headings | 12.2:1 on background |
+| `--muted-foreground` | `#5A5E45` | Secondary text, captions | 5.9:1 on background |
+| `--olive` | `#636F3D` | Micro labels, section numbers ("01 / Input") | 4.8:1 on background |
 | `--border` | `#E2D9CC` | Card and divider lines (decorative) | — |
 | `--input` | `#8C8573` | Input and toggle outlines | 3.5:1 on card |
-| `--primary` (Field olive) | `#404F1D` | Plan B, main buttons, focus ring, links | beige text on it 7.7:1 |
-| `--chartreuse` | `#D4DE72` | Highlight fills: Recommended tag, hero call-to-action | olive text on it 9.6:1 |
+| `--primary` (Field olive) | `#404F1D` | Plan B, main buttons, focus ring, links | beige text on it 7.8:1 |
+| `--sakura` | `#F5BFCD` | Highlight fills: Recommended tag, hero call-to-action, boot status, drifting petals | olive text on it 8.7:1; 7.6:1 against the dark hero edge |
+| `--sakura-deep` | `#A8325A` | Pink text and icons on light backgrounds | 5.7:1 on background |
+| `--sakura-tint` | `#FBE8ED` | Soft pink wash (accent backgrounds) | olive text on it 11.8:1 |
 | `--destructive` | `#9B2C1F` | Critical warnings | — |
 
 ### Hero backdrop
@@ -59,7 +61,7 @@ The token names keep "sun" so components didn't change; the color is now a Mars-
 | `--sun` | `#A9452C` | El Niño toggle fill, heat icons, hazard stripe (5.1:1 on background) |
 | `--sun-strong` | `#8F3A24` | Any rust **text** (6.5:1 on background) |
 | `--sun-tint` | `#F5DED2` | Banner and KPI background while El Niño is on (body text 10.8:1 on it) |
-| `--moon` | `#E3B341` | Crescent emblem only — decorative, never for text |
+| `--moon` | `#EFE6DC` | Pearl crescent on dark backgrounds — decorative, never for text |
 
 ### Crop families
 
@@ -142,18 +144,21 @@ The CropTab-style opener, built from original parts:
 - **Top bar:** small crescent + "MIKAZUKI FIELDS" micro wordmark on the left; Demo planner badge and Language button as beige outline pills on the right.
 - **Wordmark:** "Mikazuki Fields™" in Display 400, top-left; a 3-line micro spec ("A 3-route crop planner / built on 10 years / of NASA data") top-right.
 - **Centerpiece:** the emblem tile (176 px, slow 6 s float, deep drop shadow) inside a thin cockpit targeting frame with micro callouts "UNIT 01 · MIKAZUKI" and the selected farm's coordinates.
-- **Bottom row:** tagline "For your fields. / For the next 6 seasons.", the line "Named for a crescent moon, and for a pilot who only ever wanted to farm.", and a chartreuse pill CTA "PLAN MY 3 ROUTES ↓" that jumps to the planner; data sources and "Team Tekkadan · Space Apps 2026" bottom-right.
+- **Bottom row:** tagline "For your fields. / For the next 6 seasons.", the line "Named for a crescent moon, and for a pilot who only ever wanted to farm.", and a sakura-pink pill CTA "PLAN MY 3 ROUTES ↓" that jumps to the planner; data sources and "Team Tekkadan · Space Apps 2026" bottom-right.
 
 ### Emblem
-Original mark, from the team's sketch: a gold crescent that closes into a full ring (two circles, the inner one shifted to the upper right, so the ring is thick at the lower left and 4.5 units wide at its thinnest) with a small rust five-petal "iron flower" centered in the opening (`src/components/Emblem.tsx`). The closed ring and centered flower keep it from reading as a crescent-and-star. Used in the hero on a dark olive tile, bare in the top bar (30 px) and boot screen, and as the browser-tab icon. With `animated`, the ring strokes draw, the crescent fills, then the petals bloom one by one. Do not replace it with any franchise emblem or mech artwork.
+Original mark, from the team's reference: an **open crescent** (outer circle r 40, inner circle r 31 shifted up and to the right so it pokes past the edge; thick at the lower left, tips opening at the upper right) holding a large **five-petal sakura** (petals 24 long with the notched tip of a cherry blossom, pale-to-pink gradient, deep-pink center with five stamen dots). Geometry lives in `EMBLEM` in `src/components/Emblem.tsx` and is shared with the WebGL tile.
+- **Colors:** pearl crescent (`#FBF6F1` → `#DCCFC2`) on dark backgrounds and the tile; olive-ink crescent (`tone="dark"`) on light backgrounds; petals `#FDE4EA` → `#F7A8BD` with a `#E58FA8` edge; center `#D94F7A`.
+- **Where:** hero (WebGL slab, CSS fallback), top bar (30 px, no tile), boot screen, language picker, browser-tab icon.
+- With `animated`, the crescent outline draws, fills, then the petals bloom one by one.
 
 ### 3D pieces
 The hero tile is WebGL (three.js); the crop tiles and soil terrain are CSS 3D transforms (`src/styles/three-d.css`), so the planner itself needs no GPU and runs on budget phones.
 
 | Piece | What it is | How you play with it | File |
 |---|---|---|---|
-| **Hero tile (WebGL)** | A beveled olive slab lit by a studio environment, with the crescent ring embossed in polished gold, rust petals, and a spec plate on the back. three.js loads in its own chunk after the page is up; the CSS slab (18 px thick, 17 stacked slices) shows first and stays as the fallback with reduced motion, without WebGL, or if the GPU context is lost. | Spins in when the hero is revealed. Drag to spin (a flick keeps it turning), tap or press Enter to flip. Left alone it sways, leans toward the mouse and springs back to a face. | `HeroTile.tsx`, `three/tileScene.ts`, fallback `Tile3D.tsx` |
-| **Crop tiles ("00 / Hangar")** | The 8 crops as small slabs edged in their family color. Front: unit code (MF-01…), family icon, name, and A/B/C dots for the routes that use it. Back: days to grow, water need, soil-nitrogen effect, heat limit, goal. | Tilts toward the pointer and lifts on hover; tap or Enter flips it. | `CropHangar.tsx` |
+| **Hero tile (WebGL)** | A beveled olive slab lit by a studio environment, with the pearl crescent and sakura petals embossed, and a spec plate on the back. three.js loads in its own chunk after the page is up; the CSS slab (18 px thick, 17 stacked slices) shows first and stays as the fallback with reduced motion, without WebGL, or if the GPU context is lost. | Spins in when the hero is revealed. Drag to spin (a flick keeps it turning), tap or press Enter to flip. Left alone it sways, leans toward the mouse and springs back to a face. | `HeroTile.tsx`, `three/tileScene.ts`, fallback `Tile3D.tsx` |
+| **Crop tiles ("00 / Hangar")** | The 8 crops as compact slabs (132 px tall; 8 in one row on desktop, 3 per row on phones) edged in their family color. Front: unit code (MF-01…), family icon, name, and A/B/C dots for the routes that use it. Back: days to grow, water need, soil-nitrogen effect, heat limit, goal. | Tilts toward the pointer and lifts on hover; tap or Enter flips it. | `CropHangar.tsx` |
 | **Soil terrain ("04")** | An isometric field: 3 routes × 6 seasons of blocks. Height = soil nitrogen after that season, color = crop family. Plan A sits in the front row so its sinking steps are never hidden. | Blocks rise from the ground on first view; drag sideways to turn the field; hover or tap a block for its numbers. | `Field3D.tsx` |
 
 Rules: 3D never carries information alone (the terrain repeats what the line chart shows, and has a text summary for screen readers); every 3D control works by tap and keyboard, not only by drag or hover.
@@ -178,7 +183,7 @@ Leaflet with OpenStreetMap tiles (keep the attribution visible). Preset farms ar
 The ⓘ opens a tooltip on **tap and keyboard focus**, not hover only: plain-English sentence first, then the technical name in small mono (`GWETROOT · NASA POWER`).
 
 ### Plan card (main canvas)
-Top to bottom: plan letter + name (H2), one-line promise ("Keeps profit, rebuilds soil"), 6 season cells, KPI strip, "Why this plan" (max 3 bullets), "Choose this plan" button. Plan B adds a chartreuse **Recommended** tag and a 2 px field-olive border; A and C get a 1 px border. All three carry the HUD corner brackets.
+Top to bottom: plan letter + name (H2), one-line promise ("Keeps profit, rebuilds soil"), 6 season cells, KPI strip, "Why this plan" (max 3 bullets), "Choose this plan" button. Plan B adds a sakura-pink **Recommended** tag and a 2 px field-olive border; A and C get a 1 px border. All three carry the HUD corner brackets.
 
 ### Season cell
 ```
@@ -281,7 +286,7 @@ Rules: the boot never exceeds 2.5 s and is always skippable; nothing loops in th
 
 | Site | What we took |
 |---|---|
-| [Farm Minerals · CropTab](https://www.awwwards.com/sites/farm-minerals) (main reference) | Olive-and-beige palette with a chartreuse accent, full-bleed olive hero with leaf shadows, large regular-weight grotesk wordmark, tiny uppercase corner labels, a centered "product" object (our emblem tile). Their photos, 3D product, copy and Aeonik font are not used. |
+| [Farm Minerals · CropTab](https://www.awwwards.com/sites/farm-minerals) (main reference) | Olive-and-beige palette with a chartreuse accent, full-bleed olive hero with leaf shadows, large regular-weight grotesk wordmark, tiny uppercase corner labels, a centered "product" object (our emblem tile). Their photos, 3D product, copy and Aeonik font are not used, and our accent is sakura pink instead of their chartreuse. |
 | [Maserati Trident Stars](https://www.awwwards.com/sites/maserati-trident-stars) (3D collection) | Real data you can turn and explore in 3D: our rotatable soil terrain |
 | [Anduril Industries](https://www.awwwards.com/sites/anduril-industries-1) (3D collection) | Hardware presented as clean 3D objects with spec callouts: the hero tile's spec plate and the crop "units" |
 | [Konk Electrical](https://www.awwwards.com/sites/konk-electrical) (3D collection) | 3D done with CSS and JavaScript rather than WebGL |
@@ -301,5 +306,5 @@ Rules: the boot never exceeds 2.5 s and is always skippable; nothing loops in th
 
 1. Scaffold the frontend (React + Vite + Tailwind v4) and run `npx shadcn@latest init`.
 2. In `src/index.css`, keep `@import "tailwindcss";` (and shadcn's other imports and its `@theme inline` block), add `@import "./styles/tokens.css";` right after them, and delete the `:root { … }` color block shadcn generated.
-3. Use shadcn's names for base colors (`bg-background`, `text-muted-foreground`, `bg-primary`) and ours for project colors (`border-family-fabaceae`, `stroke-plan-c`, `bg-sun-tint`, `bg-chartreuse`, `text-olive`, `font-display`).
+3. Use shadcn's names for base colors (`bg-background`, `text-muted-foreground`, `bg-primary`) and ours for project colors (`border-family-fabaceae`, `stroke-plan-c`, `bg-sun-tint`, `bg-sakura`, `text-olive`, `font-display`).
 4. Theme helpers live in `src/index.css`: `.micro` (corner labels), `.hud` (cockpit corner brackets), `.hazard` (El Niño stripe), `.hero-bg`, `.leaf-sway`, `.float`.

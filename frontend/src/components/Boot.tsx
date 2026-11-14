@@ -59,7 +59,7 @@ export function Boot({ presets, onDone }: { presets: Preset[]; onDone: () => voi
 
   return (
     <div
-      className="boot hero-bg fixed inset-0 z-[60] flex cursor-pointer flex-col items-center justify-center gap-8 px-6 text-[#f4ede6]"
+      className="boot hero-bg fixed inset-0 z-[60] flex cursor-pointer flex-col items-center justify-center gap-8 px-6 text-[#f6efeb]"
       data-phase={phase}
       onClick={() => setPhase("exit")}
       role="status"
@@ -70,15 +70,15 @@ export function Boot({ presets, onDone }: { presets: Preset[]; onDone: () => voi
         <ul className="micro space-y-1.5">
           {lines.map(([label, status], i) => (
             <li key={label} className="boot-line flex justify-between gap-4" style={{ animationDelay: `${150 + i * 210}ms` }}>
-              <span className="text-[#f4ede6]/80">{label}</span>
-              <span className={status === "Sample" ? "text-moon" : "text-chartreuse"}>{status}</span>
+              <span className="text-[#f6efeb]/80">{label}</span>
+              <span className={status === "Sample" ? "text-moon" : "text-sakura"}>{status}</span>
             </li>
           ))}
         </ul>
-        <div className="mt-5 h-px w-full bg-[#f4ede6]/25">
-          <div className="boot-bar h-px bg-chartreuse" />
+        <div className="mt-5 h-px w-full bg-[#f6efeb]/25">
+          <div className="boot-bar h-px bg-sakura" />
         </div>
-        <div className="micro mt-2 flex justify-between text-[#f4ede6]/70">
+        <div className="micro mt-2 flex justify-between text-[#f6efeb]/70">
           <span>Tap to skip</span>
           <span className="tabular">{String(pct).padStart(3, "0")}%</span>
         </div>

@@ -145,7 +145,7 @@ export function InfoTip({
         }}
         onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
         className={`-m-2.5 inline-flex size-11 items-center justify-center rounded-full transition-colors duration-150 ${
-          light ? "text-[#f4ede6]/80 hover:text-[#f4ede6]" : "text-muted-foreground hover:text-foreground"
+          light ? "text-[#f6efeb]/80 hover:text-[#f6efeb]" : "text-muted-foreground hover:text-foreground"
         }`}
       >
         <Info className="size-[18px]" aria-hidden />

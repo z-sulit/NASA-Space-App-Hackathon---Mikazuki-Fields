@@ -1,9 +1,38 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { ArrowDown } from "lucide-react";
 import type { Preset } from "../types";
-import { Emblem } from "./Emblem";
+import { Emblem, petalPath } from "./Emblem";
 import { HeroTile } from "./HeroTile";
 import { prefersReducedMotion, useScramble } from "./ui";
+
+/** A few sakura petals drifting down across the backdrop. */
+const PETALS = [
+  { x: 8, d: 0, t: 15, s: 14, dx: -90 },
+  { x: 22, d: 6, t: 18, s: 10, dx: -140 },
+  { x: 37, d: 2.5, t: 13, s: 12, dx: -60 },
+  { x: 55, d: 9, t: 17, s: 9, dx: -120 },
+  { x: 68, d: 4, t: 14, s: 13, dx: -80 },
+  { x: 81, d: 11, t: 19, s: 11, dx: -150 },
+  { x: 93, d: 1.5, t: 16, s: 10, dx: -100 },
+  { x: 46, d: 13, t: 15, s: 8, dx: -70 },
+];
+function SakuraDrift() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      {PETALS.map((p, i) => (
+        <span
+          key={i}
+          className="petal-drift"
+          style={{ left: `${p.x}%`, ["--delay" as string]: `${p.d}s`, ["--dur" as string]: `${p.t}s`, ["--dx" as string]: `${p.dx}px` }}
+        >
+          <svg width={p.s} height={p.s} viewBox="-10 -22 20 23">
+            <path d={petalPath(21)} fill="#f5bfcd" fillOpacity="0.85" />
+          </svg>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 /** Soft, blurred leaf shadows drifting across the backdrop (original shapes, CSS-animated). */
 function LeafShadows() {
@@ -54,7 +83,7 @@ function HudFrame() {
         <path d="M4 150H24M276 150H296" />
         <g className="spin-slow" style={{ transformOrigin: "150px 150px" }}>
           <circle cx="150" cy="150" r="128" strokeDasharray="2 10" />
-          <path d="M150 16V28" strokeWidth="2.5" stroke="rgba(212,222,114,0.8)" />
+          <path d="M150 16V28" strokeWidth="2.5" stroke="rgba(245,191,205,0.9)" />
         </g>
       </g>
     </svg>
@@ -113,8 +142,9 @@ export function Hero({ preset, ready, topRight }: { preset: Preset; ready: boole
   }, []);
 
   return (
-    <section ref={ref} aria-labelledby="hero-h" data-ready={ready} className="hero-bg relative isolate overflow-hidden text-[#f4ede6]">
+    <section ref={ref} aria-labelledby="hero-h" data-ready={ready} className="hero-bg relative isolate overflow-hidden text-[#f6efeb]">
       <LeafShadows />
+      <SakuraDrift />
       <div className="relative mx-auto flex min-h-[640px] max-w-[1280px] flex-col px-4 pt-4 pb-8 lg:min-h-[86vh]">
         {/* Top bar */}
         <div className="fade-up relative z-20 flex flex-wrap items-center justify-between gap-3" style={{ animationDelay: "600ms" }}>
@@ -133,7 +163,7 @@ export function Hero({ preset, ready, topRight }: { preset: Preset; ready: boole
               Fields<span className="align-super text-[0.3em]">™</span>
             </Line>
           </h1>
-          <p className="micro fade-up max-w-[240px] text-[#f4ede6]/80" style={{ animationDelay: "700ms" }}>
+          <p className="micro fade-up max-w-[240px] text-[#f6efeb]/80" style={{ animationDelay: "700ms" }}>
             A 3-route crop planner
             <br />
             built on 10 years
@@ -153,13 +183,13 @@ export function Hero({ preset, ready, topRight }: { preset: Preset; ready: boole
               <HeroTile size={176} ready={ready} />
             </div>
           </div>
-          <span className="micro fade-up absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-chartreuse" style={{ animationDelay: "1200ms" }}>
+          <span className="micro fade-up absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[#f6efeb]/85" style={{ animationDelay: "1200ms" }}>
             Drag to spin · Tap to flip
           </span>
-          <span className="micro absolute top-2 left-1/2 hidden -translate-x-1/2 whitespace-pre text-[#f4ede6]/70 sm:block" aria-label="Unit 01, Mikazuki">
+          <span className="micro absolute top-2 left-1/2 hidden -translate-x-1/2 whitespace-pre text-[#f6efeb]/70 sm:block" aria-label="Unit 01, Mikazuki">
             {unit}
           </span>
-          <span className="micro absolute bottom-2 left-1/2 hidden -translate-x-1/2 whitespace-pre text-[#f4ede6]/70 tabular sm:block" aria-label={`${lat}, ${lon}`}>
+          <span className="micro absolute bottom-2 left-1/2 hidden -translate-x-1/2 whitespace-pre text-[#f6efeb]/70 tabular sm:block" aria-label={`${lat}, ${lon}`}>
             {coords}
           </span>
         </div>
@@ -171,16 +201,16 @@ export function Hero({ preset, ready, topRight }: { preset: Preset; ready: boole
               <Line i={3}>For your fields.</Line>
               <Line i={4}>For the next 6 seasons.</Line>
             </p>
-            <p className="fade-up mt-3 text-sm text-[#f4ede6]/80" style={{ animationDelay: "800ms" }}>
+            <p className="fade-up mt-3 text-sm text-[#f6efeb]/80" style={{ animationDelay: "800ms" }}>
               Named for a crescent moon, and for a pilot who only ever wanted to farm.
             </p>
             <div className="fade-up" style={{ animationDelay: "900ms" }}>
-              <a href="#planner" className="micro btn-sweep mt-5 inline-flex min-h-12 items-center gap-2 rounded-full bg-chartreuse px-6 text-foreground">
+              <a href="#planner" className="micro btn-sweep mt-5 inline-flex min-h-12 items-center gap-2 rounded-full bg-sakura px-6 text-foreground">
                 Plan my 3 routes <ArrowDown className="size-4" aria-hidden />
               </a>
             </div>
           </div>
-          <div className="micro fade-up space-y-1 text-right text-[#f4ede6]/75" style={{ animationDelay: "900ms" }}>
+          <div className="micro fade-up space-y-1 text-right text-[#f6efeb]/75" style={{ animationDelay: "900ms" }}>
             <p>NASA POWER · SRTM · MODIS</p>
             <p>Team Tekkadan · Space Apps 2026</p>
           </div>

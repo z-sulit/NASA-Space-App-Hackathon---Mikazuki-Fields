@@ -1,6 +1,6 @@
 /**
  * WebGL hero tile (three.js): a beveled olive slab with the Mikazuki Fields mark
- * embossed in gold on the front and a spec plate on the back, lit by a studio
+ * embossed (pearl crescent, sakura petals) on the front and a spec plate on the back, lit by a studio
  * environment so the metal picks up real reflections.
  *
  * Loaded lazily by HeroTile.tsx; the CSS Tile3D is the fallback when WebGL is
@@ -17,7 +17,6 @@ import {
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
-  Path,
   PerspectiveCamera,
   PlaneGeometry,
   PMREMGenerator,
@@ -28,6 +27,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { EMBLEM } from "../components/Emblem";
 
 export interface TileHandle {
   /** Spin the tile in from the side (call when the hero is revealed). */
@@ -38,10 +38,55 @@ export interface TileHandle {
 
 const TAU = Math.PI * 2;
 const U = (2 / 96) * 0.74; // one emblem unit (of its 100-unit viewBox) in world units; the tile is 2 wide
-const RING_OUT = 40 * U;
-const RING_IN = 28 * U;
-const SHIFT = 7.5 * U * Math.SQRT1_2; // inner circle sits up and to the right
+// Emblem coordinates (SVG, y down) -> world (y up), centered on the tile.
+const W = (x: number, y: number) => ({ x: (x - 50) * U, y: -(y - 50) * U });
 const FRONT_Z = 0.12; // half the slab's thickness
+
+/** The open crescent: outer circle minus the shifted inner circle, traced as two arcs between their crossing points. */
+function crescentShape() {
+  const oc = W(EMBLEM.outer.cx, EMBLEM.outer.cy);
+  const ic = W(EMBLEM.inner.cx, EMBLEM.inner.cy);
+  const ro = EMBLEM.outer.r * U;
+  const ri = EMBLEM.inner.r * U;
+  const dx = ic.x - oc.x;
+  const dy = ic.y - oc.y;
+  const d = Math.hypot(dx, dy);
+  const a = (ro * ro - ri * ri + d * d) / (2 * d);
+  const h = Math.sqrt(ro * ro - a * a);
+  const mx = oc.x + (a * dx) / d;
+  const my = oc.y + (a * dy) / d;
+  const p1 = { x: mx + (h * dy) / d, y: my - (h * dx) / d };
+  const p2 = { x: mx - (h * dy) / d, y: my + (h * dx) / d };
+  const ang = (c: { x: number; y: number }, q: { x: number; y: number }) => Math.atan2(q.y - c.y, q.x - c.x);
+  // Pick the arc direction whose midpoint faces `toward` (or away from it when `away`).
+  const cw = (from: number, to: number, toward: number, away: boolean) => {
+    const span = (((to - from) % TAU) + TAU) % TAU;
+    const facing = Math.cos(from + span / 2 - toward) > 0;
+    return away ? facing : !facing;
+  };
+  const toInner = Math.atan2(dy, dx);
+  const a1 = ang(oc, p1);
+  const a2 = ang(oc, p2);
+  const b1 = ang(ic, p1);
+  const b2 = ang(ic, p2);
+  const s = new Shape();
+  s.moveTo(p1.x, p1.y);
+  s.absarc(oc.x, oc.y, ro, a1, a2, cw(a1, a2, toInner, true));
+  s.absarc(ic.x, ic.y, ri, b2, b1, cw(b2, b1, toInner + Math.PI, false));
+  return s;
+}
+
+/** One notched sakura petal pointing up (world +y) from the origin; mirrors petalPath() in Emblem.tsx. */
+function petalShape(L: number) {
+  const k = (L / 21) * U;
+  const s = new Shape();
+  s.moveTo(0, 0);
+  s.bezierCurveTo(-7 * k, 3 * k, -12 * k, 12 * k, -8.5 * k, 19 * k);
+  s.bezierCurveTo(-6.5 * k, 22 * k, -2.5 * k, 22 * k, 0, 18.5 * k);
+  s.bezierCurveTo(2.5 * k, 22 * k, 6.5 * k, 22 * k, 8.5 * k, 19 * k);
+  s.bezierCurveTo(12 * k, 12 * k, 7 * k, 3 * k, 0, 0);
+  return s;
+}
 
 function roundedSquare(size: number, r: number) {
   const h = size / 2;
@@ -66,10 +111,10 @@ function specPlate() {
   const draw = () => {
     g.clearRect(0, 0, 512, 512);
     g.textBaseline = "top";
-    g.fillStyle = "#d4de72";
+    g.fillStyle = "#f5bfcd";
     g.font = '500 30px "Inter Tight", Arial, sans-serif';
     g.fillText("U N I T   0 1", 0, 8);
-    g.fillStyle = "#f4ede6";
+    g.fillStyle = "#f6efeb";
     g.font = '400 92px "Inter Tight", Arial, sans-serif';
     g.fillText("Mikazuki", 0, 70);
     g.fillText("Fields", 0, 160);
@@ -122,32 +167,31 @@ export function createTileScene(host: HTMLElement, onFace: (flipped: boolean) =>
   // Slab
   const slabGeo = new ExtrudeGeometry(roundedSquare(1.9, 0.46), { depth: 0.14, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 8, curveSegments: 28 });
   slabGeo.center();
-  const slabMat = new MeshPhysicalMaterial({ color: 0x35431a, roughness: 0.55, metalness: 0.1, clearcoat: 0.45, clearcoatRoughness: 0.35 });
+  const slabMat = new MeshPhysicalMaterial({ color: 0x27330f, roughness: 0.6, metalness: 0.05, clearcoat: 0.3, clearcoatRoughness: 0.4 });
   tile.add(new Mesh(slabGeo, slabMat));
 
-  // Embossed mark: crescent ring in gold, five rust petals, gold center
-  const gold = new MeshStandardMaterial({ color: 0xe3b341, metalness: 0.95, roughness: 0.26, envMapIntensity: 2.4 });
-  const rust = new MeshStandardMaterial({ color: 0xb8432a, metalness: 0.1, roughness: 0.55 });
-  const ring = new Shape().absarc(0, 0, RING_OUT, 0, TAU, false);
-  ring.holes.push(new Path().absarc(SHIFT, SHIFT, RING_IN, 0, TAU, true));
+  // Embossed mark: pearl crescent, five sakura petals, deep-pink center
+  const gold = new MeshPhysicalMaterial({ color: 0xefe6dc, metalness: 0.35, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.15, envMapIntensity: 1.8 });
+  const rust = new MeshStandardMaterial({ color: 0xf5bfcd, metalness: 0.05, roughness: 0.55, emissive: 0x6b1f35, emissiveIntensity: 0.12 });
+  const centerMat = new MeshStandardMaterial({ color: 0xd94f7a, metalness: 0.1, roughness: 0.45 });
   const emboss = { depth: 0.03, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.01, bevelSegments: 4, curveSegments: 56 };
-  const ringGeo = new ExtrudeGeometry(ring, emboss);
+  const ringGeo = new ExtrudeGeometry(crescentShape(), emboss);
   const ringMesh = new Mesh(ringGeo, gold);
   ringMesh.position.z = FRONT_Z;
   tile.add(ringMesh);
 
-  const petalGeo = new ExtrudeGeometry(new Shape().absellipse(0, 0, 4.6 * U, 6.8 * U, 0, TAU, false, 0), { ...emboss, curveSegments: 24 });
+  const fc = W(EMBLEM.flower.cx, EMBLEM.flower.cy);
+  const petalGeo = new ExtrudeGeometry(petalShape(EMBLEM.flower.petal), { ...emboss, depth: 0.022, curveSegments: 24 });
   for (let i = 0; i < 5; i++) {
-    const a = ((90 - 72 * i) * Math.PI) / 180;
     const petal = new Mesh(petalGeo, rust);
-    petal.position.set(SHIFT + 7.4 * U * Math.cos(a), SHIFT + 7.4 * U * Math.sin(a), FRONT_Z);
-    petal.rotation.z = a - Math.PI / 2;
+    petal.position.set(fc.x, fc.y, FRONT_Z + 0.004 * i); // tiny steps so overlapping petals never z-fight
+    petal.rotation.z = (-i * 72 * Math.PI) / 180;
     tile.add(petal);
   }
   const dotGeo = new SphereGeometry(3.4 * U, 24, 16);
-  const dot = new Mesh(dotGeo, gold);
+  const dot = new Mesh(dotGeo, centerMat);
   dot.scale.z = 0.6;
-  dot.position.set(SHIFT, SHIFT, FRONT_Z + 0.04);
+  dot.position.set(fc.x, fc.y, FRONT_Z + 0.05);
   tile.add(dot);
 
   // Spec plate on the back
@@ -254,7 +298,7 @@ export function createTileScene(host: HTMLElement, onFace: (flipped: boolean) =>
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("webglcontextlost", onLost);
       [slabGeo, ringGeo, petalGeo, dotGeo, plateGeo].forEach((g) => g.dispose());
-      [slabMat, gold, rust, plateMat].forEach((m) => m.dispose());
+      [slabMat, gold, rust, centerMat, plateMat].forEach((m) => m.dispose());
       plateTex.dispose();
       env.dispose();
       pmrem.dispose();
