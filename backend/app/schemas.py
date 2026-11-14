@@ -54,6 +54,12 @@ class SeasonClimate(BaseModel):
     allsky_mj: float
     et0_mm_day: float
     heavy_rain_months: list[int] = Field(default_factory=list)
+    # Month-by-month series in season order (wet: Jun..Nov, dry: Dec..May). The simulator
+    # runs its water balance per month when these are present, so a dry spell inside a
+    # season counts even when the 6-month total looks plentiful. Empty = season totals only.
+    monthly_rain_mm: list[float] = Field(default_factory=list)
+    monthly_tmax_c: list[float] = Field(default_factory=list)
+    monthly_et0_mm_day: list[float] = Field(default_factory=list)
 
 
 class ScenarioClimate(BaseModel):
@@ -68,6 +74,9 @@ class ClimateBundle(BaseModel):
 
     normal: ScenarioClimate
     elnino: ScenarioClimate
+    # "observed_2015_2016": El Nino replays this location's Jun 2015-May 2016 NASA POWER months.
+    # "synthetic": -25% rain, +1.5 C on the 10-year normals (used when those months are missing).
+    elnino_basis: Literal["observed_2015_2016", "synthetic"] = "synthetic"
 
 
 class BannerMetric(BaseModel):

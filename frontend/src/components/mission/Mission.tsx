@@ -11,6 +11,7 @@ import { peso, prefersReducedMotion, Switch, useScramble } from "../ui";
 import { TargetMap, type LatLon, type TargetMapHandle } from "./TargetMap";
 import { PickPlants, type Choice } from "./PickPlants";
 import { PlantField } from "./PlantField";
+import { ElNinoReport } from "./ElNinoReport";
 import type { FieldHandle } from "../../three/tileField";
 
 /** Must match EXIT_MS in three/tileField.ts (kept here so the 3D chunk stays lazy). */
@@ -331,7 +332,8 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     ? chosen.now.seasons.map((s, i) => ({
         family: CROP[s.crop].family,
         label: `S${i + 1} · ${CROP[s.crop].short}`,
-        wilt: scenario === "elnino" && chosen.normal.seasons[i].profit > 0 && s.profit < chosen.normal.seasons[i].profit * 0.95,
+        // Wilt only where El Niño cut the harvest (irrigated crops that just cost more to pump stay green).
+        wilt: scenario === "elnino" && s.yieldT < chosen.normal.seasons[i].yieldT * 0.97,
       }))
     : [];
   const onSeason = useCallback((i: number) => setSeason(i), []);
@@ -462,8 +464,12 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           <aside className="hud-panel hud-panel-right" aria-label="Conditions">
             <label className="flex items-center justify-between gap-3">
               <span>
-                <span className="micro block text-sakura">Dry spell</span>
-                <span className="block text-xs text-[#f6efeb]/65">El Niño: −25% rain, +1.5 °C</span>
+                <span className="micro block text-sakura">El Niño</span>
+                <span className="block text-xs text-[#f6efeb]/65">
+                  {focus.elnino_basis === "observed_2015_2016" && focus.elnino_2016_dry_rain_pct !== null
+                    ? `Replays 2015–16 here: dry-season rain ${Math.round(focus.elnino_2016_dry_rain_pct)}%`
+                    : "Dry spell: −25% rain, +1.5 °C"}
+                </span>
               </span>
               <Switch checked={scenario === "elnino"} onChange={(on) => setScenario(on ? "elnino" : "normal")} label="Simulate El Niño or dry spell" />
             </label>
@@ -580,11 +586,12 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             </dl>
             <label className="mt-3 flex items-center justify-between gap-3 rounded-md border border-[#f6efeb]/15 px-3 py-2">
               <span>
-                <span className="block text-sm font-semibold">Dry spell (El Niño)</span>
-                <span className="block text-xs text-[#f6efeb]/65">Crops hit by the dry spell wilt</span>
+                <span className="block text-sm font-semibold">El Niño (2015–16)</span>
+                <span className="block text-xs text-[#f6efeb]/65">Replays the real El Niño months; crops it hurts wilt</span>
               </span>
-              <Switch checked={scenario === "elnino"} onChange={(on) => setScenario(on ? "elnino" : "normal")} label="Simulate El Niño or dry spell" />
+              <Switch checked={scenario === "elnino"} onChange={(on) => setScenario(on ? "elnino" : "normal")} label="Replay the 2015–16 El Niño" />
             </label>
+            {scenario === "elnino" && <ElNinoReport req={req} preset={target} now={chosen.now} normal={chosen.normal} />}
             <ul className="mt-3 list-disc space-y-1 pl-4 text-sm text-[#f6efeb]/85">
               {chosen.now.why.slice(0, 2).map((w) => (
                 <li key={w}>{w}</li>

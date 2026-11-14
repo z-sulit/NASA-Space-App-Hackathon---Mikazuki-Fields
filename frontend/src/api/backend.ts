@@ -24,12 +24,15 @@ interface BSeasonClimate {
   allsky_mj: number;
   et0_mm_day: number;
   heavy_rain_months: number[];
+  monthly_rain_mm?: number[];
+  monthly_tmax_c?: number[];
+  monthly_et0_mm_day?: number[];
 }
 export interface BFarmContext {
   location: { preset_id: string | null; name: string; lat: number; lon: number; is_custom_pin: boolean };
   terrain: { elevation_m: number; slope_pct: number; erosion_risk_label: string };
   ndvi_profile: { mean_ndvi: number; historical_bare_months: number[]; el_nino_ndvi_drop_pct: number };
-  climate: Record<"normal" | "elnino", Record<SeasonKind, BSeasonClimate>>;
+  climate: Record<"normal" | "elnino", Record<SeasonKind, BSeasonClimate>> & { elnino_basis?: "observed_2015_2016" | "synthetic" };
 }
 interface BSeasonStep {
   season_index: number;
@@ -187,26 +190,36 @@ function monthly(c: BSeasonClimate, months: number[]): number[] {
 export function farmToPreset(ctx: BFarmContext, base?: Preset): Preset {
   const loc = ctx.location;
   const id = loc.preset_id ?? `pin-${loc.lat.toFixed(2)},${loc.lon.toFixed(2)}`;
-  const season = (kind: SeasonKind): SeasonClimate => {
-    const c = ctx.climate.normal[kind];
+  const season = (kind: SeasonKind, scenario: "normal" | "elnino" = "normal"): SeasonClimate => {
+    const c = ctx.climate[scenario][kind];
+    const six = (xs?: number[]) => (xs?.length === 6 ? xs : undefined);
     return {
       label: kind === "wet" ? "Jun–Nov" : "Dec–May",
       rain_mm: c.rain_mm,
-      monthly_rain_mm: base?.seasons[kind].monthly_rain_mm ?? monthly(c, kind === "wet" ? WET_MONTHS : DRY_MONTHS),
+      monthly_rain_mm:
+        six(c.monthly_rain_mm) ?? (scenario === "normal" ? base?.seasons[kind].monthly_rain_mm : undefined) ?? monthly(c, kind === "wet" ? WET_MONTHS : DRY_MONTHS),
       t2m_c: c.t2m_c,
       tmax_c: c.tmax_c,
       allsky_mj: c.allsky_mj,
       gwetroot: c.gwetroot,
       et0_mm_day: c.et0_mm_day,
+      monthly_tmax_c: six(c.monthly_tmax_c),
+      monthly_et0_mm_day: six(c.monthly_et0_mm_day),
     };
   };
+  const basis = ctx.climate.elnino_basis ?? "synthetic";
   return {
     id,
     name: loc.is_custom_pin ? `Pinned farm (${loc.lat.toFixed(2)}° N, ${loc.lon.toFixed(2)}° E)` : (base?.name ?? loc.name),
     lat: loc.lat,
     lon: loc.lon,
     seasons: { wet: season("wet"), dry: season("dry") },
-    elnino_2016_dry_rain_pct: base?.elnino_2016_dry_rain_pct ?? null,
+    elnino: { wet: season("wet", "elnino"), dry: season("dry", "elnino") },
+    elnino_basis: basis,
+    elnino_2016_dry_rain_pct:
+      basis === "observed_2015_2016"
+        ? Math.round((ctx.climate.elnino.dry.rain_mm / ctx.climate.normal.dry.rain_mm - 1) * 1000) / 10
+        : (base?.elnino_2016_dry_rain_pct ?? null),
     slope_pct: ctx.terrain.slope_pct,
     ndvi_dry_min: ctx.ndvi_profile.mean_ndvi,
     // Presets carry measured SRTM slope and MODIS NDVI; a pin borrows the nearest preset's.
