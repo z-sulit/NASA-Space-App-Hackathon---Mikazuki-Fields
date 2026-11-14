@@ -16,6 +16,7 @@ from backend.app.schemas import FarmContext, PlanResponse, PresetSummary
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 PRESETS_DIR = REPO_ROOT / "data-prep" / "presets"
+FALLBACK_PATH = REPO_ROOT / "frontend" / "public" / "fallback_plans.json"
 EXPECTED_PRESETS = ("bukidnon", "davao_del_sur", "isabela")
 
 
@@ -207,6 +208,29 @@ def test_plans_endpoint_contract_and_overrides() -> None:
 
         for scenario_key in ("normal", "elnino"):
             scen = plan_resp.scenarios[scenario_key]
+            for card in (scen.plan_a, scen.plan_b, scen.plan_c):
+                assert len(card.seasons) == 6
+                assert len(card.why_bullets) >= 1
+
+
+def test_fallback_plans_json_valid() -> None:
+    """Verify frontend/public/fallback_plans.json exists and validates against contract schemas."""
+    assert FALLBACK_PATH.exists(), f"Missing fallback bundle: {FALLBACK_PATH}"
+    raw = json.loads(FALLBACK_PATH.read_text(encoding="utf-8"))
+
+    presets = [PresetSummary.model_validate(item) for item in raw["presets"]]
+    assert [p.preset_id for p in presets] == list(EXPECTED_PRESETS)
+
+    for pid in EXPECTED_PRESETS:
+        farm = FarmContext.model_validate(raw["farms"][pid])
+        assert farm.location.preset_id == pid
+        assert len(farm.banner_metrics) == 5
+
+        plan = PlanResponse.model_validate(raw["plans"][pid])
+        assert "normal" in plan.scenarios
+        assert "elnino" in plan.scenarios
+        for scenario_key in ("normal", "elnino"):
+            scen = plan.scenarios[scenario_key]
             for card in (scen.plan_a, scen.plan_b, scen.plan_c):
                 assert len(card.seasons) == 6
                 assert len(card.why_bullets) >= 1
