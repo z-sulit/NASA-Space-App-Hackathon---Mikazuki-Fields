@@ -174,18 +174,25 @@ npm run dev
 - **Agronomic & Regional Factors Considered:** Calibrated for Philippine Wet (Jun–Nov) and Dry (Dec–May) cropping calendars, regional farmgate prices and yields (`PSA OpenSTAT`), slope feasibility (`>8%` blocking paddy rice in steep Bukidnon uplands), acid-soil nodulation penalties (`soil_ph < 5.5` triggering a liming advisory), and clear disclosures on satellite spatial resolution (`50–70 km` POWER cells, `250 m` MODIS pixels) recommending local Department of Agriculture (DA) soil lab verification.
 
 ### Use of Super Intelligence (SI) Disclosure
-Artificial intelligence / LLM coding assistants (Super Intelligence tools) were used by Team Tekkadan to assist with software engineering, data pipeline scaffolding, UI styling, and automated verification testing. All NASA Earth observation datasets, agronomic calibration parameters, and simulation formulas were grounded in verified NASA, FAO, and PSA OpenSTAT references, with zero NASA branding or logos generated or modified.
+Artificial intelligence / LLM coding assistants (Super Intelligence tools) were used by Team Tekkadan to assist with code checking, UI styling and Video Generation. All NASA Earth observation datasets, agronomic calibration parameters, and simulation formulas were grounded in verified NASA, FAO, and PSA OpenSTAT references, with zero NASA branding or logos generated or modified.
 
 ### NASA Data
 - `NASA POWER Agroclimatology API (MERRA-2)` — https://power.larc.nasa.gov/
+  - **How It Was Used:** Queried 10-year (2015–2024) monthly agroclimatology (`T2M`, `T2M_MAX`, `PRECTOTCORR`, `GWETROOT`, `ALLSKY_SFC_SW_DWN`, `community=AG`) to compute Wet (`Jun–Nov`) and Dry (`Dec–May`) seasonal rainfall, afternoon heat stress penalties, root-zone *Soil Thirst Level*, Hargreaves reference evapotranspiration ($ET_0$), and historical 2015–16 / 2023–24 El Niño drought anomalies.
 - `NASA Shuttle Radar Topography Mission (SRTM 30m)` — https://www.earthdata.nasa.gov/data/instruments/srtm
+  - **How It Was Used:** Extracted 30m elevation grids around Philippine farm coordinates to calculate terrain slope (`slope_pct`), classify *Erosion Slope Risk*, drive the RUSLE-style seasonal bare-soil erosion index, and enforce the hard feasibility mask blocking lowland paddy rice on steep uplands (`slope_pct > 8.0%`).
 - `NASA MODIS MOD13Q1 v061 16-Day 250m NDVI (LP DAAC)` — https://lpdaac.usgs.gov/products/mod13q1v061/
+  - **How It Was Used:** Analyzed 10 years (2015–2024) of 16-day 250m NDVI vegetation composites (`250m_16_days_NDVI`) to establish each farm's baseline *Green Cover Score* (`mean_ndvi`), flag historical post-harvest bare-soil months (`historical_bare_months`), and quantify historical El Niño vegetation greenness drops (`el_nino_ndvi_drop_pct`).
 - `ORNL DAAC MODIS Global Subset REST API` — https://modis.ornl.gov/globalsubset/
+  - **How It Was Used:** Used in `data-prep/fetch_srtm_ndvi.py` to programmatically fetch and cache 2015–2024 `MOD13Q1` pixel time-series subsets for our benchmark Philippine farm regions.
 
 ### Space Agency Partner & Other Data
 - `Philippine Statistics Authority (PSA OpenSTAT)` — https://openstat.psa.gov.ph/
+  - **How It Was Used:** Calibrated baseline regional crop yields (`base_yield_t_ha`), farmgate prices (`price_php_per_t`), and production costs (`base_cost_php`) in `backend/app/crop_library.json` across all 8 Philippine crops.
 - `FAO Irrigation and Drainage Paper No. 56 (Crop Evapotranspiration) & No. 33 (Yield Response to Water)` — https://www.fao.org/land-water/databases-and-software/crop-information/en/
+  - **How It Was Used:** Parameterized crop water requirement coefficients ($K_c$) and water-deficit yield sensitivity factors ($K_y$) in the 6-season water balance and drought yield-loss equations (`backend/app/simulator.py`).
 - `OpenTopoData SRTM 30m Public REST API` — https://www.opentopodata.org/datasets/srtm/
+  - **How It Was Used:** Queried in `data-prep/fetch_srtm_ndvi.py` to sample $3 \times 3$ and surrounding ring SRTM 30m elevation points for finite-difference terrain slope computation.
 
 ### Project Submission Verification
 - Team Tekkadan confirms agreement to the **NASA Space Apps Challenge Terms & Conditions** and declares that this project is our original work built for the 2026 NASA Space Apps Challenge.
