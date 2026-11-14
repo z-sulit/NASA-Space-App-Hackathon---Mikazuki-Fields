@@ -13,6 +13,7 @@ import {
   Color,
   ConeGeometry,
   CylinderGeometry,
+  BufferAttribute,
   DirectionalLight,
   Float32BufferAttribute,
   Group,
@@ -26,6 +27,8 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   PointLight,
+  Points,
+  PointsMaterial,
   Scene,
   SphereGeometry,
   Sprite,
@@ -49,6 +52,8 @@ export interface PlantHandle {
   plant(plots: PlotSpec[], onSeason: (i: number) => void): void;
   /** Update wilting (dry spell) without replanting. */
   setWilt(wilt: boolean[]): void;
+  /** El Niño look: harsh orange sun, dry cracked soil, blowing dust (eases in and out). */
+  setDrought(on: boolean): void;
   dispose(): void;
 }
 
@@ -132,6 +137,41 @@ function labelSprite(text: string) {
   return s;
 }
 
+/** Dry-season cracks: a deterministic web of dark, branching lines on a transparent canvas. */
+function crackTexture(): CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 512;
+  const ctx = c.getContext("2d")!;
+  let seed = 11;
+  const r = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
+  ctx.strokeStyle = "rgba(38, 24, 12, 0.9)";
+  ctx.lineCap = "round";
+  const walk = (x: number, y: number, a: number, len: number, w: number) => {
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    for (let i = 0; i < len; i++) {
+      a += (r() - 0.5) * 0.9;
+      x += Math.cos(a) * 9;
+      y += Math.sin(a) * 9;
+      ctx.lineTo(x, y);
+      if (w > 1 && r() < 0.12) {
+        ctx.stroke();
+        walk(x, y, a + (r() < 0.5 ? 1.2 : -1.2), Math.floor(len / 2), w * 0.6);
+        ctx.lineWidth = w;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+      }
+    }
+    ctx.stroke();
+  };
+  for (let i = 0; i < 26; i++) walk(r() * 256, r() * 512, r() * Math.PI * 2, 10 + Math.floor(r() * 14), 1.6 + r() * 1.4);
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  return tex;
+}
+
 export function createPlantScene(host: HTMLElement): PlantHandle {
   const renderer = new WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
@@ -143,7 +183,8 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
   host.appendChild(canvas);
 
   const scene = new Scene();
-  scene.add(new HemisphereLight("#fff6e0", "#3b2f20", 1.6));
+  const hemi = new HemisphereLight("#fff6e0", "#3b2f20", 1.6);
+  scene.add(hemi);
   const sun = new DirectionalLight("#fff1d0", 2.2);
   sun.position.set(-4, 8, 5);
   scene.add(sun);
@@ -164,6 +205,10 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
   disposables.push(slabGeo, slabMat, plotGeo);
   const plotX = (i: number) => -totalW / 2 + PLOT_W / 2 + i * (PLOT_W + GAP);
   const plotMats: MeshStandardMaterial[] = [];
+  const crackTex = crackTexture();
+  const crackGeo = new PlaneGeometry(PLOT_W * 0.98, PLOT_D * 0.98);
+  const crackMat = new MeshBasicMaterial({ map: crackTex, transparent: true, opacity: 0, depthWrite: false });
+  disposables.push(crackTex, crackGeo, crackMat);
   for (let i = 0; i < 6; i++) {
     const mat = new MeshStandardMaterial({ color: "#5a4632", roughness: 0.9 });
     const plot = new Mesh(plotGeo, mat);
@@ -171,6 +216,11 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
     field.add(plot);
     plotMats.push(mat);
     disposables.push(mat);
+    const crack = new Mesh(crackGeo, crackMat);
+    crack.rotation.x = -Math.PI / 2;
+    crack.position.set(plotX(i), 0.084, 0);
+    crack.renderOrder = 1;
+    field.add(crack);
     // furrows
     for (let r = 0; r < ROWS; r++) {
       const fg = new BoxGeometry(PLOT_W * 0.9, 0.03, 0.06);
@@ -232,6 +282,40 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
   drone.position.set(plotX(0), 2.6, 0);
   scene.add(drone);
   disposables.push(orbGeo, orbMat, ringGeo, ringMat, beamGeo, beamMat);
+
+  // Blowing dust (shown in El Niño): small warm points drifting across the field.
+  const DUST = 420;
+  const dustPos = new Float32Array(DUST * 3);
+  const dustSpeed = new Float32Array(DUST);
+  for (let i = 0; i < DUST; i++) {
+    dustPos[i * 3] = (Math.random() - 0.5) * (totalW + 6);
+    dustPos[i * 3 + 1] = 0.1 + Math.random() * 2.6;
+    dustPos[i * 3 + 2] = (Math.random() - 0.5) * (PLOT_D + 4);
+    dustSpeed[i] = 0.4 + Math.random() * 0.9;
+  }
+  const dustGeo = new BufferGeometry();
+  dustGeo.setAttribute("position", new BufferAttribute(dustPos, 3));
+  const dustMat = new PointsMaterial({ color: "#f0c896", size: 0.05, transparent: true, opacity: 0, depthWrite: false, sizeAttenuation: true });
+  const dust = new Points(dustGeo, dustMat);
+  dust.visible = false;
+  scene.add(dust);
+  disposables.push(dustGeo, dustMat);
+  let drought = 0;
+  let droughtTarget = 0;
+  let lastT = 0;
+  const C = {
+    sky: new Color("#fff6e0"),
+    skyDry: new Color("#ffc58a"),
+    ground: new Color("#3b2f20"),
+    groundDry: new Color("#6a4424"),
+    sun: new Color("#fff1d0"),
+    sunDry: new Color("#ffad66"),
+    slab: new Color("#3b2f20"),
+    slabDry: new Color("#6e5234"),
+    soil: new Color("#5a4632"),
+    soilDry: new Color("#a3825a"),
+  };
+  const soilNow = new Color();
 
   let labels: Sprite[] = [];
   let plots: PlotSpec[] = [];
@@ -315,10 +399,34 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
     beamMat.opacity += (0.22 * droneOn - beamMat.opacity) * 0.1;
     droneLight.intensity += (10 * droneOn + 2 - droneLight.intensity) * 0.1;
 
+    // El Niño: ease the light, soil, cracks and dust toward the drought look.
+    const dt = Math.min(0.05, t - lastT);
+    lastT = t;
+    drought += (droughtTarget - drought) * 0.045;
+    hemi.color.lerpColors(C.sky, C.skyDry, drought);
+    hemi.groundColor.lerpColors(C.ground, C.groundDry, drought);
+    hemi.intensity = 1.6 + 0.35 * drought;
+    sun.color.lerpColors(C.sun, C.sunDry, drought);
+    sun.intensity = 2.2 + 1.1 * drought;
+    slabMat.color.lerpColors(C.slab, C.slabDry, drought);
+    crackMat.opacity = 0.85 * drought;
+    dustMat.opacity = 0.75 * drought;
+    dust.visible = drought > 0.01;
+    if (dust.visible) {
+      const half = (totalW + 6) / 2;
+      for (let i = 0; i < DUST; i++) {
+        dustPos[i * 3] += dustSpeed[i] * dt * 1.4;
+        dustPos[i * 3 + 1] += Math.sin(t * 1.7 + i) * dt * 0.12;
+        if (dustPos[i * 3] > half) dustPos[i * 3] = -half;
+      }
+      dustGeo.attributes.position.needsUpdate = true;
+    }
+    soilNow.lerpColors(C.soil, C.soilDry, drought);
+
     for (let p = 0; p < 6; p++) {
       const spec = plots[p];
       const planted = pt >= 0 && pt >= p * STEP;
-      const target = new Color(spec && planted ? FAMILY_TINT[spec.family] : "#5a4632").lerp(new Color("#5a4632"), 0.55);
+      const target = (spec && planted ? new Color(FAMILY_TINT[spec.family]) : soilNow.clone()).lerp(soilNow, 0.55);
       plotMats[p].color.lerp(target, 0.08);
     }
 
@@ -373,6 +481,9 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
     },
     setWilt(next) {
       wilt = next;
+    },
+    setDrought(on) {
+      droughtTarget = on ? 1 : 0;
     },
     dispose() {
       dead = true;
