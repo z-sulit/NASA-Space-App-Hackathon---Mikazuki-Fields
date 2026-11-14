@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -234,3 +236,32 @@ def test_fallback_plans_json_valid() -> None:
             for card in (scen.plan_a, scen.plan_b, scen.plan_c):
                 assert len(card.seasons) == 6
                 assert len(card.why_bullets) >= 1
+
+
+def test_root_and_working_dir_imports() -> None:
+    """Verify GET /, cloud deployment configs at repo root, and imports from backend/ cwd."""
+    with TestClient(app) as client:
+        root_resp = client.get("/")
+        assert root_resp.status_code == 200
+        root_data = root_resp.json()
+        assert root_data["status"] == "ok"
+        assert root_data["health"] == "/api/health"
+
+    for filename in ("render.yaml", "Procfile", "railway.json", ".python-version"):
+        assert (REPO_ROOT / filename).exists(), f"Missing deployment config: {filename}"
+
+    railway_cfg = json.loads((REPO_ROOT / "railway.json").read_text(encoding="utf-8"))
+    assert railway_cfg["deploy"]["healthcheckPath"] == "/api/health"
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import app.main, app.power_client, app.optimizer, app.simulator; assert app.main.app.title == 'Mikazuki Fields API'",
+        ],
+        cwd=REPO_ROOT / "backend",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, f"Import from backend/ cwd failed: {proc.stderr}"
