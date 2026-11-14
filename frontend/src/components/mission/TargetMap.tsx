@@ -9,6 +9,24 @@ export interface TargetMapHandle {
   flyTo(lat: number, lon: number): Promise<void>;
   /** Climb back up to the whole-Philippines view. */
   reset(): Promise<void>;
+  /** Glide over to a searched place at a regional zoom (stays in the targeting view). */
+  glideTo(lat: number, lon: number): Promise<void>;
+}
+
+/** Leaflet flyTo that resolves on landing (or after `cap` ms if the map never reports it). */
+function flight(m: L.Map, center: L.LatLngExpression, zoom: number, seconds: number, cap: number) {
+  if (prefersReducedMotion()) {
+    m.setView(center, zoom, { animate: false });
+    return Promise.resolve();
+  }
+  return new Promise<void>((done) => {
+    const t = setTimeout(done, cap);
+    m.once("moveend", () => {
+      clearTimeout(t);
+      done();
+    });
+    m.flyTo(center, zoom, { duration: seconds, easeLinearity: 0.25 });
+  });
 }
 
 export interface LatLon {
@@ -35,6 +53,7 @@ export function TargetMap({
   onHover,
   onPickPreset,
   onPickPoint,
+  onTilesReady,
   ref,
 }: {
   presets: Preset[];
@@ -46,6 +65,8 @@ export function TargetMap({
   onHover: (id: string | null) => void;
   onPickPreset: (id: string) => void;
   onPickPoint: (p: LatLon) => void;
+  /** The first screenful of map tiles has loaded (used to leave the loading screen). */
+  onTilesReady?: () => void;
   ref?: Ref<TargetMapHandle>;
 }) {
   const el = useRef<HTMLDivElement>(null);
@@ -55,8 +76,8 @@ export function TargetMap({
   const [pt, setPt] = useState<{ x: number; y: number } | null>(null);
   const focusRef = useRef(focus);
   focusRef.current = focus;
-  const handlers = useRef({ onHover, onPickPreset, onPickPoint, locked });
-  handlers.current = { onHover, onPickPreset, onPickPoint, locked };
+  const handlers = useRef({ onHover, onPickPreset, onPickPoint, locked, onTilesReady });
+  handlers.current = { onHover, onPickPreset, onPickPoint, locked, onTilesReady };
 
   const place = () => {
     const m = map.current;
@@ -78,6 +99,7 @@ export function TargetMap({
       // Decode each tile as it arrives. Browsers otherwise decode lazily at first paint,
       // which (with the map hidden under the tiles) would land mid-transition as blank squares.
       .on("tileload", (e: L.TileEvent) => void (e.tile as HTMLImageElement).decode?.().catch(() => {}))
+      .once("load", () => handlers.current.onTilesReady?.())
       .addTo(m);
     // Final view straight away: the map is pre-painted under the tiles, and the page
     // does the zoom-in as a GPU scale, so Leaflet never re-renders mid-transition.
@@ -134,35 +156,15 @@ export function TargetMap({
   useImperativeHandle(ref, () => ({
     flyTo(lat, lon) {
       const m = map.current;
-      if (!m) return Promise.resolve();
-      if (prefersReducedMotion()) {
-        m.setView([lat, lon], 12, { animate: false });
-        return Promise.resolve();
-      }
-      return new Promise((done) => {
-        const t = setTimeout(done, 3600);
-        m.once("moveend", () => {
-          clearTimeout(t);
-          done();
-        });
-        m.flyTo([lat, lon], 12.2, { duration: 2.8, easeLinearity: 0.15 });
-      });
+      return m ? flight(m, [lat, lon], 12.2, 1.2, 2000) : Promise.resolve();
     },
     reset() {
       const m = map.current;
-      if (!m) return Promise.resolve();
-      if (prefersReducedMotion()) {
-        m.setView(home(), homeZoom(), { animate: false });
-        return Promise.resolve();
-      }
-      return new Promise((done) => {
-        const t = setTimeout(done, 3000);
-        m.once("moveend", () => {
-          clearTimeout(t);
-          done();
-        });
-        m.flyTo(home(), homeZoom(), { duration: 2.1 });
-      });
+      return m ? flight(m, home(), homeZoom(), 0.9, 1600) : Promise.resolve();
+    },
+    glideTo(lat, lon) {
+      const m = map.current;
+      return m ? flight(m, [lat, lon], Math.max(m.getZoom(), 8.5), 0.6, 1200) : Promise.resolve();
     },
   }));
 
