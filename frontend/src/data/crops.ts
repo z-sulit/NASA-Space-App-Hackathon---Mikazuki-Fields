@@ -1,4 +1,4 @@
-import type { Crop, CropId, Family } from "../types";
+import type { Crop, CropId } from "../types";
 
 // Mirrors backend/app/crop_library.json in docs/agronomic_model_vectorized_optimizer_spec.md.
 // Keep in sync until the API serves it.
@@ -14,16 +14,3 @@ export const CROPS: Crop[] = [
 ];
 
 export const CROP: Record<CropId, Crop> = Object.fromEntries(CROPS.map((c) => [c.id, c])) as Record<CropId, Crop>;
-
-export const FAMILY_LABEL: Record<Family, string> = {
-  Poaceae: "Grass family",
-  Fabaceae: "Bean family",
-  Convolvulaceae: "Morning-glory family",
-};
-
-/** Tailwind classes for the family color bar (see docs/UI_STYLE_GUIDE.md, crop families). */
-export const FAMILY_BAR: Record<Family, string> = {
-  Poaceae: "bg-family-poaceae",
-  Fabaceae: "bg-family-fabaceae",
-  Convolvulaceae: "bg-family-convolvulaceae",
-};
