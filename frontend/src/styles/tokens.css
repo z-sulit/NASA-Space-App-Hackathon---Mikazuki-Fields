@@ -1,0 +1,133 @@
+/*
+ * Mikazuki Fields design tokens: "Field Olive × Sakura" theme (light only for the MVP).
+ * Editorial olive-and-beige look inspired by the CropTab site (Awwwards SOTD, Feb 2026),
+ * plus a Mikazuki layer: crescent emblem, HUD corner brackets, Mars-rust El Niño accent.
+ * Written for Tailwind v4 + shadcn/ui. Usage and contrast ratios: docs/UI_STYLE_GUIDE.md
+ *
+ * In src/index.css: keep shadcn's imports and its `@theme inline` block,
+ * add `@import "./styles/tokens.css";` right after them,
+ * and delete the `:root { ... }` color block shadcn generated.
+ */
+
+:root {
+  --radius: 0.75rem; /* 12px cards; shadcn derives sm/md/lg from this */
+
+  /* ---- shadcn/ui base tokens ---- */
+  --background: #f6efeb; /* rice-paper beige, a touch of blush */
+  --foreground: #26300f; /* deep olive, 12.2:1 on background */
+  --card: #fdf9f7;
+  --card-foreground: #26300f;
+  --popover: #fdf9f7;
+  --popover-foreground: #26300f;
+  --primary: #404f1d; /* field olive: Plan B, main buttons, links */
+  --primary-foreground: #f6efeb; /* 7.8:1 on primary */
+  --secondary: #ebe3d6;
+  --secondary-foreground: #26300f;
+  --muted: #efe7dc;
+  --muted-foreground: #5a5e45; /* 5.9:1 on background */
+  --accent: #fbe8ed;
+  --accent-foreground: #26300f;
+  --destructive: #9b2c1f;
+  --border: #e2d9cc; /* decorative dividers */
+  --input: #8c8573; /* form outlines, 3.5:1 on card */
+  --ring: #404f1d;
+
+  /* chart-1..3 = the three plans */
+  --chart-1: #8a8270; /* Plan A, status quo: always dashed */
+  --chart-2: #404f1d; /* Plan B, balanced */
+  --chart-3: #2c6e9b; /* Plan C, drought-safe */
+  --chart-4: #a9452c; /* El Niño overlay */
+  --chart-5: #a87c0e;
+
+  /* ---- Mikazuki Fields ---- */
+  --plan-a: var(--chart-1);
+  --plan-b: var(--chart-2);
+  --plan-c: var(--chart-3);
+
+  --olive: #636f3d; /* micro labels, section numbers: 4.8:1 on background */
+  --sage: #7c914c; /* decoration only */
+  --sakura: #f5bfcd; /* sakura pink: highlight fills (Recommended, CTA); dark text on it 8.7:1 */
+  --sakura-deep: #a8325a; /* sakura text and icons: 5.7:1 on background */
+  --sakura-tint: #fbe8ed; /* soft pink wash */
+  --hero-dark: #2f3a14;
+  --hero-mid: #556332;
+  --hero-glow: #7c914c;
+
+  /* El Niño = Mars rust (the old "sun" names are kept so components don't change) */
+  --sun: #a9452c; /* toggle fill, heat icons: 5.1:1 on background */
+  --sun-strong: #8f3a24; /* rust text: 6.5:1 on background */
+  --sun-tint: #f5ded2; /* El Niño-on background */
+  --moon: #efe6dc; /* emblem crescent on dark (pearl), decorative */
+
+  --family-poaceae: #a87c0e; /* corn, rice, sorghum */
+  --family-fabaceae: #4d8b3a; /* mungbean, peanut, cowpea */
+  --family-convolvulaceae: #8e5ba8; /* sweet potato */
+  --family-fallow: #9a8466; /* bare field, pair with a hatch pattern */
+
+  --badge-good-bg: #e6edc9; /* Pest Cycle Broken */
+  --badge-good-fg: #2f4a12;
+  --badge-warn-bg: #fbebc8; /* Bare-Soil Erosion Month */
+  --badge-warn-fg: #7a4b00;
+  --badge-critical-bg: #fbe3df; /* water or slope mismatch */
+  --badge-critical-fg: #9b2c1f;
+
+  --mf-font-display: "Inter Tight", "Helvetica Neue", Arial, sans-serif;
+  --mf-font-body: "Inter", system-ui, sans-serif;
+  --mf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Expose project tokens as Tailwind utilities: bg-sun-tint, border-family-fabaceae,
+   stroke-plan-c, text-olive, bg-sakura, font-display, ease-field, ... */
+@theme inline {
+  --color-plan-a: var(--plan-a);
+  --color-plan-b: var(--plan-b);
+  --color-plan-c: var(--plan-c);
+
+  --color-olive: var(--olive);
+  --color-sage: var(--sage);
+  --color-sakura: var(--sakura);
+  --color-sakura-deep: var(--sakura-deep);
+  --color-sakura-tint: var(--sakura-tint);
+  --color-hero-dark: var(--hero-dark);
+  --color-hero-mid: var(--hero-mid);
+  --color-hero-glow: var(--hero-glow);
+
+  --color-sun: var(--sun);
+  --color-sun-strong: var(--sun-strong);
+  --color-sun-tint: var(--sun-tint);
+  --color-moon: var(--moon);
+
+  --color-family-poaceae: var(--family-poaceae);
+  --color-family-fabaceae: var(--family-fabaceae);
+  --color-family-convolvulaceae: var(--family-convolvulaceae);
+  --color-family-fallow: var(--family-fallow);
+
+  --color-badge-good-bg: var(--badge-good-bg);
+  --color-badge-good-fg: var(--badge-good-fg);
+  --color-badge-warn-bg: var(--badge-warn-bg);
+  --color-badge-warn-fg: var(--badge-warn-fg);
+  --color-badge-critical-bg: var(--badge-critical-bg);
+  --color-badge-critical-fg: var(--badge-critical-fg);
+
+  --font-display: var(--mf-font-display);
+  --font-sans: var(--mf-font-body); /* default body font */
+
+  --ease-field: var(--mf-ease);
+}
+
+/* Numbers that change (pesos, mm, %) should not jiggle. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Respect reduced-motion: the El Niño stagger and count-ups become instant. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
