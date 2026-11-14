@@ -3,9 +3,10 @@
  * (exhaustive search over 8^6 = 262,144 rotations). Stands in for
  * POST /api/plans until the FastAPI backend is up.
  */
-import type { Crop, CropId, PlanId, PlanKpis, PlanRequest, PlanResult, PlansResponse, Preset, SeasonResult } from "../types";
+import type { Crop, CropId, Irrigation, PlanId, PlanKpis, PlanRequest, PlanResult, PlansResponse, Preset, SeasonResult } from "../types";
 import { CROP, CROPS } from "../data/crops";
 import { makeEnv, run, type Env } from "./simulate";
+import { formatCurrency, type Currency } from "../utils/currency";
 
 const N_CROPS = CROPS.length;
 const TOTAL = N_CROPS ** 6;
@@ -95,8 +96,46 @@ function hamming(a: number, b: number) {
   return d;
 }
 
-const peso = (v: number) => `₱${Math.round(v).toLocaleString("en-PH")}`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
+
+/** Deterministic "why this route" bullets formatted in the active currency. */
+export function summarizePlans(
+  normal: PlanResult[],
+  elnino: PlanResult[],
+  irrigation: Irrigation,
+  currency: Currency = "PHP",
+): [string[], string[], string[]] {
+  const drop = (i: number) => {
+    const n = normal[i].kpis.totalProfit;
+    return n > 0 ? Math.round(((n - elnino[i].kpis.totalProfit) / n) * 100) : 0;
+  };
+  const [A, B, C] = normal;
+  const waterWord = irrigation === "irrigated" ? "pumped" : "water shortfall";
+  const whyA = [
+    A.kpis.nFinal < A.kpis.nStart
+      ? `Same crop 6 times: soil nitrogen falls from ${A.kpis.nStart} to ${Math.round(A.kpis.nFinal)}.`
+      : `Soil nitrogen ends at ${Math.round(A.kpis.nFinal)}.`,
+    A.kpis.pestBreaks === 0 ? `Pests build up every season, reaching ${pct(A.seasons[5].pest)} pressure.` : `${A.kpis.pestBreaks} pest-cycle breaks.`,
+    A.kpis.ureaTotal > 0 ? `Fertilizer top-ups cost ${formatCurrency(A.kpis.ureaTotal, currency)} over 3 years.` : `In El Niño, 3-year profit falls ${drop(0)}%.`,
+  ];
+  const dB = B.kpis.totalProfit - A.kpis.totalProfit;
+  const whyB = [
+    `Soil nitrogen ends at ${Math.round(B.kpis.nFinal)}, versus ${Math.round(A.kpis.nFinal)} for Status Quo.`,
+    `${B.kpis.pestBreaks} crop-family switches break pest cycles.`,
+    `3-year profit ${formatCurrency(B.kpis.totalProfit, currency)} (${dB >= 0 ? "+" : "−"}${formatCurrency(Math.abs(dB), currency)} vs Status Quo).`,
+  ];
+  // Only keep bullets that actually tell Plan C apart, so we never print "0 mm versus 0 mm".
+  const whyC = [
+    A.kpis.waterMm - C.kpis.waterMm > 5 &&
+      `Needs less water: ${Math.round(C.kpis.waterMm)} mm ${waterWord}, versus ${Math.round(A.kpis.waterMm)} mm for Status Quo.`,
+    drop(0) - drop(2) >= 1 && `In El Niño, profit falls ${drop(2)}%, versus ${drop(0)}% for Status Quo.`,
+    `No paddy or upland rice, so a dry year can't leave a thirsty crop in the field.`,
+    `${C.kpis.pestBreaks} pest-cycle breaks; soil nitrogen ends at ${Math.round(C.kpis.nFinal)}.`,
+  ]
+    .filter((x): x is string => Boolean(x))
+    .slice(0, 3);
+  return [whyA, whyB, whyC];
+}
 
 function kpis(seasons: SeasonResult[]): PlanKpis {
   const totalProfit = seasons.reduce((s, x) => s + x.profit, 0);
@@ -121,7 +160,7 @@ const META: Record<PlanId, { name: string; promise: string }> = {
   C: { name: "Drought-Safe", promise: "Holds up best in a dry year" },
 };
 
-export function planRoutes(req: PlanRequest, preset: Preset): PlansResponse {
+export function planRoutes(req: PlanRequest, preset: Preset, currency: Currency = "PHP"): PlansResponse {
   const notes: string[] = [];
   let envN = makeEnv(preset, req.soil, req.irrigation, "normal", req.overrides, req.baselineCrop);
   let envE = makeEnv(preset, req.soil, req.irrigation, "elnino", req.overrides, req.baselineCrop);
@@ -184,37 +223,7 @@ export function planRoutes(req: PlanRequest, preset: Preset): PlansResponse {
   const normal = build(envN);
   const elnino = build(envE);
 
-  // Deterministic "why this route" bullets, shared by both climate views.
-  const drop = (i: number) => {
-    const n = normal[i].kpis.totalProfit;
-    return n > 0 ? Math.round(((n - elnino[i].kpis.totalProfit) / n) * 100) : 0;
-  };
-  const [A, B, C] = normal;
-  const waterWord = req.irrigation === "irrigated" ? "pumped" : "water shortfall";
-  const whyA = [
-    A.kpis.nFinal < A.kpis.nStart
-      ? `Same crop 6 times: soil nitrogen falls from ${A.kpis.nStart} to ${Math.round(A.kpis.nFinal)}.`
-      : `Soil nitrogen ends at ${Math.round(A.kpis.nFinal)}.`,
-    A.kpis.pestBreaks === 0 ? `Pests build up every season, reaching ${pct(A.seasons[5].pest)} pressure.` : `${A.kpis.pestBreaks} pest-cycle breaks.`,
-    A.kpis.ureaTotal > 0 ? `Fertilizer top-ups cost ${peso(A.kpis.ureaTotal)} over 3 years.` : `In El Niño, 3-year profit falls ${drop(0)}%.`,
-  ];
-  const dB = B.kpis.totalProfit - A.kpis.totalProfit;
-  const whyB = [
-    `Soil nitrogen ends at ${Math.round(B.kpis.nFinal)}, versus ${Math.round(A.kpis.nFinal)} for Status Quo.`,
-    `${B.kpis.pestBreaks} crop-family switches break pest cycles.`,
-    `3-year profit ${peso(B.kpis.totalProfit)} (${dB >= 0 ? "+" : "−"}${peso(Math.abs(dB))} vs Status Quo).`,
-  ];
-  // Only keep bullets that actually tell Plan C apart, so we never print "0 mm versus 0 mm".
-  const whyC = [
-    A.kpis.waterMm - C.kpis.waterMm > 5 &&
-      `Needs less water: ${Math.round(C.kpis.waterMm)} mm ${waterWord}, versus ${Math.round(A.kpis.waterMm)} mm for Status Quo.`,
-    drop(0) - drop(2) >= 1 && `In El Niño, profit falls ${drop(2)}%, versus ${drop(0)}% for Status Quo.`,
-    `No paddy or upland rice, so a dry year can't leave a thirsty crop in the field.`,
-    `${C.kpis.pestBreaks} pest-cycle breaks; soil nitrogen ends at ${Math.round(C.kpis.nFinal)}.`,
-  ]
-    .filter((x): x is string => Boolean(x))
-    .slice(0, 3);
-  [whyA, whyB, whyC].forEach((w, i) => {
+  summarizePlans(normal, elnino, req.irrigation, currency).forEach((w, i) => {
     normal[i].why = w;
     elnino[i].why = w;
   });

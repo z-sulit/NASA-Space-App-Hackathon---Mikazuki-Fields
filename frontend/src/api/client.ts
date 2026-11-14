@@ -1,4 +1,5 @@
 import type { PlanRequest, PlansResponse, Preset } from "../types";
+import type { Currency } from "../utils/currency";
 import { planRoutes } from "../engine/plans";
 import { apiFarm, apiPlans, fallbackBundle, farmToPreset, fromBackendPlans, toBackendRequest } from "./backend";
 import { fetchPointPreset } from "./power";
@@ -47,14 +48,14 @@ function getWorker(): Worker | null {
   return worker;
 }
 
-function demoPlan(req: PlanRequest, preset: Preset): Promise<PlansResponse> {
+function demoPlan(req: PlanRequest, preset: Preset, currency: Currency = "PHP"): Promise<PlansResponse> {
   const w = getWorker();
-  if (!w) return new Promise((r) => setTimeout(() => r(planRoutes(req, preset)), 30));
+  if (!w) return new Promise((r) => setTimeout(() => r(planRoutes(req, preset, currency)), 30));
   const id = ++nextId;
   return new Promise<PlansResponse>((resolve, reject) => {
     waiting.set(id, { resolve, reject });
-    w.postMessage({ id, req, preset });
-  }).catch(() => planRoutes(req, preset));
+    w.postMessage({ id, req, preset, currency });
+  }).catch(() => planRoutes(req, preset, currency));
 }
 
 // ---------- Offline bundle ----------
@@ -79,7 +80,7 @@ function matchesBundle(req: PlanRequest) {
 
 // ---------- Public ----------
 
-export async function fetchPlans(req: PlanRequest, preset: Preset): Promise<PlansResponse> {
+export async function fetchPlans(req: PlanRequest, preset: Preset, currency: Currency = "PHP"): Promise<PlansResponse> {
   try {
     return fromBackendPlans(await apiPlans(toBackendRequest(req, preset)), req, "api");
   } catch {
@@ -89,7 +90,7 @@ export async function fetchPlans(req: PlanRequest, preset: Preset): Promise<Plan
     const plans = (await fallbackBundle())?.plans[preset.id];
     if (plans) return fromBackendPlans(plans, req, "bundle");
   }
-  return demoPlan(req, preset);
+  return demoPlan(req, preset, currency);
 }
 
 /**
