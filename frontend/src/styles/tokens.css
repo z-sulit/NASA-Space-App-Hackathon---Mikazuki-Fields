@@ -50,6 +50,18 @@
   --sakura-deep: #a8325a; /* sakura text and icons: 5.7:1 on background */
   --sakura-tint: #fbe8ed; /* soft pink wash */
   --hero-dark: #2f3a14;
+  /* Cockpit HUD (dark, over the map): text and surface. Text uses ink at 100 / 80 / 70 %;
+     70 % is the floor: 5.2:1 on the map's darkest tint, 7.7:1 on hud panels (WCAG AA). */
+  /* Radius steps. A nested surface never takes a larger radius than its container
+     minus the gap between them (inner = outer - padding, floored at 4px):
+     panel 16-20 > card 10 > control 8 > chip 4. Pills only for standalone controls
+     (Start, language), the step-rail track, switches and status chips. */
+  --r-panel: 16px;
+  --r-card: 10px;
+  --r-control: 8px;
+  --r-chip: 4px;
+  --ink: #f6efeb;
+  --hud: #1d240a;
   --hero-mid: #556332;
   --hero-glow: #7c914c;
 
@@ -89,6 +101,8 @@
   --color-sakura-deep: var(--sakura-deep);
   --color-sakura-tint: var(--sakura-tint);
   --color-hero-dark: var(--hero-dark);
+  --color-ink: var(--ink);
+  --color-hud: var(--hud);
   --color-hero-mid: var(--hero-mid);
   --color-hero-glow: var(--hero-glow);
 

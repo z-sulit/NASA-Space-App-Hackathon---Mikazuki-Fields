@@ -46,6 +46,11 @@
   h3 {
     font-family: var(--mf-font-display);
     letter-spacing: -0.02em;
+    text-wrap: balance; /* no single-word last lines in headlines */
+  }
+  p,
+  li {
+    text-wrap: pretty;
   }
 }
 
@@ -297,6 +302,52 @@
     opacity: 1;
   }
 
+  /* Buttons: one system for the whole mission.
+     - Primary (sakura): the one action that moves the mission forward on each screen.
+     - Secondary (outline): going back or sideways.
+     Press squashes the button (squash and stretch) and hover answers within ~150 ms. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: var(--r-control);
+    font: 600 14px/1.2 var(--mf-font-display);
+    letter-spacing: 0.005em;
+    transition:
+      transform 0.12s var(--mf-ease),
+      background-color 0.15s,
+      border-color 0.15s,
+      opacity 0.15s;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.96);
+  }
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--sakura);
+    color: var(--foreground);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #f9d3dd;
+  }
+  .btn-secondary {
+    border: 1px solid rgb(246 239 235 / 0.45);
+    color: var(--ink);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: rgb(246 239 235 / 0.1);
+  }
+  .btn-lg {
+    min-height: 52px;
+    padding: 0 24px;
+    font-size: 15px;
+  }
   /* Pill button: a second color wipes up from below on hover. */
   .btn-sweep {
     position: relative;

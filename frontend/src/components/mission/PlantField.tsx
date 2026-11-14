@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import type { PlantHandle, PlotSpec } from "../../three/plantScene";
 
 /** React wrapper for the WebGL plantation. Shows a simple message if WebGL is missing. */
@@ -6,6 +7,7 @@ export function PlantField({ plots, plantKey, onSeason, drought = false }: { plo
   const host = useRef<HTMLDivElement>(null);
   const handle = useRef<PlantHandle | null>(null);
   const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(false);
   const latest = useRef({ plots, onSeason, drought });
   latest.current = { plots, onSeason, drought };
 
@@ -18,6 +20,7 @@ export function PlantField({ plots, plantKey, onSeason, drought = false }: { plo
           handle.current = createPlantScene(host.current);
           handle.current.plant(latest.current.plots, (i) => latest.current.onSeason(i));
           handle.current.setDrought(latest.current.drought);
+          setReady(true);
         } catch {
           setFailed(true);
         }
@@ -55,7 +58,12 @@ export function PlantField({ plots, plantKey, onSeason, drought = false }: { plo
 
   return (
     <div ref={host} className="absolute inset-0" aria-label="3D view of your field being planted, one plot per season">
-      {failed && <p className="micro absolute top-1/2 left-1/2 -translate-x-1/2 text-[#f6efeb]/80">3D view needs WebGL; your field data is on the right.</p>}
+      {!ready && !failed && (
+        <p className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 text-sm text-ink/80">
+          <Loader2 className="size-4 animate-spin" aria-hidden /> Preparing your 3D field…
+        </p>
+      )}
+      {failed && <p className="micro absolute top-1/2 left-1/2 -translate-x-1/2 text-ink/80">3D view needs WebGL; your field data is on the right.</p>}
     </div>
   );
 }
