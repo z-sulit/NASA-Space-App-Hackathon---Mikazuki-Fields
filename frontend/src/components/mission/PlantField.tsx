@@ -7,6 +7,7 @@ export function PlantField({ plots, plantKey, onSeason, drought = false, focus =
   const host = useRef<HTMLDivElement>(null);
   const handle = useRef<PlantHandle | null>(null);
   const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(false);
   const latest = useRef({ plots, onSeason, drought, focus });
   latest.current = { plots, onSeason, drought, focus };
 
@@ -20,6 +21,7 @@ export function PlantField({ plots, plantKey, onSeason, drought = false, focus =
           handle.current.plant(latest.current.plots, (i) => latest.current.onSeason(i));
           handle.current.setDrought(latest.current.drought);
           handle.current.setFocus(latest.current.focus);
+          setReady(true);
         } catch {
           setFailed(true);
         }
