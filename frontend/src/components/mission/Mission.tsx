@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
-import { ArrowLeft, ArrowRight, Crosshair, Info, Loader2, Lock, MapPin, Sprout } from "lucide-react";
+import { ArrowLeft, ArrowRight, Crosshair, Info, Loader2, Lock, MapPin, RotateCcw, Sprout, Waves } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
 import { customPlan } from "../../engine/plans";
 import { fetchPinFarm, fetchPlans, loadFarms, type DataSource } from "../../api/client";
 import { inPhilippines } from "../../api/power";
+import { checkLand } from "../../api/landcheck";
 import { CROP } from "../../data/crops";
 import { Emblem } from "../Emblem";
 import { peso, prefersReducedMotion, Switch, useScramble } from "../ui";
@@ -12,6 +13,7 @@ import { TargetMap, type LatLon, type TargetMapHandle } from "./TargetMap";
 import { PickPlants, type Choice } from "./PickPlants";
 import { PlantField } from "./PlantField";
 import { ElNinoReport } from "./ElNinoReport";
+import { ElNinoAtmosphere } from "./ElNinoAtmosphere";
 import type { FieldHandle } from "../../three/tileField";
 
 /** Must match EXIT_MS in three/tileField.ts (kept here so the 3D chunk stays lazy). */
@@ -170,6 +172,10 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   const [acquiring, setAcquiring] = useState(false);
   const [pinVia, setPinVia] = useState<"api" | "browser" | "nearest" | null>(null);
   const [mapNote, setMapNote] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [tryAgain, setTryAgain] = useState<{ text: string; key: number } | null>(null);
+  const [rejected, setRejected] = useState<(LatLon & { key: number }) | null>(null);
+  const tapSeq = useRef(0);
   const [req, setReq] = useState<PlanRequest>(DEFAULT_REQ);
   const [result, setResult] = useState<PlansResponse | null>(null);
   const [busy, setBusy] = useState(false);
@@ -277,23 +283,45 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     setPinVia(null);
     setTarget(presets.find((p) => p.id === id)!);
   };
+  const refuse = (p: LatLon, text: string) => {
+    const key = Date.now();
+    setRejected({ ...p, key });
+    setTryAgain({ text, key });
+  };
   const pickPoint = async (p: LatLon) => {
+    const seq = ++tapSeq.current;
+    // A new tap supersedes any check or fetch still running for an older one.
+    setMapNote(null);
+    setTryAgain(null);
+    setChecking(false);
+    setAcquiring(false);
     if (!inPhilippines(p.lat, p.lon)) {
-      setMapNote("Pick a point inside the Philippines.");
+      refuse(p, "That's outside the Philippines.");
       return;
     }
-    setMapNote(null);
+    // Farms need land: refuse seas, lakes and rivers before asking NASA for climate.
+    setChecking(true);
+    const ground = await checkLand(p.lat, p.lon);
+    if (seq !== tapSeq.current) return; // a newer tap took over
+    setChecking(false);
+    if (ground.kind === "water") {
+      refuse(p, "That's water (sea, lake or river). A farm needs land.");
+      return;
+    }
+    setRejected(null);
     setPin(p);
     setAcquiring(true);
     const { preset, live, via } = await fetchPinFarm(p.lat, p.lon, presets);
+    if (seq !== tapSeq.current) return;
     setAcquiring(false);
     setPinVia(via);
     if (!live) setMapNote("Live NASA data unavailable; using the nearest preset's climate.");
+    else if (ground.kind === "unknown") setMapNote("Couldn't check the ground here (map offline); treating it as land.");
     setTarget(preset);
   };
 
   const lockOn = async () => {
-    if (stage !== "target" || acquiring) return;
+    if (stage !== "target" || acquiring || checking) return;
     const p = target;
     setStage("locking");
     const planning = plan(req, p); // compute this farm's routes while we fly
@@ -347,6 +375,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       aria-label="Mikazuki Fields"
       className="mission relative h-[100svh] overflow-clip text-[#f6efeb]"
       data-stage={stage}
+      data-elnino={scenario === "elnino"}
     >
       {/* Map: mounted (and painted) from the start under the tiles, so it is ready
           the moment they fall away. Leaflet stays still; the zoom-in is a CSS scale. */}
@@ -356,6 +385,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             presets={presets}
             focus={stage === "plants" || stage === "planting" ? null : { lat: focus.lat, lon: focus.lon }}
             pin={pin}
+            rejected={stage === "target" ? rejected : null}
             locked={stage !== "target"}
             onHover={setHoverId}
             onPickPreset={pickPreset}
@@ -364,6 +394,9 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           <div className={`mission-dim ${stage === "plants" || stage === "planting" ? "is-on" : ""}`} aria-hidden />
           <div className="hud-scan" aria-hidden />
       </div>
+
+      {/* El Niño atmosphere over the map (the 3D field adds its own dust and dry soil) */}
+      <ElNinoAtmosphere on={scenario === "elnino" && stage !== "intro" && stage !== "leaving"} />
 
       {/* Step 01: tiles */}
       {tilesAlive && <TileField exiting={stage !== "intro"} onExited={tilesGone} />}
@@ -433,8 +466,25 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             <p className="micro text-sakura">Step 02 / Targeting</p>
             <h2 className="mt-1 font-display text-[clamp(26px,3.4vw,44px)] leading-tight font-normal tracking-[-0.02em]">Select a location</h2>
             <p className={`micro mt-2 ${stage === "locking" ? "blink-3 text-sakura" : "text-[#f6efeb]/75"}`} aria-live="polite">
-              {stage === "locking" ? "Target locked · descending" : acquiring ? "Acquiring NASA data…" : (mapNote ?? "Tap anywhere in the Philippines, or a preset farm")}
+              {stage === "locking"
+                ? "Target locked · descending"
+                : checking
+                  ? "Checking the ground…"
+                  : acquiring
+                    ? "Acquiring NASA data…"
+                    : tryAgain
+                      ? ""
+                      : (mapNote ?? "Tap anywhere on land in the Philippines, or a preset farm")}
             </p>
+            {tryAgain && stage === "target" && (
+              <p key={tryAgain.key} className="try-again" role="alert">
+                <Waves className="size-4 shrink-0" aria-hidden />
+                <span>{tryAgain.text}</span>
+                <strong className="micro inline-flex items-center gap-1">
+                  <RotateCcw className="size-3.5" aria-hidden /> Try again
+                </strong>
+              </p>
+            )}
           </div>
 
           <aside className="hud-panel hud-panel-left" aria-label="Target data">
@@ -467,7 +517,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                 <span className="micro block text-sakura">El Niño</span>
                 <span className="block text-xs text-[#f6efeb]/65">
                   {focus.elnino_basis === "observed_2015_2016" && focus.elnino_2016_dry_rain_pct !== null
-                    ? `Replays 2015–16 here: dry-season rain ${Math.round(focus.elnino_2016_dry_rain_pct)}%`
+                    ? `Replays 2015–16 here: dry-season rain ${focus.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(focus.elnino_2016_dry_rain_pct)}%`
                     : "Dry spell: −25% rain, +1.5 °C"}
                 </span>
               </span>
@@ -476,12 +526,12 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             <dl className="mt-2">
               <Readout live={hudLive} label={`Slope (${sampleTag(focus, "slope_pct", "SRTM")})`} value={`${focus.slope_pct}%`} />
               <Readout live={hudLive} label={`Green cover (${sampleTag(focus, "ndvi_dry_min", "MODIS")})`} value={`NDVI ${focus.ndvi_dry_min.toFixed(2)}`} />
-              <Readout live={hudLive} label="2015–16 El Niño" value={focus.elnino_2016_dry_rain_pct === null ? "—" : `${Math.round(focus.elnino_2016_dry_rain_pct)}% RAIN`} />
+              <Readout live={hudLive} label="2015–16 El Niño" value={focus.elnino_2016_dry_rain_pct === null ? "—" : `${focus.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(focus.elnino_2016_dry_rain_pct)}% RAIN`} />
             </dl>
             <button
               type="button"
               onClick={() => void lockOn()}
-              disabled={stage !== "target" || acquiring}
+              disabled={stage !== "target" || acquiring || checking}
               className="micro btn-sweep mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-sakura px-4 text-foreground disabled:opacity-70"
             >
               {stage === "locking" ? <Lock className="size-4" aria-hidden /> : <Crosshair className="size-4" aria-hidden />}
@@ -526,7 +576,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       {stage === "planting" && chosen && (
         <div className="absolute inset-0 z-20 flex flex-col lg:flex-row">
           <div className="relative min-h-0 flex-1">
-            <PlantField plots={plots} plantKey={`${choice}-${chosen.now.rotation.join("-")}`} onSeason={onSeason} />
+            <PlantField plots={plots} plantKey={`${choice}-${chosen.now.rotation.join("-")}`} onSeason={onSeason} drought={scenario === "elnino"} />
             <div className="pointer-events-none absolute top-20 left-4 z-10 sm:left-8">
               <p className="micro text-sakura">Step 05 / Your field</p>
               <h2 className="mt-1 font-display text-[clamp(24px,3.2vw,40px)] leading-tight font-normal tracking-[-0.02em]">

@@ -30,12 +30,12 @@ export function explainElNino(req: PlanRequest, preset: Preset, now: PlanResult,
     const e = sim.elnino.seasons[i];
     const crop = CROP[s.crop];
     const f: ElNinoFinding = { season: i, crop: s.crop, yieldDrop: Math.max(0, drop) };
-    if (s.waterLoss > base.waterLoss + 1e-6 || (drop > 0.005 && e.gapMm > 0.5)) {
+    if (s.waterLoss > base.waterLoss + 1e-6 || (drop > 0.001 && e.gapMm > 0.5)) {
       f.water = { months: (e.months ?? []).filter((m) => m.short > 0.5).map((m) => ({ month: m.month, rain: m.rain, need: m.need })) };
     }
     if (s.heatLoss > base.heatLoss + 1e-6) f.heat = { tmax: e.cropTmax ?? 0, limit: crop.heat_limit_c };
     if (s.pumpCost > base.pumpCost + 1) f.pumpExtra = s.pumpCost - base.pumpCost;
-    if (f.yieldDrop > 0.005 || f.pumpExtra) findings.push(f);
+    if (f.yieldDrop > 0.001 || f.pumpExtra) findings.push(f);
   });
 
   // If nothing changed: the tightest month and the hottest crop period, as evidence.
@@ -58,7 +58,9 @@ export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; p
   const { findings, tight, hottest } = useMemo(() => explainElNino(req, preset, now, normal), [req, preset, now, normal]);
   const observed = preset.elnino_basis === "observed_2015_2016" && preset.elnino;
   const dP = now.kpis.totalProfit - normal.kpis.totalProfit;
-  const changed = Math.abs(dP) >= 1;
+  // Under half a percent with no season losing yield is noise, not an El Niño effect.
+  const changed = findings.length > 0 || Math.abs(dP) >= Math.abs(normal.kpis.totalProfit) * 0.005;
+  const signed = (v: number) => `${v > 0 ? "+" : ""}${v}%`;
   const n = preset.seasons.dry.rain_mm;
   const e = observed ? preset.elnino!.dry.rain_mm : n * 0.75;
 
@@ -70,7 +72,9 @@ export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; p
       </p>
       <p className="mt-1 text-[#f6efeb]/80">
         {observed
-          ? `Real NASA POWER months for this farm: dry-season rain ${Math.round(e)} mm vs ${Math.round(n)} mm in a normal year (${pct(e, n)}%).`
+          ? e >= n
+            ? `Real NASA POWER months for this farm: El Niño missed this spot. Its 2015–16 dry season got ${Math.round(e)} mm of rain vs ${Math.round(n)} mm normally (${signed(pct(e, n))}).`
+            : `Real NASA POWER months for this farm: dry-season rain ${Math.round(e)} mm vs ${Math.round(n)} mm in a normal year (${signed(pct(e, n))}).`
           : "No 2015–16 record here, so rain is cut 25% and afternoons are 1.5 °C hotter."}
       </p>
 
@@ -85,7 +89,7 @@ export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; p
               <li key={f.season} className="text-[#f6efeb]/85">
                 <span className="font-semibold">
                   S{f.season + 1} {CROP[f.crop].short}
-                  {f.yieldDrop > 0.005 ? `: yield −${Math.round(f.yieldDrop * 100)}%` : ""}
+                  {f.yieldDrop > 0.001 ? `: yield −${f.yieldDrop < 0.01 ? "<1" : Math.round(f.yieldDrop * 100)}%` : ""}
                 </span>
                 {f.water && f.water.months.length > 0 && (
                   <span className="block text-[#f6efeb]/70">
@@ -126,9 +130,9 @@ export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; p
           </ul>
         </>
       )}
-      {now.kpis.avgErosion < normal.kpis.avgErosion - 0.5 && (
+      {Math.abs(now.kpis.avgErosion - normal.kpis.avgErosion) > 0.5 && (
         <p className="mt-2 text-[#f6efeb]/65">
-          Less rain also washes away less soil: erosion index {Math.round(normal.kpis.avgErosion)} → {Math.round(now.kpis.avgErosion)}.
+          Erosion index with El Niño rain: {Math.round(normal.kpis.avgErosion)} → {Math.round(now.kpis.avgErosion)}.
         </p>
       )}
     </div>
