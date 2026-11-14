@@ -1,18 +1,62 @@
-"""API contract and preset integrity tests for Mikazuki Fields (Gate 1 & Gate 2)."""
+"""API contract, preset integrity, and custom-pin cache tests for Mikazuki Fields."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
+import requests
 from fastapi.testclient import TestClient
 
+from backend.app import main as main_mod
+from backend.app import power_client
 from backend.app.main import app
 from backend.app.schemas import FarmContext, PlanResponse, PresetSummary
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 PRESETS_DIR = REPO_ROOT / "data-prep" / "presets"
 EXPECTED_PRESETS = ("bukidnon", "davao_del_sur", "isabela")
+
+
+def _make_mock_power_payload(wet_prectot: float = 12.0, dry_prectot: float = 3.0) -> dict[str, Any]:
+    """Build a synthetic 2015-2024 NASA POWER monthly response with month 13 and -999 fill."""
+    t2m: dict[str, float] = {}
+    t2m_max: dict[str, float] = {}
+    prectot: dict[str, float] = {}
+    gwet: dict[str, float] = {}
+    allsky: dict[str, float] = {}
+
+    for year in range(2015, 2025):
+        for month in range(1, 13):
+            key = f"{year}{month:02d}"
+            is_wet = 6 <= month <= 11
+            t2m[key] = 24.0 if is_wet else 25.5
+            t2m_max[key] = 30.0 if is_wet else 33.0
+            prectot[key] = wet_prectot if is_wet else dry_prectot
+            gwet[key] = 0.80 if is_wet else 0.50
+            allsky[key] = 17.0 if is_wet else 19.5
+        annual_key = f"{year}13"
+        t2m[annual_key] = 24.75
+        t2m_max[annual_key] = 31.5
+        prectot[annual_key] = 7.5
+        gwet[annual_key] = 0.65
+        allsky[annual_key] = 18.25
+
+    prectot["202006"] = -999.0
+
+    return {
+        "parameters": {"ALLSKY_SFC_SW_DWN": {"units": "MJ/m^2/day"}},
+        "properties": {
+            "parameter": {
+                "T2M": t2m,
+                "T2M_MAX": t2m_max,
+                "PRECTOTCORR": prectot,
+                "GWETROOT": gwet,
+                "ALLSKY_SFC_SW_DWN": allsky,
+            }
+        },
+    }
 
 
 def test_preset_json_files_valid_and_agronomic_bounds() -> None:
@@ -49,8 +93,8 @@ def test_health_and_presets_endpoints() -> None:
         assert [s.preset_id for s in summaries] == list(EXPECTED_PRESETS)
 
 
-def test_farm_endpoint_preset_and_custom_pin() -> None:
-    """Verify GET /api/farm works for preset_id and custom pin nearest-preset fallback."""
+def test_farm_endpoint_preset() -> None:
+    """Verify GET /api/farm works for a loaded preset_id."""
     with TestClient(app) as client:
         preset_resp = client.get("/api/farm", params={"preset_id": "bukidnon"})
         assert preset_resp.status_code == 200
@@ -59,14 +103,75 @@ def test_farm_endpoint_preset_and_custom_pin() -> None:
         assert preset_ctx.location.is_custom_pin is False
         assert preset_ctx.terrain.slope_pct > 8.0
 
-        custom_resp = client.get("/api/farm", params={"lat": 8.1, "lon": 125.1})
-        assert custom_resp.status_code == 200
-        custom_ctx = FarmContext.model_validate(custom_resp.json())
-        assert custom_ctx.location.is_custom_pin is True
-        assert custom_ctx.location.preset_id is None
-        assert custom_ctx.location.lat == 8.1
-        assert custom_ctx.location.lon == 125.1
-        assert custom_ctx.location.name == "Custom Pin (8.10, 125.10)"
+
+def test_custom_pin_cache_miss_then_cache_hit(tmp_path: Path, monkeypatch: Any) -> None:
+    """Verify custom pin fetches mocked NASA POWER on miss, writes cache, and serves hit offline."""
+    monkeypatch.setattr(main_mod, "CACHE_DIR", tmp_path)
+    mock_payload = _make_mock_power_payload(wet_prectot=12.0, dry_prectot=3.0)
+    calls = {"count": 0}
+
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return mock_payload
+
+    def _fake_get(url: str, params: dict[str, Any], timeout: float) -> _FakeResponse:
+        calls["count"] += 1
+        assert timeout == 10.0
+        assert params["community"] == "AG"
+        return _FakeResponse()
+
+    monkeypatch.setattr(power_client.requests, "get", _fake_get)
+
+    with TestClient(app) as client:
+        resp_miss = client.get("/api/farm", params={"lat": 8.1, "lon": 125.1})
+        assert resp_miss.status_code == 200
+        ctx_miss = FarmContext.model_validate(resp_miss.json())
+        assert ctx_miss.location.is_custom_pin is True
+        assert ctx_miss.location.preset_id is None
+        assert ctx_miss.location.lat == 8.1
+        assert ctx_miss.location.lon == 125.1
+        assert ctx_miss.location.name == "Custom Pin (8.10, 125.10)"
+        assert ctx_miss.climate.normal.wet.rain_mm == 2196.0
+        assert len(ctx_miss.banner_metrics) == 5
+        assert calls["count"] == 1
+
+        cache_file = tmp_path / "8.10_125.10.json"
+        assert cache_file.exists()
+
+        def _fail_if_called(*_args: Any, **_kwargs: Any) -> Any:
+            raise AssertionError("requests.get must not be called on cache hit")
+
+        monkeypatch.setattr(power_client.requests, "get", _fail_if_called)
+
+        resp_hit = client.get("/api/farm", params={"lat": 8.1, "lon": 125.1})
+        assert resp_hit.status_code == 200
+        ctx_hit = FarmContext.model_validate(resp_hit.json())
+        assert ctx_hit.climate.normal.wet.rain_mm == 2196.0
+
+
+def test_custom_pin_timeout_fallback_no_cache(tmp_path: Path, monkeypatch: Any) -> None:
+    """Verify timeout falls back to nearest preset climate with is_custom_pin=True and writes no cache."""
+    monkeypatch.setattr(main_mod, "CACHE_DIR", tmp_path)
+
+    def _raise_timeout(*_args: Any, **_kwargs: Any) -> Any:
+        raise requests.Timeout("NASA POWER timed out")
+
+    monkeypatch.setattr(power_client.requests, "get", _raise_timeout)
+
+    bukidnon = FarmContext.model_validate(json.loads((PRESETS_DIR / "bukidnon.json").read_text(encoding="utf-8")))
+
+    with TestClient(app) as client:
+        resp = client.get("/api/farm", params={"lat": 8.1, "lon": 125.1})
+        assert resp.status_code == 200
+        ctx = FarmContext.model_validate(resp.json())
+        assert ctx.location.is_custom_pin is True
+        assert ctx.location.preset_id is None
+        assert ctx.location.name == "Custom Pin (8.10, 125.10)"
+        assert ctx.climate.normal.wet.rain_mm == bukidnon.climate.normal.wet.rain_mm
+        assert not (tmp_path / "8.10_125.10.json").exists()
 
 
 def test_plans_endpoint_contract_and_overrides() -> None:
