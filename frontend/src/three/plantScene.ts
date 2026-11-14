@@ -54,6 +54,8 @@ export interface PlantHandle {
   setWilt(wilt: boolean[]): void;
   /** El Niño look: harsh orange sun, dry cracked soil, blowing dust (eases in and out). */
   setDrought(on: boolean): void;
+  /** Spotlight one bed (0–5): it rises and stays bright, the others dim. null = all beds. */
+  setFocus(index: number | null): void;
   dispose(): void;
 }
 
@@ -116,24 +118,35 @@ function vineModel() {
   return mergeGeometries(parts)!;
 }
 
+/** Bed label. "S1 · Jun–Nov '27\nPeanut" draws as two lines: the season and dates, then the crop. */
 function labelSprite(text: string) {
+  const [top, crop] = text.includes("\n") ? text.split("\n") : [text, ""];
   const c = document.createElement("canvas");
   c.width = 512;
-  c.height = 96;
+  c.height = crop ? 168 : 96;
   const g = c.getContext("2d")!;
-  g.fillStyle = "rgba(29,36,10,0.72)";
+  g.fillStyle = "rgba(29,36,10,0.78)";
   g.beginPath();
-  g.roundRect(4, 14, 504, 68, 34);
+  g.roundRect(4, 8, 504, c.height - 16, 36);
   g.fill();
-  g.fillStyle = "#f6efeb";
-  g.font = '500 34px "Inter Tight", Arial, sans-serif';
   g.textAlign = "center";
   g.textBaseline = "middle";
-  g.fillText(text.toUpperCase(), 256, 49);
+  if (crop) {
+    g.fillStyle = "rgba(246,239,235,0.78)";
+    g.font = '500 34px "Inter Tight", Arial, sans-serif';
+    g.fillText(top.toUpperCase(), 256, 56);
+    g.fillStyle = "#f6efeb";
+    g.font = '600 42px "Inter Tight", Arial, sans-serif';
+    g.fillText(crop.toUpperCase(), 256, 112);
+  } else {
+    g.fillStyle = "#f6efeb";
+    g.font = '500 34px "Inter Tight", Arial, sans-serif';
+    g.fillText(top.toUpperCase(), 256, 49);
+  }
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;
   const s = new Sprite(new SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-  s.scale.set(1.5, 0.28, 1);
+  s.scale.set(1.55, (1.55 * c.height) / 512, 1);
   return s;
 }
 
@@ -209,24 +222,28 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
   const crackGeo = new PlaneGeometry(PLOT_W * 0.98, PLOT_D * 0.98);
   const crackMat = new MeshBasicMaterial({ map: crackTex, transparent: true, opacity: 0, depthWrite: false });
   disposables.push(crackTex, crackGeo, crackMat);
+  const beds: Group[] = [];
   for (let i = 0; i < 6; i++) {
+    const bed = new Group();
+    field.add(bed);
+    beds.push(bed);
     const mat = new MeshStandardMaterial({ color: "#5a4632", roughness: 0.9 });
     const plot = new Mesh(plotGeo, mat);
     plot.position.set(plotX(i), 0.02, 0);
-    field.add(plot);
+    bed.add(plot);
     plotMats.push(mat);
     disposables.push(mat);
     const crack = new Mesh(crackGeo, crackMat);
     crack.rotation.x = -Math.PI / 2;
     crack.position.set(plotX(i), 0.084, 0);
     crack.renderOrder = 1;
-    field.add(crack);
+    bed.add(crack);
     // furrows
     for (let r = 0; r < ROWS; r++) {
       const fg = new BoxGeometry(PLOT_W * 0.9, 0.03, 0.06);
       const fm = new Mesh(fg, slabMat);
       fm.position.set(plotX(i), 0.09, -PLOT_D / 2 + (r + 0.5) * (PLOT_D / ROWS));
-      field.add(fm);
+      bed.add(fm);
       disposables.push(fg);
     }
   }
@@ -302,6 +319,11 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
   disposables.push(dustGeo, dustMat);
   let drought = 0;
   let droughtTarget = 0;
+  // Spotlight: focused bed index, or -1 for all. lift/bright ease per bed.
+  let focus = -1;
+  const lift = [0, 0, 0, 0, 0, 0];
+  const bright = [1, 1, 1, 1, 1, 1];
+  const tint = new Color();
   let lastT = 0;
   const C = {
     sky: new Color("#fff6e0"),
@@ -391,11 +413,9 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
       lastSeason = season;
       seasonCb(season);
     }
-    const active = Math.min(5, Math.max(0, season));
-    // Moving in arcs: the drone hops up while it travels to the next plot and settles on arrival.
-    const travel = plotX(active) - drone.position.x;
-    drone.position.x += travel * 0.12;
-    drone.position.y = 2.6 + Math.sin(t * 2.2) * 0.12 + Math.min(0.9, Math.abs(travel) * 0.45);
+    const active = focus >= 0 && season >= 6 ? focus : Math.min(5, Math.max(0, season));
+    drone.position.x += (plotX(active) - drone.position.x) * 0.12;
+    drone.position.y = 2.6 + Math.sin(t * 2.2) * 0.12;
     ring.rotation.y = t * 1.5;
     const droneOn = season >= 0 && season < 6 ? 1 : 0;
     beamMat.opacity += (0.22 * droneOn - beamMat.opacity) * 0.1;
@@ -426,10 +446,14 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
     soilNow.lerpColors(C.soil, C.soilDry, drought);
 
     for (let p = 0; p < 6; p++) {
+      const on = focus < 0 || focus === p;
+      lift[p] += ((focus === p ? 0.32 : 0) - lift[p]) * 0.12;
+      bright[p] += ((on ? 1 : 0.32) - bright[p]) * 0.12;
+      beds[p].position.y = lift[p];
       const spec = plots[p];
       const planted = pt >= 0 && pt >= p * STEP;
-      const target = (spec && planted ? new Color(FAMILY_TINT[spec.family]) : soilNow.clone()).lerp(soilNow, 0.55);
-      plotMats[p].color.lerp(target, 0.08);
+      const target = (spec && planted ? new Color(FAMILY_TINT[spec.family]) : soilNow.clone()).lerp(soilNow, 0.55).multiplyScalar(bright[p]);
+      plotMats[p].color.lerp(target, 0.18);
     }
 
     (Object.keys(models) as Family[]).forEach((fam) => {
@@ -443,20 +467,22 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
           g = k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3) * Math.cos(k * 4) ; // grow with a little overshoot
         }
         const w = wilt[s.plot];
-        dummy.position.set(s.x, 0.08, s.z);
+        dummy.position.set(s.x, 0.08 + lift[s.plot], s.z);
         dummy.rotation.set(w ? 0.45 : Math.sin(t * 1.6 + s.x * 2 + s.z) * 0.06, s.rot, w ? 0.25 : Math.sin(t * 1.3 + s.z * 3) * 0.05);
         const sc = Math.max(0.0001, g * s.size * (w ? 0.78 : 1));
         dummy.scale.set(sc, sc, sc);
         dummy.updateMatrix();
         mesh.setMatrixAt(i, dummy.matrix);
-        if (g > 0) mesh.setColorAt(i, w ? WILT : WHITE);
+        if (g > 0) mesh.setColorAt(i, tint.copy(w ? WILT : WHITE).multiplyScalar(bright[s.plot]));
       }
       mesh.instanceMatrix.needsUpdate = true;
       mesh.instanceColor!.needsUpdate = true;
     });
     labels.forEach((l, i) => {
       const m = l.material as SpriteMaterial;
-      m.opacity += ((pt >= i * STEP ? 1 : 0.25) - m.opacity) * 0.1;
+      const shown = pt >= i * STEP ? (focus < 0 || focus === i ? 1 : 0.35) : 0.25;
+      m.opacity += (shown - m.opacity) * 0.12;
+      l.position.y = 0.36 + lift[i];
     });
     renderer.render(scene, camera);
   };
@@ -473,7 +499,7 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
       });
       labels = next.map((p, i) => {
         const s = labelSprite(p.label);
-        s.position.set(plotX(i), 0.3, PLOT_D / 2 + 0.55);
+        s.position.set(plotX(i), 0.36, PLOT_D / 2 + 0.62);
         field.add(s);
         return s;
       });
@@ -483,6 +509,9 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
     },
     setWilt(next) {
       wilt = next;
+    },
+    setFocus(index) {
+      focus = index === null ? -1 : index;
     },
     setDrought(on) {
       droughtTarget = on ? 1 : 0;
