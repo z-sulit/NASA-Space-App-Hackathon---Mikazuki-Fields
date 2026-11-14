@@ -6,8 +6,8 @@ export interface Pin {
   lon: number;
 }
 
-const LEAF = "#2f6b3a";
-const SUN = "#c8701e";
+const LEAF = "#404f1d"; // --primary
+const SUN = "#a9452c"; // --sun (Mars rust)
 
 function ClickToPin({ onPick }: { onPick: (p: Pin) => void }) {
   useMapEvents({ click: (e) => onPick({ lat: e.latlng.lat, lon: e.latlng.lng }) });

@@ -2,7 +2,7 @@ import { ChevronDown, Loader2, MapPin } from "lucide-react";
 import type { CropId, Overrides, PlanRequest, Preset, Weights } from "../types";
 import { CROPS } from "../data/crops";
 import { FarmMap, type Pin } from "./FarmMap";
-import { Segmented } from "./ui";
+import { SectionTitle, Segmented } from "./ui";
 
 function Slider({ label, value, share, onChange }: { label: string; value: number; share: number; onChange: (v: number) => void }) {
   return (
@@ -61,11 +61,11 @@ export function Sidebar({
     req.overrides.soilTestN !== "untested" || req.overrides.soilPh !== null || req.overrides.pestLastSeason || req.overrides.floods !== "never";
 
   return (
-    <section aria-labelledby="farm-h" className="rounded-lg border border-border bg-card p-4">
+    <section aria-labelledby="farm-h" className="hud rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 id="farm-h" className="text-2xl font-bold">
-          1 · Your farm
-        </h2>
+        <SectionTitle id="farm-h" num="01" kicker="Input">
+          Your farm
+        </SectionTitle>
         <button
           type="button"
           onClick={onToggleCollapsed}
@@ -216,7 +216,7 @@ export function Sidebar({
           type="button"
           onClick={onPlan}
           disabled={busy}
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 font-display text-xl font-bold text-primary-foreground transition-opacity duration-150 hover:opacity-90 disabled:opacity-70"
+          className="micro inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 text-primary-foreground transition-opacity duration-150 hover:opacity-90 disabled:opacity-70"
         >
           {busy && <Loader2 className="size-5 animate-spin" aria-hidden />}
           {busy ? "Planning…" : "Plan my 3 routes"}

@@ -26,7 +26,7 @@ function SeasonCell({ s, normal, scenario }: { s: SeasonResult; normal: SeasonRe
       <span aria-hidden className={`w-1 shrink-0 rounded-full ${FAMILY_BAR[crop.family]}`} />
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          <span className="micro text-olive">
             S{s.index + 1} · {s.kind} · {s.label}
           </span>
           {warn && (
@@ -40,7 +40,7 @@ function SeasonCell({ s, normal, scenario }: { s: SeasonResult; normal: SeasonRe
             </span>
           )}
         </div>
-        <div className="mt-0.5 flex items-center gap-1.5 font-display text-xl leading-6 font-semibold">
+        <div className="mt-0.5 flex items-center gap-1.5 font-display text-xl leading-6 font-medium">
           <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
           {crop.short}
           <span className="sr-only">({FAMILY_LABEL[crop.family]})</span>
@@ -63,8 +63,8 @@ function SeasonCell({ s, normal, scenario }: { s: SeasonResult; normal: SeasonRe
 function Kpi({ label, value, delta }: { label: string; value: string; delta?: string | null }) {
   return (
     <div className="rounded-md bg-muted px-2.5 py-2">
-      <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="font-display text-xl leading-6 font-bold tabular">{value}</div>
+      <div className="micro text-olive">{label}</div>
+      <div className="font-display text-xl leading-6 font-medium tabular">{value}</div>
       {delta && <div className="text-sm font-bold text-sun-strong tabular">{delta}</div>}
     </div>
   );
@@ -98,19 +98,17 @@ export function PlanColumn({
   return (
     <article
       aria-labelledby={`plan-${plan.id}`}
-      className={`relative flex flex-col rounded-lg bg-card p-4 ${recommended ? "border-2 border-primary" : "border border-border"}`}
+      className={`hud relative flex flex-col rounded-lg bg-card p-4 ${recommended ? "border-2 border-primary" : "border border-border"}`}
     >
       {recommended && (
-        <span className="absolute -top-3 left-4 rounded-full bg-primary px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">
-          Recommended
-        </span>
+        <span className="micro absolute -top-3 left-6 rounded-full bg-chartreuse px-3 py-0.5 text-foreground">Recommended</span>
       )}
       <header className="flex items-center gap-2">
-        <span aria-hidden className={`inline-flex size-8 items-center justify-center rounded-full font-display text-lg font-bold text-white ${PLAN_DOT[plan.id]}`}>
+        <span aria-hidden className={`inline-flex size-8 items-center justify-center rounded-full font-display text-lg font-medium text-[#f4ede6] ${PLAN_DOT[plan.id]}`}>
           {plan.id}
         </span>
         <div>
-          <h3 id={`plan-${plan.id}`} className="text-2xl leading-7 font-semibold">
+          <h3 id={`plan-${plan.id}`} className="text-2xl leading-7 font-medium">
             Plan {plan.id} · {plan.name}
           </h3>
           <p className="text-sm text-muted-foreground">{plan.promise}</p>
@@ -152,7 +150,7 @@ export function PlanColumn({
         type="button"
         onClick={onChoose}
         aria-pressed={chosen}
-        className={`mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md px-4 font-bold transition-colors duration-150 ${
+        className={`micro mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full px-4 transition-colors duration-150 ${
           chosen ? "bg-primary text-primary-foreground" : "border border-input bg-card text-foreground hover:bg-muted"
         }`}
       >

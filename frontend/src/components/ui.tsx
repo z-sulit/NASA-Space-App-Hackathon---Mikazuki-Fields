@@ -37,7 +37,30 @@ export function useCountUp(value: number, ms = 400) {
 }
 
 /** Plain-English tooltip: opens on tap, click or keyboard focus; closes on Escape or outside tap. */
-export function InfoTip({ label, children, align = "left" }: { label: string; children: ReactNode; align?: "left" | "right" }) {
+export function SectionTitle({ id, num, kicker, children }: { id: string; num: string; kicker: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="micro text-olive">
+        {num} / {kicker}
+      </p>
+      <h2 id={id} className="mt-1 text-[28px] leading-8 font-medium">
+        {children}
+      </h2>
+    </div>
+  );
+}
+
+export function InfoTip({
+  label,
+  children,
+  align = "left",
+  light = false,
+}: {
+  label: string;
+  children: ReactNode;
+  align?: "left" | "right";
+  light?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const id = useId();
   const ref = useRef<HTMLSpanElement>(null);
@@ -62,7 +85,9 @@ export function InfoTip({ label, children, align = "left" }: { label: string; ch
           if (!ref.current?.contains(e.relatedTarget as Node)) setOpen(false);
         }}
         onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
-        className="-m-2.5 inline-flex size-11 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:text-foreground"
+        className={`-m-2.5 inline-flex size-11 items-center justify-center rounded-full transition-colors duration-150 ${
+          light ? "text-[#f4ede6]/80 hover:text-[#f4ede6]" : "text-muted-foreground hover:text-foreground"
+        }`}
       >
         <Info className="size-[18px]" aria-hidden />
       </button>

@@ -1,9 +1,12 @@
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { PlanResult, Scenario } from "../types";
-import { pesoK } from "./ui";
+import { pesoK, SectionTitle } from "./ui";
 
-const COLOR = { A: "#8a7f6e", B: "#2f6b3a", C: "#2c6e9b" } as const;
-const AXIS = { fontSize: 13, fill: "#5b6152" };
+// Keep in sync with --plan-a/b/c, --muted-foreground, --border and --input in tokens.css.
+const COLOR = { A: "#8a8270", B: "#404f1d", C: "#2c6e9b" } as const;
+const AXIS = { fontSize: 13, fill: "#5a5e45" };
+const GRID = "#e2d9cc";
+const AXIS_LINE = "#8c8573";
 
 /** Soil nitrogen by season (one line per plan, labelled at its end; Plan A dashed) and 3-year profit with the other climate as a ghost bar. */
 export function Charts({ plans, normal, elnino, scenario }: { plans: PlanResult[]; normal: PlanResult[]; elnino: PlanResult[]; scenario: Scenario }) {
@@ -25,18 +28,18 @@ export function Charts({ plans, normal, elnino, scenario }: { plans: PlanResult[
     };
 
   return (
-    <section aria-labelledby="charts-h" className="rounded-lg border border-border bg-card p-4">
-      <h2 id="charts-h" className="text-2xl font-bold">
+    <section aria-labelledby="charts-h" className="hud rounded-lg border border-border bg-card p-4">
+      <SectionTitle id="charts-h" num="04" kicker="Compare">
         How the routes compare
-      </h2>
+      </SectionTitle>
       <div className="mt-3 grid gap-6 lg:grid-cols-2">
         <figure>
           <figcaption className="text-sm font-bold">Soil nitrogen, season by season (0–100)</figcaption>
           <div className="mt-2 h-60">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={nData} margin={{ top: 8, right: 28, bottom: 0, left: -12 }}>
-                <CartesianGrid stroke="#e3dccb" vertical={false} />
-                <XAxis dataKey="label" tick={AXIS} tickLine={false} axisLine={{ stroke: "#8f8877" }} />
+                <CartesianGrid stroke={GRID} vertical={false} />
+                <XAxis dataKey="label" tick={AXIS} tickLine={false} axisLine={{ stroke: AXIS_LINE }} />
                 <YAxis domain={[0, 100]} tick={AXIS} tickLine={false} axisLine={false} width={40} />
                 <Tooltip />
                 <Line dataKey="A" name="Plan A" stroke={COLOR.A} strokeWidth={2} strokeDasharray="6 4" dot={false} isAnimationActive={false} label={endLabel("A")} />
@@ -53,8 +56,8 @@ export function Charts({ plans, normal, elnino, scenario }: { plans: PlanResult[
           <div className="mt-2 h-60">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={profitData} layout="vertical" margin={{ top: 8, right: 16, bottom: 0, left: 0 }} barGap={2}>
-                <CartesianGrid stroke="#e3dccb" horizontal={false} />
-                <XAxis type="number" tick={AXIS} tickFormatter={pesoK} tickLine={false} axisLine={{ stroke: "#8f8877" }} />
+                <CartesianGrid stroke={GRID} horizontal={false} />
+                <XAxis type="number" tick={AXIS} tickFormatter={pesoK} tickLine={false} axisLine={{ stroke: AXIS_LINE }} />
                 <YAxis type="category" dataKey="name" tick={AXIS} tickLine={false} axisLine={false} width={64} />
                 <Tooltip formatter={(v: number) => pesoK(v)} />
                 <Bar dataKey="current" name={scenario === "elnino" ? "El Niño" : "Normal"} isAnimationActive={false} radius={[0, 4, 4, 0]}>

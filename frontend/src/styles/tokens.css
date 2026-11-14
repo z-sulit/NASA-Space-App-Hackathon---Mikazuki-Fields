@@ -1,5 +1,7 @@
 /*
- * Mikazuki Fields design tokens (light theme only for the MVP).
+ * Mikazuki Fields design tokens: "Field Olive" theme (light only for the MVP).
+ * Editorial olive-and-beige look inspired by the CropTab site (Awwwards SOTD, Feb 2026),
+ * plus a Mikazuki layer: crescent emblem, HUD corner brackets, Mars-rust El Niño accent.
  * Written for Tailwind v4 + shadcn/ui. Usage and contrast ratios: docs/UI_STYLE_GUIDE.md
  *
  * In src/index.css: keep shadcn's imports and its `@theme inline` block,
@@ -11,30 +13,30 @@
   --radius: 0.75rem; /* 12px cards; shadcn derives sm/md/lg from this */
 
   /* ---- shadcn/ui base tokens ---- */
-  --background: #faf6ee; /* rice paper */
-  --foreground: #1f2a1e; /* soil, 13.8:1 on background */
-  --card: #ffffff;
-  --card-foreground: #1f2a1e;
-  --popover: #ffffff;
-  --popover-foreground: #1f2a1e;
-  --primary: #2f6b3a; /* leaf: Plan B, main buttons, links */
-  --primary-foreground: #ffffff; /* 6.4:1 on primary */
-  --secondary: #efe8da;
-  --secondary-foreground: #1f2a1e;
-  --muted: #f3eee3;
-  --muted-foreground: #5b6152; /* 5.9:1 on background */
-  --accent: #e7f0e2;
-  --accent-foreground: #1f2a1e;
+  --background: #f4ede6; /* beige */
+  --foreground: #26300f; /* deep olive, 12.0:1 on background */
+  --card: #fcf9f5;
+  --card-foreground: #26300f;
+  --popover: #fcf9f5;
+  --popover-foreground: #26300f;
+  --primary: #404f1d; /* field olive: Plan B, main buttons, links */
+  --primary-foreground: #f4ede6; /* 7.7:1 on primary */
+  --secondary: #ebe3d6;
+  --secondary-foreground: #26300f;
+  --muted: #efe7dc;
+  --muted-foreground: #5a5e45; /* 5.8:1 on background */
+  --accent: #e6edc9;
+  --accent-foreground: #26300f;
   --destructive: #9b2c1f;
-  --border: #e3dccb; /* decorative dividers */
-  --input: #8f8877; /* form outlines, 3.5:1 on white */
-  --ring: #2f6b3a;
+  --border: #e2d9cc; /* decorative dividers */
+  --input: #8c8573; /* form outlines, 3.5:1 on card */
+  --ring: #404f1d;
 
   /* chart-1..3 = the three plans */
-  --chart-1: #8a7f6e; /* Plan A, status quo: always dashed */
-  --chart-2: #2f6b3a; /* Plan B, balanced */
+  --chart-1: #8a8270; /* Plan A, status quo: always dashed */
+  --chart-2: #404f1d; /* Plan B, balanced */
   --chart-3: #2c6e9b; /* Plan C, drought-safe */
-  --chart-4: #c8701e; /* El Niño overlay */
+  --chart-4: #a9452c; /* El Niño overlay */
   --chart-5: #a87c0e;
 
   /* ---- Mikazuki Fields ---- */
@@ -42,34 +44,49 @@
   --plan-b: var(--chart-2);
   --plan-c: var(--chart-3);
 
-  --sun: #c8701e; /* El Niño fills and icons, 3.4:1 on background */
-  --sun-strong: #a4520f; /* orange text, 5.1:1 on background */
-  --sun-tint: #fcebd7; /* El Niño-on background */
-  --moon: #e3b341; /* crescent logo only, decorative */
+  --olive: #636f3d; /* micro labels, section numbers: 4.7:1 on background */
+  --sage: #7c914c; /* decoration only */
+  --chartreuse: #d4de72; /* highlight fills (Recommended); dark text on it 9.6:1 */
+  --hero-dark: #2f3a14;
+  --hero-mid: #556332;
+  --hero-glow: #7c914c;
+
+  /* El Niño = Mars rust (the old "sun" names are kept so components don't change) */
+  --sun: #a9452c; /* toggle fill, heat icons: 5.1:1 on background */
+  --sun-strong: #8f3a24; /* rust text: 6.5:1 on background */
+  --sun-tint: #f5ded2; /* El Niño-on background */
+  --moon: #e3b341; /* crescent emblem, decorative */
 
   --family-poaceae: #a87c0e; /* corn, rice, sorghum */
-  --family-fabaceae: #3f8a45; /* mungbean, peanut, cowpea */
+  --family-fabaceae: #4d8b3a; /* mungbean, peanut, cowpea */
   --family-convolvulaceae: #8e5ba8; /* sweet potato */
   --family-fallow: #9a8466; /* bare field, pair with a hatch pattern */
 
-  --badge-good-bg: #e3f1e1; /* Pest Cycle Broken */
-  --badge-good-fg: #23592e;
+  --badge-good-bg: #e6edc9; /* Pest Cycle Broken */
+  --badge-good-fg: #2f4a12;
   --badge-warn-bg: #fbebc8; /* Bare-Soil Erosion Month */
   --badge-warn-fg: #7a4b00;
   --badge-critical-bg: #fbe3df; /* water or slope mismatch */
   --badge-critical-fg: #9b2c1f;
 
-  --mf-font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
-  --mf-font-body: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --mf-font-display: "Inter Tight", "Helvetica Neue", Arial, sans-serif;
+  --mf-font-body: "Inter", system-ui, sans-serif;
   --mf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* Expose project tokens as Tailwind utilities: bg-sun-tint, border-family-fabaceae,
-   stroke-plan-c, text-badge-warn-fg, font-display, ease-field, ... */
+   stroke-plan-c, text-olive, bg-chartreuse, font-display, ease-field, ... */
 @theme inline {
   --color-plan-a: var(--plan-a);
   --color-plan-b: var(--plan-b);
   --color-plan-c: var(--plan-c);
+
+  --color-olive: var(--olive);
+  --color-sage: var(--sage);
+  --color-chartreuse: var(--chartreuse);
+  --color-hero-dark: var(--hero-dark);
+  --color-hero-mid: var(--hero-mid);
+  --color-hero-glow: var(--hero-glow);
 
   --color-sun: var(--sun);
   --color-sun-strong: var(--sun-strong);

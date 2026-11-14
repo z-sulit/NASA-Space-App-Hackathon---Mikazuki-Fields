@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Languages, Loader2, Moon, Sun } from "lucide-react";
+import { Languages, Loader2, Sun } from "lucide-react";
+import { Hero } from "./components/Hero";
 import presetsJson from "./data/presets.json";
 import type { PlanId, PlanRequest, PlansResponse, Preset, Scenario } from "./types";
 import { fetchPlans } from "./api/client";
@@ -10,7 +11,7 @@ import { PlanColumn } from "./components/PlanColumn";
 import { Charts } from "./components/Charts";
 import { LimitationsBox } from "./components/LimitationsBox";
 import { LANGUAGES, LanguagePicker, type Lang } from "./components/LanguagePicker";
-import { InfoTip, Switch } from "./components/ui";
+import { InfoTip, SectionTitle, Switch } from "./components/ui";
 
 const PRESETS = presetsJson as Preset[];
 
@@ -125,19 +126,14 @@ export default function App() {
         />
       )}
 
-      <header className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3 px-4 py-4">
-        <div className="flex items-center gap-2">
-          <Moon className="size-8 fill-moon text-moon" aria-hidden />
-          <div>
-            <h1 className="text-[32px] leading-8 font-bold">Mikazuki Fields</h1>
-            <p className="text-sm text-muted-foreground">Your next 6 seasons, planned with NASA data</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
+      <Hero
+        preset={preset}
+        topRight={
+          <>
           {result?.source === "demo" && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm font-bold text-muted-foreground">
+            <span className="micro inline-flex min-h-11 items-center gap-1 rounded-full border border-[#f4ede6]/30 px-4 text-[#f4ede6]/85">
               Demo planner
-              <InfoTip label="the demo planner" align="right">
+              <InfoTip label="the demo planner" align="right" light>
                 Routes are computed in your browser with the team's engine spec until the FastAPI backend is running. Rain, heat and soil
                 wetness are real NASA POWER averages (2015–2024); slope and green cover are sample values.
               </InfoTip>
@@ -146,21 +142,22 @@ export default function App() {
           <button
             type="button"
             onClick={() => setLang(null)}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-input bg-card px-3 text-sm font-bold"
+            className="micro inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[#f4ede6]/50 px-4 text-[#f4ede6] transition-colors duration-150 hover:bg-[#f4ede6]/10"
           >
             <Languages className="size-4" aria-hidden />
             {langLabel ?? "Language"}
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {lang && lang !== "en" && (
-        <p className="mx-auto mb-3 max-w-[1280px] px-4">
+        <p className="mx-auto mt-4 max-w-[1280px] px-4">
           <span className="block rounded-md bg-accent px-3 py-2 text-sm">{langLabel} translation is coming soon. Showing English for now.</span>
         </p>
       )}
 
-      <div className="mx-auto max-w-[1280px] gap-6 px-4 pb-6 lg:grid lg:grid-cols-[320px_minmax(0,1fr)]">
+      <div id="planner" className="mx-auto max-w-[1280px] scroll-mt-4 gap-6 px-4 pt-8 pb-6 lg:grid lg:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="mb-6 lg:sticky lg:top-4 lg:mb-0 lg:max-h-[calc(100dvh-2rem)] lg:self-start lg:overflow-y-auto">
           <Sidebar
             presets={PRESETS}
@@ -181,10 +178,15 @@ export default function App() {
           <NasaBanner preset={preset} scenario={scenario} overrides={(planned ?? req).overrides} />
 
           <section aria-labelledby="routes-h" className="space-y-4">
-            <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 transition-colors duration-200 ${scenario === "elnino" ? "border-sun bg-sun-tint" : "border-border bg-card"}`}>
-              <h2 id="routes-h" className="text-2xl font-bold">
-                3 · Compare 3 routes
-              </h2>
+            <div
+              className={`hud relative flex flex-wrap items-end justify-between gap-3 overflow-hidden rounded-lg border p-4 transition-colors duration-200 ${
+                scenario === "elnino" ? "border-sun bg-sun-tint pl-6" : "border-border bg-card"
+              }`}
+            >
+              {scenario === "elnino" && <span aria-hidden className="hazard absolute inset-y-0 left-0 w-2" />}
+              <SectionTitle id="routes-h" num="03" kicker="Routes">
+                Compare 3 routes
+              </SectionTitle>
               <label className="flex cursor-pointer items-center gap-3">
                 <span className="text-right">
                   <span className="flex items-center justify-end gap-1.5 font-bold">

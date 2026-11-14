@@ -1,4 +1,4 @@
-import { Moon } from "lucide-react";
+import { Emblem } from "./Emblem";
 
 export const LANGUAGES = [
   { code: "en", label: "English" },
@@ -12,8 +12,8 @@ export function LanguagePicker({ onPick }: { onPick: (l: Lang) => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" role="dialog" aria-modal="true" aria-labelledby="lang-h">
       <div className="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-[0_1px_2px_rgb(31_42_30/0.08)]">
-        <Moon className="size-8 fill-moon text-moon" aria-hidden />
-        <h2 id="lang-h" className="mt-3 text-[32px] leading-9 font-bold">
+        <Emblem size={56} />
+        <h2 id="lang-h" className="mt-3 text-[32px] leading-9 font-medium">
           Choose your language
         </h2>
         <div className="mt-4 grid grid-cols-2 gap-2">

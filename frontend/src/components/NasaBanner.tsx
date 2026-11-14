@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { CloudRain, Droplets, Leaf, Mountain, Sun, Thermometer, type LucideIcon } from "lucide-react";
 import type { Overrides, Preset, Scenario } from "../types";
 import { climate } from "../engine/simulate";
-import { InfoTip, SourcePill } from "./ui";
+import { InfoTip, SectionTitle, SourcePill } from "./ui";
 
 interface Metric {
   key: string;
@@ -92,11 +92,11 @@ export function NasaBanner({ preset, scenario, overrides }: { preset: Preset; sc
   ].filter(Boolean) as string[];
 
   return (
-    <section aria-labelledby="nasa-h" className={`rounded-lg border p-4 transition-colors duration-200 ${elnino ? "border-sun bg-sun-tint" : "border-border bg-card"}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="nasa-h" className="text-2xl font-bold">
-          2 · What NASA sees{elnino && <span className="text-sun-strong"> in an El Niño year</span>}
-        </h2>
+    <section aria-labelledby="nasa-h" className={`hud rounded-lg border p-4 transition-colors duration-200 ${elnino ? "border-sun bg-sun-tint" : "border-border bg-card"}`}>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <SectionTitle id="nasa-h" num="02" kicker="Satellite data">
+          What NASA sees{elnino && <span className="text-sun-strong"> in an El Niño year</span>}
+        </SectionTitle>
         <div className="flex flex-wrap gap-1.5">
           <SourcePill>POWER</SourcePill>
           <SourcePill>SRTM</SourcePill>
@@ -113,7 +113,7 @@ export function NasaBanner({ preset, scenario, overrides }: { preset: Preset; sc
         {metrics.map((m, i) => (
           <li key={m.key} className="rounded-md border border-border bg-card p-3">
             <div className="flex items-start justify-between gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{m.label}</span>
+              <span className="micro text-olive">{m.label}</span>
               <InfoTip label={m.label} align={i % 3 === 2 ? "right" : "left"}>
                 <span className="block">{m.tip}</span>
                 <span className="mt-2 block font-mono text-xs text-muted-foreground">{m.tech}</span>
@@ -121,7 +121,7 @@ export function NasaBanner({ preset, scenario, overrides }: { preset: Preset; sc
             </div>
             <div className="mt-1 flex items-center gap-1.5">
               <m.icon className={`size-5 shrink-0 ${elnino && (m.key === "heat" || m.key === "rain") ? "text-sun-strong" : "text-primary"}`} aria-hidden />
-              <span className="font-display text-[28px] leading-8 font-bold tabular">{m.value}</span>
+              <span className="font-display text-[28px] leading-8 font-medium tracking-[-0.02em] tabular">{m.value}</span>
             </div>
             <div className="mt-0.5 text-sm text-muted-foreground tabular">{m.sub}</div>
             {m.sample && <span className="mt-1 inline-block rounded-full bg-muted px-2 text-xs font-bold text-muted-foreground">sample value</span>}
