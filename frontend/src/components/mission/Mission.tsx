@@ -400,7 +400,6 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   };
   /** A search result: glide over, then target it exactly like a tap. */
   const pickPlace = async (pl: Place) => {
-    setPin({ lat: pl.lat, lon: pl.lon });
     await mapRef.current?.glideTo(pl.lat, pl.lon);
     await pickPoint({ lat: pl.lat, lon: pl.lon }, pl.name);
   };
@@ -546,7 +545,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       {/* Top bar */}
       <div className="relative z-40 mx-auto flex max-w-[1400px] items-center justify-between gap-2 px-4 pt-4">
         <div className="flex shrink-0 items-center gap-2">
-          <Emblem size={30} tile={false} />
+          <Emblem size={30} />
           <span className="micro whitespace-nowrap">Mikazuki Fields</span>
         </div>
         {topRight && <div className="flex items-center gap-2">{topRight}</div>}

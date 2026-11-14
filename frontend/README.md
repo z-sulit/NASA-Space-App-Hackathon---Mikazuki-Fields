@@ -10,6 +10,7 @@ To redeploy the preview: `npx vite build --base=./`, then push the contents of `
 cd frontend
 npm install
 npm run dev        # http://localhost:5173
+npm test           # money-text parser (Node's built-in test runner)
 ```
 
 ## What works
