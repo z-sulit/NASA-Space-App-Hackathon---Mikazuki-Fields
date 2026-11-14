@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { ArrowDown } from "lucide-react";
 import type { Preset } from "../types";
 import { Emblem } from "./Emblem";
-import { Tile3D } from "./Tile3D";
+import { HeroTile } from "./HeroTile";
 import { prefersReducedMotion, useScramble } from "./ui";
 
 /** Soft, blurred leaf shadows drifting across the backdrop (original shapes, CSS-animated). */
@@ -150,7 +150,7 @@ export function Hero({ preset, ready, topRight }: { preset: Preset; ready: boole
           <HudFrame />
           <div className="pop-in" style={{ animationDelay: "250ms" }}>
             <div className="float">
-              <Tile3D size={176} />
+              <HeroTile size={176} ready={ready} />
             </div>
           </div>
           <span className="micro fade-up absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-chartreuse" style={{ animationDelay: "1200ms" }}>

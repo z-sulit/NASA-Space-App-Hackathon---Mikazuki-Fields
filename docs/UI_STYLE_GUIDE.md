@@ -147,12 +147,12 @@ The CropTab-style opener, built from original parts:
 ### Emblem
 Original mark, from the team's sketch: a gold crescent that closes into a full ring (two circles, the inner one shifted to the upper right, so the ring is thick at the lower left and 4.5 units wide at its thinnest) with a small rust five-petal "iron flower" centered in the opening (`src/components/Emblem.tsx`). The closed ring and centered flower keep it from reading as a crescent-and-star. Used in the hero on a dark olive tile, bare in the top bar (30 px) and boot screen, and as the browser-tab icon. With `animated`, the ring strokes draw, the crescent fills, then the petals bloom one by one. Do not replace it with any franchise emblem or mech artwork.
 
-### 3D pieces (CSS transforms only)
-All three are built with CSS 3D transforms (`src/styles/three-d.css`), with no WebGL and no 3D library, so they run on budget phones and add nothing to the bundle.
+### 3D pieces
+The hero tile is WebGL (three.js); the crop tiles and soil terrain are CSS 3D transforms (`src/styles/three-d.css`), so the planner itself needs no GPU and runs on budget phones.
 
 | Piece | What it is | How you play with it | File |
 |---|---|---|---|
-| **Hero tile** | A slab 18 px thick (17 stacked slices between two faces): emblem on the front, a spec plate on the back, a highlight that slides across as it turns, a soft ground shadow. | Drag to spin (with a flick it keeps turning), tap or press Enter to flip. Left alone it sways, leans toward the mouse and springs back to a face. | `Tile3D.tsx` |
+| **Hero tile (WebGL)** | A beveled olive slab lit by a studio environment, with the crescent ring embossed in polished gold, rust petals, and a spec plate on the back. three.js loads in its own chunk after the page is up; the CSS slab (18 px thick, 17 stacked slices) shows first and stays as the fallback with reduced motion, without WebGL, or if the GPU context is lost. | Spins in when the hero is revealed. Drag to spin (a flick keeps it turning), tap or press Enter to flip. Left alone it sways, leans toward the mouse and springs back to a face. | `HeroTile.tsx`, `three/tileScene.ts`, fallback `Tile3D.tsx` |
 | **Crop tiles ("00 / Hangar")** | The 8 crops as small slabs edged in their family color. Front: unit code (MF-01…), family icon, name, and A/B/C dots for the routes that use it. Back: days to grow, water need, soil-nitrogen effect, heat limit, goal. | Tilts toward the pointer and lifts on hover; tap or Enter flips it. | `CropHangar.tsx` |
 | **Soil terrain ("04")** | An isometric field: 3 routes × 6 seasons of blocks. Height = soil nitrogen after that season, color = crop family. Plan A sits in the front row so its sinking steps are never hidden. | Blocks rise from the ground on first view; drag sideways to turn the field; hover or tap a block for its numbers. | `Field3D.tsx` |
 
