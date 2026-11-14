@@ -1,17 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Info, type LucideIcon } from "lucide-react";
-import { formatCurrency, formatCurrencyK } from "../utils/currency";
 
-export {
-  PHP_PER_USD,
-  convertPhp,
-  formatCurrency,
-  formatCurrencyK,
-  localizeCurrencyText,
-  type Currency,
-} from "../utils/currency";
-export const peso = (v: number) => formatCurrency(v, "PHP");
-export const pesoK = (v: number) => formatCurrencyK(v, "PHP");
+export { PHP_PER_USD, formatPhpUsd, formatPhpUsdInText } from "../utils/currency";
 
 export const prefersReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;

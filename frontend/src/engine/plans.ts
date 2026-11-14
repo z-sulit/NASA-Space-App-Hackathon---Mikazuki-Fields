@@ -6,7 +6,7 @@
 import type { Crop, CropId, Irrigation, PlanId, PlanKpis, PlanRequest, PlanResult, PlansResponse, Preset, SeasonResult } from "../types";
 import { CROP, CROPS } from "../data/crops";
 import { makeEnv, run, type Env } from "./simulate";
-import { formatCurrency, type Currency } from "../utils/currency";
+import { formatPhpUsd } from "../utils/currency";
 
 const N_CROPS = CROPS.length;
 const TOTAL = N_CROPS ** 6;
@@ -98,12 +98,11 @@ function hamming(a: number, b: number) {
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
-/** Deterministic "why this route" bullets formatted in the active currency. */
+/** Deterministic "why this route" bullets formatted as PHP / USD. */
 export function summarizePlans(
   normal: PlanResult[],
   elnino: PlanResult[],
   irrigation: Irrigation,
-  currency: Currency = "PHP",
 ): [string[], string[], string[]] {
   const drop = (i: number) => {
     const n = normal[i].kpis.totalProfit;
@@ -116,13 +115,13 @@ export function summarizePlans(
       ? `Same crop 6 times: soil nitrogen falls from ${A.kpis.nStart} to ${Math.round(A.kpis.nFinal)}.`
       : `Soil nitrogen ends at ${Math.round(A.kpis.nFinal)}.`,
     A.kpis.pestBreaks === 0 ? `Pests build up every season, reaching ${pct(A.seasons[5].pest)} pressure.` : `${A.kpis.pestBreaks} pest-cycle breaks.`,
-    A.kpis.ureaTotal > 0 ? `Fertilizer top-ups cost ${formatCurrency(A.kpis.ureaTotal, currency)} over 3 years.` : `In El Niño, 3-year profit falls ${drop(0)}%.`,
+    A.kpis.ureaTotal > 0 ? `Fertilizer top-ups cost ${formatPhpUsd(A.kpis.ureaTotal)} over 3 years.` : `In El Niño, 3-year profit falls ${drop(0)}%.`,
   ];
   const dB = B.kpis.totalProfit - A.kpis.totalProfit;
   const whyB = [
     `Soil nitrogen ends at ${Math.round(B.kpis.nFinal)}, versus ${Math.round(A.kpis.nFinal)} for Status Quo.`,
     `${B.kpis.pestBreaks} crop-family switches break pest cycles.`,
-    `3-year profit ${formatCurrency(B.kpis.totalProfit, currency)} (${dB >= 0 ? "+" : "−"}${formatCurrency(Math.abs(dB), currency)} vs Status Quo).`,
+    `3-year profit ${formatPhpUsd(B.kpis.totalProfit)} (${dB >= 0 ? "+" : "−"}${formatPhpUsd(Math.abs(dB))} vs Status Quo).`,
   ];
   // Only keep bullets that actually tell Plan C apart, so we never print "0 mm versus 0 mm".
   const whyC = [
@@ -160,7 +159,7 @@ const META: Record<PlanId, { name: string; promise: string }> = {
   C: { name: "Drought-Safe", promise: "Holds up best in a dry year" },
 };
 
-export function planRoutes(req: PlanRequest, preset: Preset, currency: Currency = "PHP"): PlansResponse {
+export function planRoutes(req: PlanRequest, preset: Preset): PlansResponse {
   const notes: string[] = [];
   let envN = makeEnv(preset, req.soil, req.irrigation, "normal", req.overrides, req.baselineCrop);
   let envE = makeEnv(preset, req.soil, req.irrigation, "elnino", req.overrides, req.baselineCrop);
@@ -223,7 +222,7 @@ export function planRoutes(req: PlanRequest, preset: Preset, currency: Currency 
   const normal = build(envN);
   const elnino = build(envE);
 
-  summarizePlans(normal, elnino, req.irrigation, currency).forEach((w, i) => {
+  summarizePlans(normal, elnino, req.irrigation).forEach((w, i) => {
     normal[i].why = w;
     elnino[i].why = w;
   });

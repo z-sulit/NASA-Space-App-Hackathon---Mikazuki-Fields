@@ -4,7 +4,6 @@ import { Mission } from "./components/mission/Mission";
 import presetsJson from "./data/presets.json";
 import type { Preset } from "./types";
 import { LANGUAGES, LanguagePicker, type Lang } from "./components/LanguagePicker";
-import type { Currency } from "./components/ui";
 
 const PRESETS = presetsJson as Preset[];
 
@@ -35,10 +34,6 @@ export default function App() {
     return "en";
   });
   const [showLangPicker, setShowLangPicker] = useState(false);
-  const [currency, setCurrency] = useState<Currency>(() => {
-    const saved = storage.get("mf-currency");
-    return saved === "USD" || saved === "PHP" ? saved : "PHP";
-  });
   const onReady = useCallback(() => {}, []);
   const langLabel = LANGUAGES.find((l) => l.code === lang)?.label ?? "English";
 
@@ -58,49 +53,15 @@ export default function App() {
       <Mission
         presets={PRESETS}
         onReady={onReady}
-        currency={currency}
         topRight={
-          <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
-            <div
-              role="group"
-              aria-label="Currency"
-              className="inline-flex min-h-11 items-center gap-0.5 rounded-full border border-ink/50 bg-hud/55 p-1 text-xs font-medium text-ink sm:text-sm"
-            >
-              {(
-                [
-                  ["PHP", "PHP (₱)", "₱ PHP"],
-                  ["USD", "USD ($)", "$ USD"],
-                ] as const
-              ).map(([code, full, compact]) => {
-                const active = currency === code;
-                return (
-                  <button
-                    key={code}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => {
-                      storage.set("mf-currency", code);
-                      setCurrency(code);
-                    }}
-                    className={`min-h-9 rounded-full px-2.5 transition-colors duration-150 sm:px-3 ${
-                      active ? "bg-ink font-semibold text-foreground" : "text-ink/80 hover:bg-[#f6efeb]/10"
-                    }`}
-                  >
-                    <span className="sm:hidden">{compact}</span>
-                    <span className="hidden sm:inline">{full}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowLangPicker(true)}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-ink/50 bg-hud/55 px-3 text-xs font-medium text-ink transition-colors duration-150 hover:bg-[#f6efeb]/10 sm:px-4 sm:text-sm"
-            >
-              <Languages className="size-4" aria-hidden />
-              {langLabel}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowLangPicker(true)}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-ink/50 bg-hud/55 px-4 text-sm font-medium text-ink transition-colors duration-150 hover:bg-[#f6efeb]/10"
+          >
+            <Languages className="size-4" aria-hidden />
+            {langLabel}
+          </button>
         }
       />
 
