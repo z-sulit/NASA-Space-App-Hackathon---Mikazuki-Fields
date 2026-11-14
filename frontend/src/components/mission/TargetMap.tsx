@@ -30,6 +30,7 @@ export function TargetMap({
   presets,
   focus,
   pin,
+  rejected = null,
   locked,
   onHover,
   onPickPreset,
@@ -39,6 +40,8 @@ export function TargetMap({
   presets: Preset[];
   focus: LatLon | null;
   pin: LatLon | null;
+  /** A refused tap (water, outside the Philippines): shown as a fading red mark. */
+  rejected?: (LatLon & { key: number }) | null;
   locked: boolean;
   onHover: (id: string | null) => void;
   onPickPreset: (id: string) => void;
@@ -48,6 +51,7 @@ export function TargetMap({
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const pinMarker = useRef<L.Marker | null>(null);
+  const rejectMarker = useRef<L.Marker | null>(null);
   const [pt, setPt] = useState<{ x: number; y: number } | null>(null);
   const focusRef = useRef(focus);
   focusRef.current = focus;
@@ -114,6 +118,17 @@ export function TargetMap({
     const icon = L.divIcon({ className: "", html: `<span class="tgt tgt-pin is-focus"><i></i><b>Your farm</b></span>`, iconSize: [0, 0] });
     pinMarker.current = L.marker([pin.lat, pin.lon], { icon, interactive: false }).addTo(m);
   }, [pin?.lat, pin?.lon]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refused tap: a red cross with a ripple that fades out on its own (CSS), re-added per tap.
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    rejectMarker.current?.remove();
+    rejectMarker.current = null;
+    if (!rejected) return;
+    const icon = L.divIcon({ className: "", html: `<span class="tgt-reject"><em></em><i></i></span>`, iconSize: [0, 0] });
+    rejectMarker.current = L.marker([rejected.lat, rejected.lon], { icon, interactive: false, keyboard: false }).addTo(m);
+  }, [rejected?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useImperativeHandle(ref, () => ({
     flyTo(lat, lon) {
