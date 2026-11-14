@@ -622,7 +622,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             aria-label="Target data"
           >
             <PanelBar panel={leftPanel} label="target data">
-              <p className="micro flex items-center gap-1.5 text-sakura">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-sakura">
                 <MapPin className="size-3.5" aria-hidden /> Target
                 {acquiring && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
               </p>
@@ -656,7 +656,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             aria-label="Conditions"
           >
             <PanelBar panel={rightPanel} label="conditions">
-              <p className="micro text-sakura">Conditions</p>
+              <p className="text-xs font-semibold text-sakura">Conditions</p>
             </PanelBar>
             <div className="panel-body">
             {!rightPanel.collapsed && (
@@ -787,7 +787,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               )}
             </PanelBar>
             {/* One tap switches the route right here (#15); the field regrows in place. */}
-            <div className="route-tabs" role="radiogroup" aria-label="Route (keys 1–4)">
+            <div className="route-tabs" role="radiogroup" aria-label="Route, keys 1 to 4">
               {ROUTES.map((r) => (
                 <button
                   key={r.id}
