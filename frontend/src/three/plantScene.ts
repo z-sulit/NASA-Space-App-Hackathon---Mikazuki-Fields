@@ -392,8 +392,10 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
       seasonCb(season);
     }
     const active = Math.min(5, Math.max(0, season));
-    drone.position.x += (plotX(active) - drone.position.x) * 0.12;
-    drone.position.y = 2.6 + Math.sin(t * 2.2) * 0.12;
+    // Moving in arcs: the drone hops up while it travels to the next plot and settles on arrival.
+    const travel = plotX(active) - drone.position.x;
+    drone.position.x += travel * 0.12;
+    drone.position.y = 2.6 + Math.sin(t * 2.2) * 0.12 + Math.min(0.9, Math.abs(travel) * 0.45);
     ring.rotation.y = t * 1.5;
     const droneOn = season >= 0 && season < 6 ? 1 : 0;
     beamMat.opacity += (0.22 * droneOn - beamMat.opacity) * 0.1;

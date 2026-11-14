@@ -8,7 +8,7 @@ import { inPhilippines } from "../../api/power";
 import { checkLand } from "../../api/landcheck";
 import { CROP } from "../../data/crops";
 import { Emblem } from "../Emblem";
-import { InfoTip, peso, prefersReducedMotion, Switch, useScramble } from "../ui";
+import { CountUp, InfoTip, peso, prefersReducedMotion, Switch, useScramble } from "../ui";
 import { TargetMap, type LatLon, type TargetMapHandle } from "./TargetMap";
 import { PickPlants, SeasonFlags, type Choice } from "./PickPlants";
 import { PlantField } from "./PlantField";
@@ -114,8 +114,8 @@ const TIP = {
 function Readout({ label, value, live, tip, tipAlign = "left" }: { label: string; value: string; live: boolean; tip?: string; tipAlign?: "left" | "right" }) {
   const shown = useScramble(value, live, 520);
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-[#f6efeb]/10 py-1.5">
-      <dt className="micro flex items-center gap-1 text-[10.5px] text-[#f6efeb]/60">
+    <div className="flex items-baseline justify-between gap-4 border-b border-ink/10 py-1.5">
+      <dt className="micro flex items-center gap-1 text-[10.5px] text-ink/70">
         {label}
         {tip && (
           <InfoTip label={label} light align={tipAlign}>
@@ -123,7 +123,7 @@ function Readout({ label, value, live, tip, tipAlign = "left" }: { label: string
           </InfoTip>
         )}
       </dt>
-      <dd className="micro text-[13px] whitespace-pre text-[#f6efeb] tabular" aria-label={value}>
+      <dd className="micro text-[13px] whitespace-pre text-ink tabular" aria-label={value}>
         {shown}
       </dd>
     </div>
@@ -176,6 +176,28 @@ const FARM_SOURCE: Record<DataSource, string> = {
   demo: "Preset farm · NASA POWER 2015–2024",
 };
 
+/** The last farm and settings, so a returning farmer starts where they left off (this browser only). */
+interface LastFarm {
+  target: Preset;
+  pin: LatLon | null;
+  req: PlanRequest;
+}
+function readLastFarm(): LastFarm | null {
+  try {
+    const v = JSON.parse(localStorage.getItem("mf-last-farm") ?? "null") as LastFarm | null;
+    return v && typeof v.target?.id === "string" && v.target.seasons?.dry && v.req?.weights ? v : null;
+  } catch {
+    return null;
+  }
+}
+function saveLastFarm(v: LastFarm) {
+  try {
+    localStorage.setItem("mf-last-farm", JSON.stringify(v));
+  } catch {
+    /* private mode: just don't remember */
+  }
+}
+
 export function Mission({ presets: bundled, onReady, topRight }: { presets: Preset[]; onReady: () => void; topRight: ReactNode }) {
   // Preset farms: the app's bundled copy until the backend's measured data arrives.
   const [presets, setPresets] = useState<Preset[]>(bundled);
@@ -184,16 +206,17 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   const [progress, setProgress] = useState(0);
   const [scenario, setScenario] = useState<Scenario>("normal");
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const [target, setTarget] = useState<Preset>(bundled[0]);
-  const [pin, setPin] = useState<LatLon | null>(null);
+  const [last] = useState(readLastFarm);
+  const [target, setTarget] = useState<Preset>(last?.target ?? bundled[0]);
+  const [pin, setPin] = useState<LatLon | null>(last?.pin ?? null);
   const [acquiring, setAcquiring] = useState(false);
   const [pinVia, setPinVia] = useState<"api" | "browser" | "nearest" | null>(null);
-  const [mapNote, setMapNote] = useState<string | null>(null);
+  const [mapNote, setMapNote] = useState<string | null>(last ? "Your last farm is ready. Lock it, or tap a new one." : null);
   const [checking, setChecking] = useState(false);
   const [tryAgain, setTryAgain] = useState<{ text: string; key: number } | null>(null);
   const [rejected, setRejected] = useState<(LatLon & { key: number }) | null>(null);
   const tapSeq = useRef(0);
-  const [req, setReq] = useState<PlanRequest>(DEFAULT_REQ);
+  const [req, setReq] = useState<PlanRequest>(last?.req ?? DEFAULT_REQ);
   const [result, setResult] = useState<PlansResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState<Choice>("B");
@@ -218,7 +241,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   }, []);
   // Warm the planner up during the intro so step 01 has something real to load.
   useEffect(() => {
-    void plan(DEFAULT_REQ, bundled[0]);
+    void plan(last?.req ?? DEFAULT_REQ, last?.target ?? bundled[0]);
     let dead = false;
     void loadFarms(bundled).then((r) => {
       if (dead) return;
@@ -305,7 +328,8 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     setRejected({ ...p, key });
     setTryAgain({ text, key });
   };
-  const pickPoint = async (p: LatLon) => {
+  const pickPoint = async (tap: LatLon) => {
+    let p = tap;
     const seq = ++tapSeq.current;
     // A new tap supersedes any check or fetch still running for an older one.
     setMapNote(null);
@@ -326,6 +350,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       return;
     }
     setRejected(null);
+    if (ground.snapped) p = { lat: ground.snapped.lat, lon: ground.snapped.lon };
     setPin(p);
     setAcquiring(true);
     const { preset, live, via } = await fetchPinFarm(p.lat, p.lon, presets);
@@ -333,6 +358,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     setAcquiring(false);
     setPinVia(via);
     if (!live) setMapNote("Live NASA data unavailable; using the nearest preset's climate.");
+    else if (ground.snapped) setMapNote(`Moved your pin ${Math.round(ground.snapped.meters)} m onto the nearest land.`);
     else if (ground.kind === "unknown") setMapNote("Couldn't check the ground here (map offline); treating it as land.");
     setTarget(preset);
   };
@@ -340,6 +366,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   const lockOn = async () => {
     if (stage !== "target" || acquiring || checking) return;
     const p = target;
+    saveLastFarm({ target: p, pin, req });
     setStage("locking");
     const planning = plan(req, p); // compute this farm's routes while we fly
     await new Promise((r) => setTimeout(r, reduced ? 0 : 750));
@@ -361,9 +388,45 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       return;
     }
     if (stage !== "plants") return;
+    setBusy(true); // instant feedback; the plan itself follows the debounce
     const t = setTimeout(() => void plan(req, target), 350);
     return () => clearTimeout(t);
   }, [req]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keyboard: Esc goes back a step, Enter does the screen's main action, 1–4 pick a route,
+  // E toggles El Niño. Ignored while typing in a field.
+  const keys = useRef({ stage, lockOn: () => {}, backToMap: () => {}, plant: () => {}, busy });
+  keys.current = {
+    stage,
+    lockOn: () => void lockOn(),
+    backToMap: () => void backToMap(),
+    plant: () => {
+      setSeason(-1);
+      setStage("planting");
+    },
+    busy,
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (e.metaKey || e.ctrlKey || e.altKey || el.closest("input, textarea, select, [contenteditable=true]")) return;
+      const k = keys.current;
+      const onControl = !!el.closest("button, a, summary, [role=radio], [role=switch]");
+      if (e.key === "Escape") {
+        if (k.stage === "plants") k.backToMap();
+        else if (k.stage === "planting") setStage("plants");
+      } else if (e.key === "Enter" && !onControl) {
+        if (k.stage === "target") k.lockOn();
+        else if (k.stage === "plants" && !k.busy) k.plant();
+      } else if (k.stage === "plants" && ["1", "2", "3", "4"].includes(e.key)) {
+        setChoice((["A", "B", "C", "custom"] as Choice[])[Number(e.key) - 1]);
+      } else if ((e.key === "e" || e.key === "E") && ["target", "plants", "planting"].includes(k.stage)) {
+        setScenario((s) => (s === "elnino" ? "normal" : "elnino"));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const custom = useMemo(() => customPlan(req, target, customRotation), [req, target, customRotation]);
   const chosen = useMemo(() => {
@@ -398,7 +461,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   return (
     <section
       aria-label="Mikazuki Fields"
-      className="mission relative h-[100svh] overflow-clip text-[#f6efeb]"
+      className="mission relative h-[100svh] overflow-clip text-ink"
       data-stage={stage}
       data-elnino={scenario === "elnino"}
     >
@@ -443,8 +506,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       {/* Step 01 */}
       {(stage === "intro" || stage === "leaving") && (
         <div className={`intro-copy ${stage === "leaving" ? "is-leaving" : ""}`}>
-          <p className="micro text-sakura">Green tiles · NASA Space Apps 2026</p>
-          <h1 className="mt-3 font-display text-[clamp(52px,min(11vw,17svh),150px)] leading-[0.88] font-normal tracking-[-0.03em]">
+          <h1 className="font-display text-[clamp(52px,min(11vw,17svh),150px)] leading-[0.88] font-normal tracking-[-0.03em]">
             <span className="line-mask">
               <span className="line-rise">Mikazuki</span>
             </span>
@@ -454,17 +516,17 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               </span>
             </span>
           </h1>
-          <p className="fade-up mt-4 max-w-[420px] text-[#f6efeb]/85" style={{ animationDelay: "400ms" }}>
-            Plan your next 6 seasons with 10 years of NASA data. Run your hand over the field, then press start.
+          <p className="fade-up mt-4 max-w-[420px] text-ink/80" style={{ animationDelay: "400ms" }}>
+            Tap any farm in the Philippines and see what to plant for the next 3 years, season by season, from 10 years of NASA weather.
           </p>
           <div className="mt-6 h-14">
             {!loaded ? (
               <div className="w-[min(320px,80vw)]" role="progressbar" aria-label="Loading" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}>
-                <div className="micro flex justify-between text-[#f6efeb]/75">
-                  <span>Loading NASA data</span>
+                <div className="flex justify-between text-sm text-ink/80">
+                  <span>Loading NASA weather for 3 farms</span>
                   <span className="tabular">{String(Math.round(progress)).padStart(3, "0")}%</span>
                 </div>
-                <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-[#f6efeb]/20">
+                <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-ink/20">
                   <div className="h-full rounded-full bg-sakura transition-[width] duration-150" style={{ width: `${progress}%` }} />
                 </div>
               </div>
@@ -474,9 +536,9 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                 autoFocus
                 onClick={() => setStage("leaving")}
                 disabled={stage === "leaving"}
-                className="micro pop-in btn-sweep inline-flex min-h-14 items-center gap-3 rounded-full bg-sakura px-8 text-[14px] text-foreground"
+                className="btn btn-primary btn-lg pop-in min-h-14 rounded-full px-8 text-base"
               >
-                Start <ArrowRight className="size-5" aria-hidden />
+                Choose my farm <ArrowRight className="size-5 translate-y-px" aria-hidden />
               </button>
             )}
           </div>
@@ -488,24 +550,23 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       {(stage === "leaving" || stage === "target" || stage === "locking") && (
         <div className={`cockpit-hud ${stage === "leaving" ? "is-pre" : ""}`} aria-hidden={stage === "leaving" || undefined}>
           <div className="hud-title">
-            <p className="micro text-sakura">Step 02 / Targeting</p>
-            <h2 className="mt-1 font-display text-[clamp(26px,3.4vw,44px)] leading-tight font-normal tracking-[-0.02em]">Select a location</h2>
-            <p className={`micro mt-2 ${stage === "locking" ? "blink-3 text-sakura" : "text-[#f6efeb]/75"}`} aria-live="polite">
+            <h2 className="font-display text-[clamp(26px,3.4vw,44px)] leading-tight font-normal tracking-[-0.02em]">Where is your farm?</h2>
+            <p className={`mt-1 text-sm ${stage === "locking" ? "blink-3 text-sakura" : "text-ink/80"}`} aria-live="polite">
               {stage === "locking"
                 ? "Target locked · descending"
                 : checking
-                  ? "Checking the ground…"
+                  ? "Checking that it's land…"
                   : acquiring
                     ? "Acquiring NASA data…"
                     : tryAgain
                       ? ""
-                      : (mapNote ?? "Tap anywhere on land in the Philippines, or a preset farm")}
+                      : (mapNote ?? "Tap the map anywhere on land, or pick one of the 3 marked farms")}
             </p>
             {tryAgain && stage === "target" && (
               <p key={tryAgain.key} className="try-again" role="alert">
                 <Waves className="size-4 shrink-0" aria-hidden />
                 <span>{tryAgain.text}</span>
-                <strong className="micro inline-flex items-center gap-1">
+                <strong className="inline-flex items-center gap-1 font-semibold">
                   <RotateCcw className="size-3.5" aria-hidden /> Try again
                 </strong>
               </p>
@@ -518,7 +579,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               {acquiring && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
             </p>
             <p className="mt-1 font-display text-xl leading-6">{shortName(focus)}</p>
-            <p className="text-[11px] text-[#f6efeb]/55">
+            <p className="text-[11px] text-ink/70">
               {focus.id.startsWith("pin-")
                 ? pinVia === "api"
                   ? "Live NASA POWER via the Mikazuki API"
@@ -539,8 +600,8 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           <aside className="hud-panel hud-panel-right" aria-label="Conditions">
             <label className="flex items-center justify-between gap-3">
               <span>
-                <span className="micro block text-sakura">El Niño</span>
-                <span className="block text-xs text-[#f6efeb]/65">
+                <span className="block text-sm font-semibold">El Niño</span>
+                <span className="block text-xs text-ink/70">
                   {focus.elnino_basis === "observed_2015_2016" && focus.elnino_2016_dry_rain_pct !== null
                     ? `Replays 2015–16 here: dry-season rain ${focus.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(focus.elnino_2016_dry_rain_pct)}%`
                     : "Dry spell: −25% rain, +1.5 °C"}
@@ -558,7 +619,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               type="button"
               onClick={() => void lockOn()}
               disabled={stage !== "target" || acquiring || checking}
-              className="micro btn-sweep mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-sakura px-4 text-foreground disabled:opacity-70"
+              className="btn btn-primary btn-lg mt-4 w-full"
             >
               {stage === "locking" ? <Lock className="size-4" aria-hidden /> : <Crosshair className="size-4" aria-hidden />}
               {stage === "locking" ? "Locked" : `Lock ${shortName(target)}`}
@@ -570,9 +631,11 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       {/* Step 03 */}
       {(stage === "flying" || stage === "rising") && (
         <div className="hud-title">
-          <p className="micro text-sakura">{stage === "flying" ? "Step 03 / Descent" : "Returning to orbit"}</p>
-          <p className="micro mt-2 text-[#f6efeb]/80" aria-live="polite">
-            {stage === "flying" ? `Hovering to ${inName(target)} · ${lat} / ${lon}` : "Climbing · re-acquiring targets"}
+          <h2 className="font-display text-[clamp(22px,2.6vw,32px)] leading-tight font-normal tracking-[-0.02em]">
+            {stage === "flying" ? `Descending to ${inName(target)}` : "Back to the map"}
+          </h2>
+          <p className="mt-1 text-sm text-ink/80 tabular" aria-live="polite">
+            {stage === "flying" ? `${lat} / ${lon} · working out your routes` : "Climbing back up"}
           </p>
         </div>
       )}
@@ -605,11 +668,10 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           <div className="relative min-h-0 flex-1">
             <PlantField plots={plots} plantKey={`${choice}-${chosen.now.rotation.join("-")}`} onSeason={onSeason} drought={scenario === "elnino"} />
             <div className="pointer-events-none absolute top-20 left-4 z-10 sm:left-8">
-              <p className="micro text-sakura">Step 05 / Your field</p>
-              <h2 className="mt-1 font-display text-[clamp(24px,3.2vw,40px)] leading-tight font-normal tracking-[-0.02em]">
+              <h2 className="font-display text-[clamp(24px,3.2vw,40px)] leading-tight font-normal tracking-[-0.02em]">
                 {chosen.now.custom ? "Your rotation" : `Route ${chosen.now.id}`} in {inName(target)}
               </h2>
-              <p className="micro mt-2 h-4 text-[#f6efeb]/80 tabular" aria-live="polite">
+              <p className="micro mt-2 h-4 text-ink/80 tabular" aria-live="polite">
                 {current
                   ? `Planting · S${current.index + 1} ${current.kind} · ${CROP[current.crop].short}`
                   : season >= 6
@@ -620,34 +682,33 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           </div>
 
           <aside className={`stats-panel ${season >= 6 ? "is-in" : ""}`} aria-labelledby="stats-h">
-            <p className="micro text-sakura">Field data</p>
-            <h3 id="stats-h" className="mt-1 font-display text-2xl font-normal tracking-[-0.02em]">
+            <h3 id="stats-h" className="font-display text-2xl font-normal tracking-[-0.02em]">
               {chosen.now.name}
             </h3>
-            <p className="text-sm text-[#f6efeb]/70">{chosen.now.promise}</p>
-            <p className="micro mt-1 text-[10.5px] text-sakura/90">
-              {chosen.now.custom ? "Your rotation, simulated in the browser" : PLAN_SOURCE[result!.source]}
+            <p className="text-sm text-ink/70">{chosen.now.promise}</p>
+            <p className="mt-1 text-xs text-ink/70">
+              {chosen.now.custom ? "Simulated in your browser" : PLAN_SOURCE[result!.source]}
             </p>
             {!chosen.now.custom &&
               planNotes.map((n) => (
-                <p key={n} className="mt-1 text-xs text-[#f6efeb]/70">
+                <p key={n} className="mt-1 text-xs text-ink/70">
                   {n}
                 </p>
               ))}
-            <ol className="mt-3 grid grid-cols-6 gap-1">
+            <ol className="mt-5 grid grid-cols-6 gap-1">
               {chosen.now.seasons.map((s) => (
                 <li
                   key={s.index}
                   className="flex flex-col items-center rounded-sm px-1 py-1.5 text-center"
                   style={{ background: `color-mix(in srgb, var(--family-${CROP[s.crop].family.toLowerCase()}) 70%, #1d240a)` }}
                 >
-                  <span className="block text-[10px] leading-3 text-[#f6efeb]/75">S{s.index + 1}</span>
+                  <span className="block text-[10px] leading-3 text-ink/80">S{s.index + 1}</span>
                   <span className="block w-full truncate text-[11px] leading-[14px] font-semibold">{CROP[s.crop].short}</span>
                   <SeasonFlags season={s} />
                 </li>
               ))}
             </ol>
-            <p className="mt-1 flex flex-wrap gap-x-3 text-[10.5px] text-[#f6efeb]/60">
+            <p className="mt-1 flex flex-wrap gap-x-3 text-[10.5px] text-ink/70">
               <span>
                 <span className="text-[#c9e86a]">●</span> pest cycle broken
               </span>
@@ -655,36 +716,49 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                 <span className="text-[#8fd3ff]">●</span> bare soil in heavy rain
               </span>
             </p>
+            <div className="mt-5">
+              <p className="text-xs font-medium text-ink/70">3-year profit</p>
+              <p className="font-display text-[34px] leading-10 tracking-[-0.02em]">
+                <CountUp value={chosen.now.kpis.totalProfit} format={peso} />
+              </p>
+              {scenario === "elnino" && Math.abs(chosen.now.kpis.totalProfit - chosen.normal.kpis.totalProfit) >= 1 && (
+                <p className="text-xs text-[#f3b49f] tabular">
+                  {chosen.now.kpis.totalProfit < chosen.normal.kpis.totalProfit ? "−" : "+"}
+                  {peso(Math.abs(chosen.now.kpis.totalProfit - chosen.normal.kpis.totalProfit))} vs a normal year
+                </p>
+              )}
+            </div>
             <dl className="mt-3 grid grid-cols-2 gap-2">
-              {[
-                ["3-year profit", peso(chosen.now.kpis.totalProfit)],
-                ["Soil nitrogen", `${Math.round(chosen.now.kpis.nStart)} → ${Math.round(chosen.now.kpis.nFinal)}`],
-                ["Water shortfall", `${Math.round(chosen.now.kpis.waterMm)} mm`],
-                ["Erosion risk", chosen.now.kpis.erosionLevel],
-                ["Pest cycles broken", `${chosen.now.kpis.pestBreaks}`],
-                ["Bare months in rain", `${chosen.now.kpis.bareMonthCount}`],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-md bg-[#f6efeb]/[0.06] px-2.5 py-2">
-                  <dt className="micro text-[10.5px] text-[#f6efeb]/60">{label}</dt>
+              {(
+                [
+                  ["Soil nitrogen", <><CountUp value={chosen.now.kpis.nStart} format={(v) => `${Math.round(v)}`} /> → <CountUp value={chosen.now.kpis.nFinal} format={(v) => `${Math.round(v)}`} /></>],
+                  ["Water shortfall", <CountUp value={chosen.now.kpis.waterMm} format={(v) => `${Math.round(v)} mm`} />],
+                  ["Erosion risk", chosen.now.kpis.erosionLevel],
+                  ["Pest cycles broken", <CountUp value={chosen.now.kpis.pestBreaks} format={(v) => `${Math.round(v)}`} />],
+                  ["Bare months in rain", <CountUp value={chosen.now.kpis.bareMonthCount} format={(v) => `${Math.round(v)}`} />],
+                ] as [string, ReactNode][]
+              ).map(([label, value], i) => (
+                <div key={label} className={`rounded-md bg-ink/[0.06] px-2.5 py-2 ${i === 4 ? "col-span-2" : ""}`}>
+                  <dt className="micro text-[10.5px] text-ink/70">{label}</dt>
                   <dd className="font-display text-lg leading-6 tabular">{value}</dd>
                 </div>
               ))}
             </dl>
-            <label className="mt-3 flex items-center justify-between gap-3 rounded-md border border-[#f6efeb]/15 px-3 py-2">
+            <label className="mt-5 flex items-center justify-between gap-3 rounded-md border border-ink/15 px-3 py-2">
               <span>
                 <span className="block text-sm font-semibold">El Niño (2015–16)</span>
-                <span className="block text-xs text-[#f6efeb]/65">Replays the real El Niño months; crops it hurts wilt</span>
+                <span className="block text-xs text-ink/70">Replays the real El Niño months; crops it hurts wilt</span>
               </span>
               <Switch checked={scenario === "elnino"} onChange={(on) => setScenario(on ? "elnino" : "normal")} label="Replay the 2015–16 El Niño" />
             </label>
             {scenario === "elnino" && <ElNinoReport req={req} preset={target} now={chosen.now} normal={chosen.normal} />}
-            <ul className="mt-3 list-disc space-y-1 pl-4 text-sm text-[#f6efeb]/85">
+            <ul className="mt-5 list-disc space-y-1 pl-4 text-sm text-ink/80">
               {chosen.now.why.slice(0, 2).map((w) => (
                 <li key={w}>{w}</li>
               ))}
             </ul>
-            <details className="mt-3 rounded-md border border-[#f6efeb]/12 px-3 py-2 text-xs text-[#f6efeb]/75">
-              <summary className="flex cursor-pointer items-center gap-1.5 font-semibold text-[#f6efeb]">
+            <details className="mt-3 rounded-md border border-ink/12 px-3 py-2 text-xs text-ink/80">
+              <summary className="flex cursor-pointer items-center gap-1.5 font-semibold text-ink">
                 <Info className="size-3.5" aria-hidden /> Know the limits
               </summary>
               <p className="mt-1.5">
@@ -694,19 +768,11 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                 Agriculturist before switching crops.
               </p>
             </details>
-            <div className="mt-auto flex flex-wrap gap-2 pt-4">
-              <button
-                type="button"
-                onClick={() => setStage("plants")}
-                className="micro btn-sweep inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-sakura px-4 text-foreground"
-              >
+            <div className="mt-auto flex flex-wrap gap-2 pt-5">
+              <button type="button" onClick={() => setStage("plants")} className="btn btn-primary flex-1">
                 <Sprout className="size-4" aria-hidden /> Change plants
               </button>
-              <button
-                type="button"
-                onClick={() => void backToMap()}
-                className="micro inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#f6efeb]/40 px-4 text-[#f6efeb] hover:bg-[#f6efeb]/10"
-              >
+              <button type="button" onClick={() => void backToMap()} className="btn btn-secondary">
                 <ArrowLeft className="size-4" aria-hidden /> New farm
               </button>
             </div>
