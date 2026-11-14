@@ -38,7 +38,7 @@ export function useCountUp(value: number, ms = 400) {
 /** Plain-English tooltip: opens on tap, click or keyboard focus; closes on Escape or outside tap. */
 /** Fades and lifts its children in the first time they scroll into view (see `.reveal` in index.css). */
 /** A number that tweens to its new value, so changes (El Niño, settings) are seen, not just swapped. */
-export function CountUp({ value, format, ms = 500 }: { value: number; format: (v: number) => string; ms?: number }) {
+export function CountUp({ value, format, ms = 300 }: { value: number; format: (v: number) => string; ms?: number }) {
   const shown = useCountUp(value, ms);
   return <span className="tabular">{format(shown)}</span>;
 }
