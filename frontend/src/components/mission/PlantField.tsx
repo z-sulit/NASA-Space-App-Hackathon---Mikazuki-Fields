@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import type { PlantHandle, PlotSpec } from "../../three/plantScene";
 
 /** React wrapper for the WebGL plantation. Shows a simple message if WebGL is missing. */
-export function PlantField({ plots, plantKey, onSeason }: { plots: PlotSpec[]; plantKey: string; onSeason: (i: number) => void }) {
+export function PlantField({ plots, plantKey, onSeason, drought = false }: { plots: PlotSpec[]; plantKey: string; onSeason: (i: number) => void; drought?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const handle = useRef<PlantHandle | null>(null);
   const [failed, setFailed] = useState(false);
-  const latest = useRef({ plots, onSeason });
-  latest.current = { plots, onSeason };
+  const latest = useRef({ plots, onSeason, drought });
+  latest.current = { plots, onSeason, drought };
 
   useEffect(() => {
     let dead = false;
@@ -17,6 +17,7 @@ export function PlantField({ plots, plantKey, onSeason }: { plots: PlotSpec[]; p
         try {
           handle.current = createPlantScene(host.current);
           handle.current.plant(latest.current.plots, (i) => latest.current.onSeason(i));
+          handle.current.setDrought(latest.current.drought);
         } catch {
           setFailed(true);
         }
@@ -42,6 +43,11 @@ export function PlantField({ plots, plantKey, onSeason }: { plots: PlotSpec[]; p
   useEffect(() => {
     handle.current?.setWilt(latest.current.plots.map((p) => p.wilt));
   }, [wiltKey]);
+
+  // El Niño look (harsh sun, dry cracked soil, blowing dust).
+  useEffect(() => {
+    handle.current?.setDrought(drought);
+  }, [drought]);
 
   useEffect(() => {
     if (failed) onSeason(6);
