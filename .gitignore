@@ -3,4 +3,10 @@ data_api_contract.md
 data_infras_execution_checklist.md
 docs/
 
-docs/
+# Python ignore
+venv/
+backend/venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/cache/
