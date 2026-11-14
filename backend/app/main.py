@@ -5,15 +5,18 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import json
+import logging
 import math
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal, Optional
 
+import requests
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.app.power_client import build_banner_metrics, fetch_custom_pin_climate
 from backend.app.schemas import (
     FarmContext,
     LocationInfo,
@@ -31,6 +34,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_PREP_DIR = REPO_ROOT / "data-prep"
 PRESETS_DIR = DATA_PREP_DIR / "presets"
 PRESETS_CONFIG_PATH = DATA_PREP_DIR / "presets_config.py"
+CACHE_DIR = REPO_ROOT / "backend" / "cache"
+
+logger = logging.getLogger(__name__)
 
 SEASON_LABELS = [
     "Y1 Wet (Jun–Nov)",
@@ -229,19 +235,44 @@ def _resolve_farm_context(
             raise HTTPException(status_code=404, detail=f"Unknown preset_id '{preset_id}'")
         raise HTTPException(status_code=400, detail="Provide either a valid preset_id or both lat and lon.")
 
+    cache_path = CACHE_DIR / f"{lat:.2f}_{lon:.2f}.json"
+    if cache_path.exists():
+        try:
+            cached_raw = json.loads(cache_path.read_text(encoding="utf-8"))
+            return FarmContext.model_validate(cached_raw)
+        except (OSError, ValueError) as exc:
+            logger.warning("Ignoring corrupt cache file %s: %s", cache_path, exc)
+
     nearest_id = min(
         _FARM_CONTEXTS.keys(),
         key=lambda pid: math.hypot(lat - _FARM_CONTEXTS[pid].location.lat, lon - _FARM_CONTEXTS[pid].location.lon),
     )
-    cloned = _FARM_CONTEXTS[nearest_id].model_copy(deep=True)
-    cloned.location = LocationInfo(
+    nearest = _FARM_CONTEXTS[nearest_id]
+    custom_location = LocationInfo(
         preset_id=None,
         name=f"Custom Pin ({lat:.2f}, {lon:.2f})",
         lat=lat,
         lon=lon,
         is_custom_pin=True,
     )
-    return cloned
+
+    try:
+        live_climate = fetch_custom_pin_climate(lat, lon, timeout_s=10.0)
+        custom_ctx = FarmContext(
+            location=custom_location,
+            terrain=nearest.terrain.model_copy(deep=True),
+            ndvi_profile=nearest.ndvi_profile.model_copy(deep=True),
+            climate=live_climate,
+            banner_metrics=build_banner_metrics(live_climate, nearest.terrain, nearest.ndvi_profile),
+        )
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(custom_ctx.model_dump_json(indent=2), encoding="utf-8")
+        return custom_ctx
+    except (requests.RequestException, TimeoutError, ValueError) as exc:
+        logger.warning("Custom pin live NASA POWER fetch failed for (%.2f, %.2f): %s; using nearest preset %s", lat, lon, exc, nearest_id)
+        fallback = nearest.model_copy(deep=True)
+        fallback.location = custom_location
+        return fallback
 
 
 def _build_ground_truth_chips(req: PlanRequest) -> list[str]:
