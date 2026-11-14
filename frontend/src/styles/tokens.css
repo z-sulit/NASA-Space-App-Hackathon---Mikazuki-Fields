@@ -1,0 +1,112 @@
+/*
+ * Mikazuki Fields design tokens (light theme only for the MVP).
+ * Written for Tailwind v4 + shadcn/ui. Usage and contrast ratios: docs/UI_STYLE_GUIDE.md
+ *
+ * In src/index.css: keep shadcn's imports and its `@theme inline` block,
+ * add `@import "./styles/tokens.css";` right after them,
+ * and delete the `:root { ... }` color block shadcn generated.
+ */
+
+:root {
+  --radius: 0.75rem; /* 12px cards; shadcn derives sm/md/lg from this */
+
+  /* ---- shadcn/ui base tokens ---- */
+  --background: #faf6ee; /* rice paper */
+  --foreground: #1f2a1e; /* soil, 13.8:1 on background */
+  --card: #ffffff;
+  --card-foreground: #1f2a1e;
+  --popover: #ffffff;
+  --popover-foreground: #1f2a1e;
+  --primary: #2f6b3a; /* leaf: Plan B, main buttons, links */
+  --primary-foreground: #ffffff; /* 6.4:1 on primary */
+  --secondary: #efe8da;
+  --secondary-foreground: #1f2a1e;
+  --muted: #f3eee3;
+  --muted-foreground: #5b6152; /* 5.9:1 on background */
+  --accent: #e7f0e2;
+  --accent-foreground: #1f2a1e;
+  --destructive: #9b2c1f;
+  --border: #e3dccb; /* decorative dividers */
+  --input: #8f8877; /* form outlines, 3.5:1 on white */
+  --ring: #2f6b3a;
+
+  /* chart-1..3 = the three plans */
+  --chart-1: #8a7f6e; /* Plan A, status quo: always dashed */
+  --chart-2: #2f6b3a; /* Plan B, balanced */
+  --chart-3: #2c6e9b; /* Plan C, drought-safe */
+  --chart-4: #c8701e; /* El Niño overlay */
+  --chart-5: #a87c0e;
+
+  /* ---- Mikazuki Fields ---- */
+  --plan-a: var(--chart-1);
+  --plan-b: var(--chart-2);
+  --plan-c: var(--chart-3);
+
+  --sun: #c8701e; /* El Niño fills and icons, 3.4:1 on background */
+  --sun-strong: #a4520f; /* orange text, 5.1:1 on background */
+  --sun-tint: #fcebd7; /* El Niño-on background */
+  --moon: #e3b341; /* crescent logo only, decorative */
+
+  --family-poaceae: #a87c0e; /* corn, rice, sorghum */
+  --family-fabaceae: #3f8a45; /* mungbean, peanut, cowpea */
+  --family-convolvulaceae: #8e5ba8; /* sweet potato */
+  --family-fallow: #9a8466; /* bare field, pair with a hatch pattern */
+
+  --badge-good-bg: #e3f1e1; /* Pest Cycle Broken */
+  --badge-good-fg: #23592e;
+  --badge-warn-bg: #fbebc8; /* Bare-Soil Erosion Month */
+  --badge-warn-fg: #7a4b00;
+  --badge-critical-bg: #fbe3df; /* water or slope mismatch */
+  --badge-critical-fg: #9b2c1f;
+
+  --mf-font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --mf-font-body: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --mf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Expose project tokens as Tailwind utilities: bg-sun-tint, border-family-fabaceae,
+   stroke-plan-c, text-badge-warn-fg, font-display, ease-field, ... */
+@theme inline {
+  --color-plan-a: var(--plan-a);
+  --color-plan-b: var(--plan-b);
+  --color-plan-c: var(--plan-c);
+
+  --color-sun: var(--sun);
+  --color-sun-strong: var(--sun-strong);
+  --color-sun-tint: var(--sun-tint);
+  --color-moon: var(--moon);
+
+  --color-family-poaceae: var(--family-poaceae);
+  --color-family-fabaceae: var(--family-fabaceae);
+  --color-family-convolvulaceae: var(--family-convolvulaceae);
+  --color-family-fallow: var(--family-fallow);
+
+  --color-badge-good-bg: var(--badge-good-bg);
+  --color-badge-good-fg: var(--badge-good-fg);
+  --color-badge-warn-bg: var(--badge-warn-bg);
+  --color-badge-warn-fg: var(--badge-warn-fg);
+  --color-badge-critical-bg: var(--badge-critical-bg);
+  --color-badge-critical-fg: var(--badge-critical-fg);
+
+  --font-display: var(--mf-font-display);
+  --font-sans: var(--mf-font-body); /* default body font */
+
+  --ease-field: var(--mf-ease);
+}
+
+/* Numbers that change (pesos, mm, %) should not jiggle. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Respect reduced-motion: the El Niño stagger and count-ups become instant. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -23,7 +23,8 @@ mikazuki-fields/
 ├── docs/
 │   ├── DATA_AND_API_CONTRACT.md    # Person 1: NASA APIs, JSON schemas, FastAPI endpoints
 │   ├── ENGINE_AND_MODEL_SPEC.md    # Person 2: 8-crop table, vectorized NumPy math, pytest suite
-│   └── FRONTEND_AND_TASKS.md       # Person 3: 4 UI regions, translator copy, 48h schedule
+│   ├── FRONTEND_AND_TASKS.md       # Person 3: 4 UI regions, translator copy, 48h schedule
+│   └── UI_STYLE_GUIDE.md           # Person 3: palette, type, components, motion, accessibility
 ├── data-prep/                      # Offline Python scripts for preset generation
 │   ├── fetch_power.py
 │   ├── fetch_srtm_ndvi.py
@@ -47,6 +48,8 @@ mikazuki-fields/
     ├── src/
     │   ├── components/
     │   ├── hooks/
+    │   ├── styles/
+    │   │   └── tokens.css          # Design tokens (see docs/UI_STYLE_GUIDE.md)
     │   └── types/
     └── package.json
 ```
