@@ -4,7 +4,7 @@ import { Info, type LucideIcon } from "lucide-react";
 export const peso = (v: number) => `₱${Math.round(v).toLocaleString("en-PH")}`;
 export const pesoK = (v: number) => `₱${Math.round(v / 1000).toLocaleString("en-PH")}k`;
 
-const prefersReducedMotion = () =>
+export const prefersReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 /** Counts a number to its new value over 400 ms (instant with reduced motion). */
@@ -37,6 +37,65 @@ export function useCountUp(value: number, ms = 400) {
 }
 
 /** Plain-English tooltip: opens on tap, click or keyboard focus; closes on Escape or outside tap. */
+/** Fades and lifts its children in the first time they scroll into view (see `.reveal` in index.css). */
+export function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; delay?: number; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!("IntersectionObserver" in window)) {
+      setInView(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "0px 0px -8% 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div ref={ref} data-in={inView} className={`reveal ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  );
+}
+
+const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/·";
+
+/** Cockpit-style readout: text "decodes" left to right from random glyphs. Re-runs when the text changes. */
+export function useScramble(text: string, run = true, ms = 700) {
+  const [out, setOut] = useState(run ? text : "");
+  useEffect(() => {
+    if (!run) {
+      setOut("");
+      return;
+    }
+    if (prefersReducedMotion()) {
+      setOut(text);
+      return;
+    }
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const k = Math.min(1, (now - start) / ms);
+      const done = Math.floor(k * text.length);
+      const rest = Array.from(text.slice(done), (ch) => (ch === " " ? " " : GLYPHS[Math.floor(Math.random() * GLYPHS.length)])).join("");
+      setOut(text.slice(0, done) + rest);
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [text, run, ms]);
+  return out;
+}
+
 export function SectionTitle({ id, num, kicker, children }: { id: string; num: string; kicker: string; children: ReactNode }) {
   return (
     <div>

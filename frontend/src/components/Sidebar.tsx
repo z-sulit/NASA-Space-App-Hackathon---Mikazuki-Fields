@@ -216,7 +216,7 @@ export function Sidebar({
           type="button"
           onClick={onPlan}
           disabled={busy}
-          className="micro inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 text-primary-foreground transition-opacity duration-150 hover:opacity-90 disabled:opacity-70"
+          className="micro btn-sweep inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 text-primary-foreground [--sweep:var(--hero-mid)] disabled:opacity-70"
         >
           {busy && <Loader2 className="size-5 animate-spin" aria-hidden />}
           {busy ? "Planning…" : "Plan my 3 routes"}

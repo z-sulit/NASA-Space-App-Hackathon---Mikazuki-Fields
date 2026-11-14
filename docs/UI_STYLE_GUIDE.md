@@ -11,7 +11,7 @@ Mikazuki Fields should feel like a premium farm brand, not a tech dashboard: an 
 1. **Readable outdoors first.** The planner is light (beige cards, deep olive text), 16 px minimum body text, 44 px minimum touch targets. Only the landing hero uses the dark olive backdrop.
 2. **Color carries meaning, never alone.** Every color-coded thing (plan, crop family, badge) also has a word or icon.
 3. **One hero per screen.** Plan B (the recommended route) is the only thing outlined in field olive with a chartreuse **Recommended** tag. Everything else stays quiet.
-4. **Motion only for cause and effect.** The El Niño flip is the one big animated moment in the planner. The hero gets two slow ambient loops (leaf shadows, emblem float). No WebGL, no scroll-jacking, no long intros.
+4. **Motion with a job.** The landing gets the show: a short boot sequence, masked text reveals and scroll parallax. In the planner, motion only marks cause and effect, and the El Niño flip is the one big moment. No WebGL, no scroll-jacking, and the intro is under 2.5 s and skippable.
 5. **Farmer words first, science second.** Show "Soil Thirst Level"; put `GWETROOT` in the tooltip.
 6. **Theme, not franchise.** The Mikazuki layer uses original artwork only: no franchise logos, characters, mech art or names in the UI (the team name in the footer is the one exception).
 
@@ -145,7 +145,7 @@ The CropTab-style opener, built from original parts:
 - **Bottom row:** tagline "For your fields. / For the next 6 seasons.", the line "Named for a crescent moon, and for a pilot who only ever wanted to farm.", and a chartreuse pill CTA "PLAN MY 3 ROUTES ↓" that jumps to the planner; data sources and "Team Tekkadan · Space Apps 2026" bottom-right.
 
 ### Emblem
-Original mark: a gold crescent moon (mikazuki) cradling a small rust five-petal "iron flower", embossed on a dark olive rounded tile (`src/components/Emblem.tsx`). Used in the hero (with tile), the top bar (without tile, 28 px) and the language picker. Do not replace it with any franchise emblem or mech artwork.
+Original mark, from the team's sketch: a gold crescent that closes into a full ring (two circles, the inner one shifted to the upper right, so the ring is thick at the lower left and 4.5 units wide at its thinnest) with a small rust five-petal "iron flower" centered in the opening (`src/components/Emblem.tsx`). The closed ring and centered flower keep it from reading as a crescent-and-star. Used in the hero on a dark olive tile, bare in the top bar (30 px) and boot screen, and as the browser-tab icon. With `animated`, the ring strokes draw, the crescent fills, then the petals bloom one by one. Do not replace it with any franchise emblem or mech artwork.
 
 ### Section title
 Every section opens with a micro line in `--olive` ("01 / Input", "02 / Satellite data", "03 / Routes", "04 / Compare", "05 / Limits") and an H2 in Display 500. The numbering doubles as the cockpit-panel labelling of the Mikazuki layer.
@@ -203,7 +203,24 @@ Muted background (`--muted`), `info` icon, plain sentences, links to DA soil tes
 - **El Niño flip:** season cells update one after another, 60 ms apart, S1 → S6, so Plan A visibly "breaks" season by season while Plan C holds. Total under 600 ms.
 - KPI numbers count to their new value over 400 ms.
 - Hero ambience: leaf shadows sway over 9 s and the emblem floats 8 px over 6 s, both slow, looping CSS keyframes.
-- CSS transitions or Framer Motion only. No WebGL, canvas backgrounds, parallax or intro animations.
+- CSS and a few lines of JS only (no animation library, no WebGL or canvas). Everything is transform or opacity, so it stays smooth on budget phones.
+
+### Motion sequence (CropTab-style reveals, cockpit details)
+
+CropTab has an animated preloader, scroll-driven product animation and text that reveals as you scroll (per its Awwwards showcase). We mirror the structure with our own parts:
+
+| Moment | What happens | Class / file |
+|---|---|---|
+| **Boot (≈1.7 s)** | A start-up check on the olive backdrop: the emblem draws itself, 6 status lines report in (NASA POWER, SRTM, MODIS, presets, "Pilot: farmer"), a counter runs 000–100%, then the screen lifts like a curtain. Tap or any key skips it. A source that is still a placeholder reports **Sample**, not OK. | `Boot.tsx`, `.boot`, `.boot-line`, `.boot-bar` |
+| **Hero reveal** | As the curtain lifts: wordmark and tagline lines slide up from behind a mask, 110 ms apart; the emblem tile scales in; the targeting frame snaps on (lock-on); the two callouts decode from random glyphs (and re-decode when the farm changes). | `.line-mask` / `.line-rise`, `.pop-in`, `.lock-on`, `useScramble` |
+| **Hero idle** | Dashed targeting ring turns once every 50 s; with a mouse, the emblem tilts toward the pointer and the frame drifts the other way. | `.spin-slow`, `--px` / `--py` |
+| **Scroll out of hero** | Parallax: wordmark sinks, emblem shrinks slightly, leaf shadows rise, bottom row fades. | `--sy` |
+| **Scroll into planner** | Each card fades and lifts in the first time it enters view (plan cards 110 ms apart); its HUD corner brackets then snap on. | `Reveal`, `.reveal` |
+| **Buttons** | Pill buttons: a second color wipes up from below on hover or focus; the arrow nudges down. | `.btn-sweep` |
+| **Planning** | A scan line sweeps over the plan cards while the planner runs. | `.scan-v` |
+| **El Niño on** | Hazard stripe starts moving, one scan sweep crosses the routes panel, "CAUTION · DRY SPELL SIMULATION" blinks three times, season cells update one after another. | `.hazard-move`, `.scan-sweep`, `.blink-3` |
+
+Rules: the boot never exceeds 2.5 s and is always skippable; nothing loops in the planner except the hazard stripe while El Niño is on; with reduced motion the boot is skipped and every reveal is instant.
 - Respect `prefers-reduced-motion`: swap animations for instant changes (handled globally in `tokens.css`).
 
 ---
