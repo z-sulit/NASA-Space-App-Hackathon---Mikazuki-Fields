@@ -147,8 +147,19 @@ The CropTab-style opener, built from original parts:
 ### Emblem
 Original mark, from the team's sketch: a gold crescent that closes into a full ring (two circles, the inner one shifted to the upper right, so the ring is thick at the lower left and 4.5 units wide at its thinnest) with a small rust five-petal "iron flower" centered in the opening (`src/components/Emblem.tsx`). The closed ring and centered flower keep it from reading as a crescent-and-star. Used in the hero on a dark olive tile, bare in the top bar (30 px) and boot screen, and as the browser-tab icon. With `animated`, the ring strokes draw, the crescent fills, then the petals bloom one by one. Do not replace it with any franchise emblem or mech artwork.
 
+### 3D pieces (CSS transforms only)
+All three are built with CSS 3D transforms (`src/styles/three-d.css`), with no WebGL and no 3D library, so they run on budget phones and add nothing to the bundle.
+
+| Piece | What it is | How you play with it | File |
+|---|---|---|---|
+| **Hero tile** | A slab 18 px thick (17 stacked slices between two faces): emblem on the front, a spec plate on the back, a highlight that slides across as it turns, a soft ground shadow. | Drag to spin (with a flick it keeps turning), tap or press Enter to flip. Left alone it sways, leans toward the mouse and springs back to a face. | `Tile3D.tsx` |
+| **Crop tiles ("00 / Hangar")** | The 8 crops as small slabs edged in their family color. Front: unit code (MF-01…), family icon, name, and A/B/C dots for the routes that use it. Back: days to grow, water need, soil-nitrogen effect, heat limit, goal. | Tilts toward the pointer and lifts on hover; tap or Enter flips it. | `CropHangar.tsx` |
+| **Soil terrain ("04")** | An isometric field: 3 routes × 6 seasons of blocks. Height = soil nitrogen after that season, color = crop family. Plan A sits in the front row so its sinking steps are never hidden. | Blocks rise from the ground on first view; drag sideways to turn the field; hover or tap a block for its numbers. | `Field3D.tsx` |
+
+Rules: 3D never carries information alone (the terrain repeats what the line chart shows, and has a text summary for screen readers); every 3D control works by tap and keyboard, not only by drag or hover.
+
 ### Section title
-Every section opens with a micro line in `--olive` ("01 / Input", "02 / Satellite data", "03 / Routes", "04 / Compare", "05 / Limits") and an H2 in Display 500. The numbering doubles as the cockpit-panel labelling of the Mikazuki layer.
+Every section opens with a micro line in `--olive` ("00 / Hangar", "01 / Input", "02 / Satellite data", "03 / Routes", "04 / Soil terrain", "05 / Compare", "06 / Limits") and an H2 in Display 500. The numbering doubles as the cockpit-panel labelling of the Mikazuki layer.
 
 ### Language picker (first run)
 A single centered card before the map: **English · Filipino · Cebuano · Ilocano**. Remember the choice in `localStorage`. Untranslated strings fall back to English.
@@ -271,6 +282,9 @@ Rules: the boot never exceeds 2.5 s and is always skippable; nothing loops in th
 | Site | What we took |
 |---|---|
 | [Farm Minerals · CropTab](https://www.awwwards.com/sites/farm-minerals) (main reference) | Olive-and-beige palette with a chartreuse accent, full-bleed olive hero with leaf shadows, large regular-weight grotesk wordmark, tiny uppercase corner labels, a centered "product" object (our emblem tile). Their photos, 3D product, copy and Aeonik font are not used. |
+| [Maserati Trident Stars](https://www.awwwards.com/sites/maserati-trident-stars) (3D collection) | Real data you can turn and explore in 3D: our rotatable soil terrain |
+| [Anduril Industries](https://www.awwwards.com/sites/anduril-industries-1) (3D collection) | Hardware presented as clean 3D objects with spec callouts: the hero tile's spec plate and the crop "units" |
+| [Konk Electrical](https://www.awwwards.com/sites/konk-electrical) (3D collection) | 3D done with CSS and JavaScript rather than WebGL |
 | [Climate TRACE](https://www.awwwards.com/sites/climate-trace) | One big number per metric in the NASA banner |
 | [Harvesting for Seed](https://www.awwwards.com/sites/harvesting-for-seed) | Vertical rail for the 6 seasons on phones |
 | [Agrumea Farm](https://www.awwwards.com/sites/agrumea-farm) | Warm, food-and-soil palette instead of tech blue |

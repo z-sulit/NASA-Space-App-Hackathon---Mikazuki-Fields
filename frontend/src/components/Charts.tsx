@@ -29,7 +29,7 @@ export function Charts({ plans, normal, elnino, scenario }: { plans: PlanResult[
 
   return (
     <section aria-labelledby="charts-h" className="hud rounded-lg border border-border bg-card p-4">
-      <SectionTitle id="charts-h" num="04" kicker="Compare">
+      <SectionTitle id="charts-h" num="05" kicker="Compare">
         How the routes compare
       </SectionTitle>
       <div className="mt-3 grid gap-6 lg:grid-cols-2">

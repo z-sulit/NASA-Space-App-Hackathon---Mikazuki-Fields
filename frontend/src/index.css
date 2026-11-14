@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./styles/tokens.css";
+@import "./styles/three-d.css";
 
 /* shadcn/ui-style mapping of the base tokens (we have not run `shadcn init` yet;
    when we do, keep this block and drop the one it generates). */

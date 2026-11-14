@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Languages, Loader2, Sun } from "lucide-react";
 import { Hero } from "./components/Hero";
 import { Boot } from "./components/Boot";
+import { CropHangar } from "./components/CropHangar";
+import { Field3D } from "./components/Field3D";
 import presetsJson from "./data/presets.json";
 import type { PlanId, PlanRequest, PlansResponse, Preset, Scenario } from "./types";
 import { fetchPlans } from "./api/client";
@@ -163,6 +165,8 @@ export default function App() {
         </p>
       )}
 
+      <CropHangar plans={result ? result.normal : null} />
+
       <div id="planner" className="mx-auto max-w-[1280px] scroll-mt-4 gap-6 px-4 pt-8 pb-6 lg:grid lg:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="mb-6 lg:sticky lg:top-4 lg:mb-0 lg:max-h-[calc(100dvh-2rem)] lg:self-start lg:overflow-y-auto">
           <Reveal>
@@ -273,6 +277,12 @@ export default function App() {
               </>
             )}
           </section>
+
+          {plans && (
+            <Reveal>
+              <Field3D plans={plans} />
+            </Reveal>
+          )}
 
           {plans && result && (
             <Reveal>

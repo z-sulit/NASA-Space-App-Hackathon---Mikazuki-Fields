@@ -1,0 +1,234 @@
+/*
+ * 3D pieces, built with CSS transforms only (no WebGL, no 3D library):
+ * the hero tile, the crop tiles and the soil-terrain view.
+ */
+@layer components {
+  /* ---------- Hero tile: a slab made of stacked slices between a front and a back face ---------- */
+  .tile3d-scene {
+    perspective: 900px;
+  }
+  .tile3d {
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    will-change: transform;
+    outline-offset: 12px;
+  }
+  .tile3d-slice,
+  .tile3d-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 24%;
+  }
+  .tile3d-slice {
+    inset: 2%;
+    background: #232b0d;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.05);
+  }
+  .tile3d-face {
+    overflow: hidden;
+    backface-visibility: hidden;
+  }
+  .tile3d-back {
+    inset: 2%;
+    display: flex;
+    flex-direction: column;
+    padding: 14%;
+    text-align: left;
+    color: #f4ede6;
+    background: linear-gradient(180deg, #4a5622, #1d240a);
+    box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.12);
+  }
+  .tile3d-shine {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at var(--lx, 50%) var(--ly, 30%), rgb(255 255 255 / 0.26), transparent 55%);
+  }
+  .tile3d-shadow {
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    bottom: -34px;
+    height: 26px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(10 14 3 / 0.6), transparent);
+    filter: blur(4px);
+    pointer-events: none;
+  }
+
+  /* ---------- Crop tiles: tilt toward the pointer, lift on hover, flip on tap ---------- */
+  .crop3d-scene {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    perspective: 700px;
+    text-align: left;
+    border-radius: 14px;
+    outline-offset: 6px;
+  }
+  .crop3d {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform: translateZ(var(--lift, 0px)) rotateX(calc(var(--ty, 0) * -14deg)) rotateY(calc(var(--tx, 0) * 14deg + var(--flip, 0deg)));
+    transition: transform 0.55s var(--mf-ease);
+  }
+  .crop3d-scene:hover .crop3d,
+  .crop3d-scene:focus-visible .crop3d {
+    --lift: 18px;
+  }
+  .crop3d[data-flipped="true"] {
+    --flip: 180deg;
+  }
+  .crop3d-slice,
+  .crop3d-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+  }
+  .crop3d-slice {
+    background: color-mix(in srgb, var(--fam) 55%, #1d240a);
+  }
+  .crop3d-face {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 12px;
+    backface-visibility: hidden;
+  }
+  .crop3d-front {
+    transform: translateZ(6px);
+    background: var(--card);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .crop3d-back {
+    transform: rotateY(180deg) translateZ(6px);
+    color: #f4ede6;
+    background: linear-gradient(180deg, #4a5622, #26300f);
+  }
+  .crop3d-shine {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    background: radial-gradient(circle at calc(50% + var(--tx, 0) * 50%) calc(50% + var(--ty, 0) * 50%), rgb(255 255 255 / 0.5), transparent 60%);
+  }
+  .crop3d-scene:hover .crop3d-shine {
+    opacity: 1;
+  }
+
+  /* ---------- Soil terrain: an isometric field of blocks (height = soil nitrogen, color = crop family) ---------- */
+  .f3d-stage {
+    --s: 38px;
+    --g: 8px;
+    position: relative;
+    height: 320px;
+    overflow: hidden;
+    touch-action: pan-y;
+    cursor: grab;
+  }
+  .f3d-stage:active {
+    cursor: grabbing;
+  }
+  @media (min-width: 640px) {
+    .f3d-stage {
+      --s: 54px;
+      --g: 12px;
+      height: 400px;
+    }
+  }
+  .f3d-scene {
+    position: absolute;
+    top: 58%;
+    left: 50%;
+    width: calc(6 * var(--s) + 5 * var(--g));
+    height: calc(3 * var(--s) + 2 * var(--g));
+    margin-left: calc((6 * var(--s) + 5 * var(--g)) / -2);
+    margin-top: calc((3 * var(--s) + 2 * var(--g)) / -2);
+    transform-style: preserve-3d;
+    transform: rotateX(58deg) rotateZ(var(--rz, -38deg));
+    transition: transform 0.2s ease-out;
+  }
+  .f3d-ground {
+    position: absolute;
+    inset: calc(var(--s) * -0.7);
+    border-radius: 14px;
+    background:
+      linear-gradient(var(--border) 1px, transparent 1px) 0 0 / calc(var(--s) + var(--g)) calc(var(--s) + var(--g)),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px) 0 0 / calc(var(--s) + var(--g)) calc(var(--s) + var(--g)),
+      var(--muted);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .f3d-label {
+    position: absolute;
+    font-family: var(--mf-font-display);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--olive);
+  }
+  .f3d-bar {
+    position: absolute;
+    width: var(--s);
+    height: var(--s);
+    transform-style: preserve-3d;
+    cursor: pointer;
+  }
+  .f3d-bar > i {
+    position: absolute;
+    display: block;
+    transition:
+      transform 0.9s var(--mf-ease) var(--d, 0ms),
+      height 0.9s var(--mf-ease) var(--d, 0ms),
+      width 0.9s var(--mf-ease) var(--d, 0ms),
+      filter 0.15s;
+  }
+  .f3d-top {
+    inset: 0;
+    background: var(--c);
+    transform: translateZ(var(--h));
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25);
+  }
+  .f3d-s {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: var(--h);
+    transform-origin: bottom;
+    transform: rotateX(-90deg);
+    background: color-mix(in srgb, var(--c) 74%, #000);
+  }
+  .f3d-n {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: var(--h);
+    transform-origin: top;
+    transform: rotateX(90deg);
+    background: color-mix(in srgb, var(--c) 62%, #000);
+  }
+  .f3d-w {
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: var(--h);
+    transform-origin: left;
+    transform: rotateY(-90deg);
+    background: color-mix(in srgb, var(--c) 56%, #000);
+  }
+  .f3d-e {
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: var(--h);
+    transform-origin: right;
+    transform: rotateY(90deg);
+    background: color-mix(in srgb, var(--c) 84%, #000);
+  }
+  .f3d-bar[data-on="true"] > i {
+    filter: brightness(1.25);
+  }
+}

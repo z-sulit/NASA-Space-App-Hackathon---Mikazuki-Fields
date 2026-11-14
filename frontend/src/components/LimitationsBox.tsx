@@ -7,7 +7,7 @@ export function LimitationsBox() {
     <section aria-labelledby="limits-h" className="flex gap-3 rounded-lg border border-border bg-muted p-4">
       <Info className="mt-1 size-5 shrink-0 text-muted-foreground" aria-hidden />
       <div>
-        <SectionTitle id="limits-h" num="05" kicker="Limits">
+        <SectionTitle id="limits-h" num="06" kicker="Limits">
           Know the limits and confirm locally
         </SectionTitle>
         <p className="mt-1 max-w-[75ch]">

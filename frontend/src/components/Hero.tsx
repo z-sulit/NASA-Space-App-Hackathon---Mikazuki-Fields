@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { ArrowDown } from "lucide-react";
 import type { Preset } from "../types";
 import { Emblem } from "./Emblem";
+import { Tile3D } from "./Tile3D";
 import { prefersReducedMotion, useScramble } from "./ui";
 
 /** Soft, blurred leaf shadows drifting across the backdrop (original shapes, CSS-animated). */
@@ -148,15 +149,13 @@ export function Hero({ preset, ready, topRight }: { preset: Preset; ready: boole
         >
           <HudFrame />
           <div className="pop-in" style={{ animationDelay: "250ms" }}>
-            <div
-              className="transition-transform duration-300 ease-out"
-              style={{ transform: "perspective(700px) rotateX(calc(var(--py, 0) * -9deg)) rotateY(calc(var(--px, 0) * 11deg))" }}
-            >
-              <div className="float drop-shadow-[0_30px_40px_rgba(10,14,3,0.55)]">
-                <Emblem size={176} />
-              </div>
+            <div className="float">
+              <Tile3D size={176} />
             </div>
           </div>
+          <span className="micro fade-up absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-chartreuse" style={{ animationDelay: "1200ms" }}>
+            Drag to spin · Tap to flip
+          </span>
           <span className="micro absolute top-2 left-1/2 hidden -translate-x-1/2 whitespace-pre text-[#f4ede6]/70 sm:block" aria-label="Unit 01, Mikazuki">
             {unit}
           </span>
