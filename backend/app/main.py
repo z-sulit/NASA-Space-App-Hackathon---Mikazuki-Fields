@@ -16,6 +16,10 @@ import requests
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from backend.app.power_client import build_banner_metrics, fetch_custom_pin_climate
 from backend.app.schemas import (
     FarmContext,
@@ -30,7 +34,6 @@ from backend.app.schemas import (
     SeasonStep,
 )
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_PREP_DIR = REPO_ROOT / "data-prep"
 PRESETS_DIR = DATA_PREP_DIR / "presets"
 PRESETS_CONFIG_PATH = DATA_PREP_DIR / "presets_config.py"
@@ -550,6 +553,17 @@ def _try_external_optimizer(req: PlanRequest, farm: FarmContext) -> Optional[Pla
         return None
     result = fn(req, farm)
     return result if isinstance(result, PlanResponse) else PlanResponse.model_validate(result)
+
+
+@app.get("/")
+def root() -> dict[str, str]:
+    """Service metadata and liveness indicator at root path."""
+    return {
+        "service": "Mikazuki Fields API",
+        "status": "ok",
+        "docs": "/docs",
+        "health": "/api/health",
+    }
 
 
 @app.get("/api/health")
