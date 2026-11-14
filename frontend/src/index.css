@@ -1,0 +1,108 @@
+@import "tailwindcss";
+@import "./styles/tokens.css";
+
+/* shadcn/ui-style mapping of the base tokens (we have not run `shadcn init` yet;
+   when we do, keep this block and drop the one it generates). */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 6px);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--mf-font-display);
+  }
+}
+
+@layer components {
+  /* Fallow = bare soil: brown with a diagonal hatch so it never relies on color alone. */
+  .hatch-fallow {
+    background-image: repeating-linear-gradient(
+      135deg,
+      var(--family-fallow) 0 2px,
+      transparent 2px 6px
+    );
+  }
+  /* Slider: 44px tall hit area, 24px thumb, leaf-green fill. */
+  .mf-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 44px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .mf-range::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(
+      to right,
+      var(--primary) var(--fill, 50%),
+      var(--border) var(--fill, 50%)
+    );
+  }
+  .mf-range::-moz-range-track {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--border);
+  }
+  .mf-range::-moz-range-progress {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--primary);
+  }
+  .mf-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    margin-top: -9px;
+    border-radius: 999px;
+    background: var(--card);
+    border: 2px solid var(--primary);
+  }
+  .mf-range::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--card);
+    border: 2px solid var(--primary);
+  }
+  /* Leaflet sits under our popovers. */
+  .leaflet-container {
+    font-family: var(--mf-font-body);
+    z-index: 0;
+  }
+}
