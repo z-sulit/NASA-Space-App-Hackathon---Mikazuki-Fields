@@ -22,6 +22,8 @@ One screen, no page scroll: the app is a 5-step mission (`src/components/mission
 4. **Plants**: the only part that scrolls. Pick route A, B or C, or **build your own** 6-season rotation (pest-break markers between seasons). Farm settings (soil, water, goal, soil test, pests, priorities) re-plan the routes.
 5. **Field**: a WebGL field (`src/three/plantScene.ts`) plants itself season by season with 3D corn, legumes and sweet potato while a drone hovers over each plot; then the field-data panel slides in. The dry-spell switch wilts the crops it hurts. Drag to look around; change plants or pick a new farm.
 
+- Keyboard: Enter does each screen's main action (lock the farm, plant the route), Esc goes back a step, 1–4 pick a route, E toggles El Niño. The last farm and settings are remembered in this browser.
+- A tap just off the coast (within about 500 m) moves onto the nearest land; further out it is refused with "Try again".
 - First-run language picker (English only for now; other languages fall back to English).
 - Phone layout: HUD panels stack at the bottom, the field data sits under the 3D view, no horizontal scroll at 390 px.
 

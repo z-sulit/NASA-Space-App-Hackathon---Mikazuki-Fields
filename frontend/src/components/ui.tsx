@@ -38,6 +38,12 @@ export function useCountUp(value: number, ms = 400) {
 
 /** Plain-English tooltip: opens on tap, click or keyboard focus; closes on Escape or outside tap. */
 /** Fades and lifts its children in the first time they scroll into view (see `.reveal` in index.css). */
+/** A number that tweens to its new value, so changes (El Niño, settings) are seen, not just swapped. */
+export function CountUp({ value, format, ms = 500 }: { value: number; format: (v: number) => string; ms?: number }) {
+  const shown = useCountUp(value, ms);
+  return <span className="tabular">{format(shown)}</span>;
+}
+
 export function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; delay?: number; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
@@ -146,7 +152,7 @@ export function InfoTip({
         }}
         onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
         className={`-m-2.5 inline-flex size-11 items-center justify-center rounded-full transition-colors duration-150 ${
-          light ? "text-[#f6efeb]/80 hover:text-[#f6efeb]" : "text-muted-foreground hover:text-foreground"
+          light ? "text-ink/80 hover:text-ink" : "text-muted-foreground hover:text-foreground"
         }`}
       >
         <Info className="size-[18px]" aria-hidden />

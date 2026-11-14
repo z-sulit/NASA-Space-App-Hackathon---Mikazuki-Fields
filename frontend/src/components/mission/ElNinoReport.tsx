@@ -66,11 +66,11 @@ export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; p
 
   return (
     <div className="elnino-report mt-3 rounded-md border border-[#e0896f]/45 bg-[#a9452c]/15 px-3 py-2.5 text-xs" aria-live="polite">
-      <p className="micro flex items-center gap-1.5 text-[10.5px] text-[#f3b49f]">
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-[#f3b49f]">
         <CloudSun className="size-3.5" aria-hidden />
         {observed ? "Replaying the 2015–16 El Niño" : "Simulated dry spell"}
       </p>
-      <p className="mt-1 text-[#f6efeb]/80">
+      <p className="mt-1 text-ink/80">
         {observed
           ? e >= n
             ? `Real NASA POWER months for this farm: El Niño missed this spot. Its 2015–16 dry season got ${Math.round(e)} mm of rain vs ${Math.round(n)} mm normally (${signed(pct(e, n))}).`
@@ -86,26 +86,26 @@ export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; p
           </p>
           <ul className="mt-1 space-y-1.5">
             {findings.map((f) => (
-              <li key={f.season} className="text-[#f6efeb]/85">
+              <li key={f.season} className="text-ink/80">
                 <span className="font-semibold">
                   S{f.season + 1} {CROP[f.crop].short}
                   {f.yieldDrop > 0.001 ? `: yield −${f.yieldDrop < 0.01 ? "<1" : Math.round(f.yieldDrop * 100)}%` : ""}
                 </span>
                 {f.water && f.water.months.length > 0 && (
-                  <span className="block text-[#f6efeb]/70">
+                  <span className="block text-ink/70">
                     <Droplets className="mr-1 inline size-3 align-[-2px]" aria-hidden />
                     {f.water.months.map((m) => `${m.month} ${Math.round(m.rain)} mm`).join(", ")} of rain, when it needed about{" "}
                     {Math.round(Math.max(...f.water.months.map((m) => m.need)))} mm a month: more than rain and stored soil water could supply.
                   </span>
                 )}
                 {f.heat && (
-                  <span className="block text-[#f6efeb]/70">
+                  <span className="block text-ink/70">
                     <Thermometer className="mr-1 inline size-3 align-[-2px]" aria-hidden />
                     Afternoons averaged {f.heat.tmax.toFixed(1)} °C, above its {f.heat.limit} °C limit.
                   </span>
                 )}
                 {f.pumpExtra !== undefined && (
-                  <span className="block text-[#f6efeb]/70">Irrigation kept the yield, but pumping cost {peso(f.pumpExtra)} more.</span>
+                  <span className="block text-ink/70">Irrigation kept the yield, but pumping cost {peso(f.pumpExtra)} more.</span>
                 )}
               </li>
             ))}
@@ -114,7 +114,7 @@ export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; p
       ) : (
         <>
           <p className="mt-2 text-sm font-semibold">No change for this route, and why</p>
-          <ul className="mt-1 list-disc space-y-1 pl-4 text-[#f6efeb]/80">
+          <ul className="mt-1 list-disc space-y-1 pl-4 text-ink/80">
             {tight && (
               <li>
                 Even in the driest crop month ({tight.month}: {Math.round(tight.rain)} mm of rain plus {Math.round(tight.inSoil)} mm already in the soil),{" "}
@@ -131,7 +131,7 @@ export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; p
         </>
       )}
       {Math.abs(now.kpis.avgErosion - normal.kpis.avgErosion) > 0.5 && (
-        <p className="mt-2 text-[#f6efeb]/65">
+        <p className="mt-2 text-ink/70">
           Erosion index with El Niño rain: {Math.round(normal.kpis.avgErosion)} → {Math.round(now.kpis.avgErosion)}.
         </p>
       )}
