@@ -7,7 +7,9 @@ import importlib.util
 import json
 import logging
 import math
+import os
 import sys
+import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal, Optional
@@ -224,6 +226,26 @@ app.add_middleware(
 )
 
 
+def _get_cache_dir() -> Path:
+    """Return writable custom-pin cache dir, using tempdir on Vercel or read-only filesystems."""
+    tmp_cache = Path(tempfile.gettempdir()) / "mikazuki_cache"
+    if os.environ.get("VERCEL"):
+        try:
+            tmp_cache.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        return tmp_cache
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        return CACHE_DIR
+    except OSError:
+        try:
+            tmp_cache.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        return tmp_cache
+
+
 def _resolve_farm_context(
     preset_id: Optional[str] = None,
     lat: Optional[float] = None,
@@ -238,7 +260,8 @@ def _resolve_farm_context(
             raise HTTPException(status_code=404, detail=f"Unknown preset_id '{preset_id}'")
         raise HTTPException(status_code=400, detail="Provide either a valid preset_id or both lat and lon.")
 
-    cache_path = CACHE_DIR / f"{lat:.2f}_{lon:.2f}.json"
+    cache_dir = _get_cache_dir()
+    cache_path = cache_dir / f"{lat:.2f}_{lon:.2f}.json"
     if cache_path.exists():
         try:
             cached_raw = json.loads(cache_path.read_text(encoding="utf-8"))
@@ -268,8 +291,11 @@ def _resolve_farm_context(
             climate=live_climate,
             banner_metrics=build_banner_metrics(live_climate, nearest.terrain, nearest.ndvi_profile),
         )
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        cache_path.write_text(custom_ctx.model_dump_json(indent=2), encoding="utf-8")
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(custom_ctx.model_dump_json(indent=2), encoding="utf-8")
+        except OSError as exc:
+            logger.warning("Unable to write custom pin cache %s: %s", cache_path, exc)
         return custom_ctx
     except (requests.RequestException, TimeoutError, ValueError) as exc:
         logger.warning("Custom pin live NASA POWER fetch failed for (%.2f, %.2f): %s; using nearest preset %s", lat, lon, exc, nearest_id)
