@@ -7,10 +7,12 @@ import "@fontsource/inter/400.css";
 import "@fontsource/inter/600.css";
 import "leaflet/dist/leaflet.css";
 import "./index.css";
+import { Analytics } from "@vercel/analytics/react";
 import App from "./App";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
+    <Analytics />
   </StrictMode>,
 );
