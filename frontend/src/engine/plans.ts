@@ -221,3 +221,30 @@ export function planRoutes(req: PlanRequest, preset: Preset): PlansResponse {
 
   return { normal, elnino, source: "demo", notes };
 }
+
+/**
+ * A rotation the farmer picked by hand, run through the same simulator as the
+ * 3 routes so its numbers are directly comparable.
+ */
+export function customPlan(req: PlanRequest, preset: Preset, rotation: CropId[]): { normal: PlanResult; elnino: PlanResult } {
+  const one = (scenario: "normal" | "elnino") => {
+    const env = makeEnv(preset, req.soil, req.irrigation, scenario, req.overrides, req.baselineCrop, true);
+    const seasons: SeasonResult[] = [];
+    run(rotation.map((c) => CROP[c]), env, seasons);
+    const k = kpis(seasons);
+    return {
+      id: "B" as PlanId,
+      custom: true,
+      name: "Your rotation",
+      promise: "The crops you picked, season by season",
+      rotation,
+      seasons,
+      kpis: k,
+      why: [
+        `Soil nitrogen goes from ${Math.round(k.nStart)} to ${Math.round(k.nFinal)}.`,
+        `${k.pestBreaks} crop-family switches break pest cycles.`,
+      ],
+    } satisfies PlanResult;
+  };
+  return { normal: one("normal"), elnino: one("elnino") };
+}

@@ -15,6 +15,7 @@ import {
   PerspectiveCamera,
   Plane,
   PMREMGenerator,
+  PointLight,
   Raycaster,
   Scene,
   SRGBColorSpace,
@@ -58,6 +59,13 @@ export function createTileField(host: HTMLElement): FieldHandle {
   const fill = new DirectionalLight("#f5bfcd", 0.5);
   fill.position.set(6, 3, -4);
   scene.add(fill);
+  // A warm light that follows the pointer, so hovered tiles really light up.
+  const lamp = new PointLight("#f3ffb8", 0, 7, 1.6);
+  lamp.position.set(0, 2.2, 0);
+  scene.add(lamp);
+  const GLOW = new Color("#c9e86a");
+  const SAKURA_GLOW = new Color("#ffd6e2");
+  const tmp = new Color();
 
   const camera = new PerspectiveCamera(38, 1, 0.1, 60);
   const lookAt = new Vector3(0, 0, 0.6);
@@ -86,6 +94,9 @@ export function createTileField(host: HTMLElement): FieldHandle {
   const ray = new Raycaster();
   const ground = new Plane(new Vector3(0, 1, 0), 0);
   let hasPointer = false;
+  // Ripples spread outward from each newly hovered tile.
+  const ripples: { x: number; z: number; t: number }[] = [];
+  let lastTile = -1;
   let exiting = false;
   let exitCb: (() => void) | null = null;
   let exitStart = 0;
@@ -162,7 +173,20 @@ export function createTileField(host: HTMLElement): FieldHandle {
     raf = requestAnimationFrame(tick);
     if (!visible) return;
     const t = (now - t0) / 1000;
-    if (hasPointer) updateHit();
+    if (hasPointer) {
+      updateHit();
+      const c = Math.round(hit.x / GAP + (COLS - 1) / 2);
+      const r = Math.round(hit.z / GAP + (ROWS - 1) / 2);
+      const idx = c >= 0 && r >= 0 && c < COLS && r < ROWS ? r * COLS + c : -1;
+      if (idx !== lastTile && idx >= 0 && !exiting) {
+        lastTile = idx;
+        ripples.push({ x: tiles[idx].x, z: tiles[idx].z, t });
+        if (ripples.length > 5) ripples.shift();
+      }
+    }
+    lamp.position.x += ((hasPointer ? hit.x : 0) - lamp.position.x) * 0.2;
+    lamp.position.z += ((hasPointer ? hit.z : 0) - lamp.position.z) * 0.2;
+    lamp.intensity += ((hasPointer && !exiting ? 26 : 0) - lamp.intensity) * 0.1;
 
     // The camera drifts a little with the pointer, so the field feels like a place.
     camera.position.x += ((hasPointer ? pointer.x * 0.9 : Math.sin(t * 0.2) * 0.4) - camera.position.x) * 0.03;
@@ -181,7 +205,19 @@ export function createTileField(host: HTMLElement): FieldHandle {
       } else {
         const d2 = (tile.x - hit.x) ** 2 + (tile.z - hit.z) ** 2;
         const wave = Math.sin(t * 1.3 + tile.x * 0.32 + tile.z * 0.24) * 0.09;
-        target = wave + 0.95 * Math.exp(-d2 / 3.2);
+        let ring = 0;
+        for (const rp of ripples) {
+          const age = t - rp.t;
+          if (age > 1.6) continue;
+          const d = Math.hypot(tile.x - rp.x, tile.z - rp.z);
+          ring += 0.32 * Math.exp(-((d - age * 6) ** 2) / 0.7) * (1 - age / 1.6);
+        }
+        const glow = Math.exp(-d2 / 1.8);
+        target = wave + 1.05 * glow + ring;
+        // Light up: hovered tiles brighten toward lime (sakura tiles toward pale pink).
+        const isSakura = tile.base.r > 0.8;
+        tmp.copy(tile.base).lerp(isSakura ? SAKURA_GLOW : GLOW, Math.min(1, glow * 0.85 + ring * 0.9));
+        mesh.setColorAt(i, tmp);
       }
       tile.vy = (tile.vy + (target - tile.y) * (exiting ? 0.03 : 0.09)) * (exiting ? 0.95 : 0.78);
       tile.y += tile.vy;
@@ -194,6 +230,7 @@ export function createTileField(host: HTMLElement): FieldHandle {
       mesh.setMatrixAt(i, dummy.matrix);
     }
     mesh.instanceMatrix.needsUpdate = true;
+    mesh.instanceColor!.needsUpdate = true;
     renderer.render(scene, camera);
     if (allGone && exitCb) {
       const cb = exitCb;

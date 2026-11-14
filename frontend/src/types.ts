@@ -119,6 +119,8 @@ export interface PlanKpis {
 }
 
 export interface PlanResult {
+  /** True for a rotation the farmer built by hand. */
+  custom?: boolean;
   id: PlanId;
   name: string;
   promise: string;

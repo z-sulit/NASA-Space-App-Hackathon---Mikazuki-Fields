@@ -2,98 +2,122 @@ import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "reac
 import L from "leaflet";
 import type { Preset } from "../../types";
 import { prefersReducedMotion } from "../ui";
+import { PH_BOUNDS } from "../../api/power";
 
 export interface TargetMapHandle {
-  /** Hover down onto a farm (resolves when the camera has landed). */
-  flyTo(p: Preset): Promise<void>;
+  /** Hover down onto a point (resolves when the camera has landed). */
+  flyTo(lat: number, lon: number): Promise<void>;
   /** Climb back up to the whole-Philippines view. */
   reset(): Promise<void>;
 }
 
-const HOME: L.LatLngTuple = [12.2, 122.4];
-const homeZoom = () => (window.innerWidth < 640 ? 5.1 : 5.9);
+export interface LatLon {
+  lat: number;
+  lon: number;
+}
+
+// On phones the HUD panels cover the lower half, so sit the islands higher.
+const phone = () => window.innerWidth < 640;
+const home = (): L.LatLngTuple => (phone() ? [9.6, 122.2] : [12.2, 122.4]);
+const homeZoom = () => (phone() ? 5.0 : 5.9);
 
 /**
- * Frames 2–3 backdrop: the real map, tinted olive like a cockpit display, with
- * target markers on the preset farms and a reticle that tracks the focused one.
+ * Steps 02–03 backdrop: the real map, tinted like a cockpit display. Tap anywhere
+ * in the Philippines to drop a target (or pick one of the 3 preset farms); a
+ * reticle glides to the focused point.
  */
 export function TargetMap({
   presets,
-  focusId,
+  focus,
+  pin,
   locked,
   onHover,
-  onPick,
+  onPickPreset,
+  onPickPoint,
   ref,
 }: {
   presets: Preset[];
-  focusId: string | null;
+  focus: LatLon | null;
+  pin: LatLon | null;
   locked: boolean;
   onHover: (id: string | null) => void;
-  onPick: (id: string) => void;
+  onPickPreset: (id: string) => void;
+  onPickPoint: (p: LatLon) => void;
   ref?: Ref<TargetMapHandle>;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
-  const markers = useRef<Record<string, L.Marker>>({});
+  const pinMarker = useRef<L.Marker | null>(null);
   const [pt, setPt] = useState<{ x: number; y: number } | null>(null);
-  const focusRef = useRef(focusId);
-  focusRef.current = focusId;
-  const handlers = useRef({ onHover, onPick });
-  handlers.current = { onHover, onPick };
+  const focusRef = useRef(focus);
+  focusRef.current = focus;
+  const handlers = useRef({ onHover, onPickPreset, onPickPoint, locked });
+  handlers.current = { onHover, onPickPreset, onPickPoint, locked };
 
   const place = () => {
     const m = map.current;
-    const p = presets.find((x) => x.id === focusRef.current);
-    if (!m || !p) return setPt(null);
-    const c = m.latLngToContainerPoint([p.lat, p.lon]);
+    const f = focusRef.current;
+    if (!m || !f) return setPt(null);
+    const c = m.latLngToContainerPoint([f.lat, f.lon]);
     setPt({ x: c.x, y: c.y });
   };
 
   useEffect(() => {
     if (!el.current) return;
-    const m = L.map(el.current, { zoomControl: false, zoomSnap: 0, minZoom: 4.5, maxZoom: 14, worldCopyJump: false, attributionControl: true });
+    const bounds = L.latLngBounds([PH_BOUNDS.south - 3, PH_BOUNDS.west - 4], [PH_BOUNDS.north + 3, PH_BOUNDS.east + 4]);
+    const m = L.map(el.current, { zoomControl: false, attributionControl: false, zoomSnap: 0, minZoom: 4.5, maxZoom: 14, maxBounds: bounds, maxBoundsViscosity: 0.8 });
     map.current = m;
+    // Attribution is drawn by Mission above the cockpit glass (the canopy would cover Leaflet's).
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(m);
-    // Start a little high, then descend to the working altitude.
-    m.setView(HOME, homeZoom() - 1.2, { animate: false });
-    if (!prefersReducedMotion()) setTimeout(() => m.flyTo(HOME, homeZoom(), { duration: 1.6 }), 120);
-    else m.setView(HOME, homeZoom(), { animate: false });
+    m.setView(home(), homeZoom() - 1.2, { animate: false });
+    const intro = prefersReducedMotion() ? 0 : window.setTimeout(() => m.flyTo(home(), homeZoom(), { duration: 1.6 }), 120);
+    if (!intro) m.setView(home(), homeZoom(), { animate: false });
 
     presets.forEach((p) => {
       const icon = L.divIcon({ className: "", html: `<span class="tgt"><i></i><b>${p.name.split(" (")[0]}</b></span>`, iconSize: [0, 0] });
-      const mk = L.marker([p.lat, p.lon], { icon, keyboard: true, title: p.name })
+      L.marker([p.lat, p.lon], { icon, keyboard: true, title: p.name, bubblingMouseEvents: false })
         .on("mouseover", () => handlers.current.onHover(p.id))
         .on("mouseout", () => handlers.current.onHover(null))
-        .on("click", () => handlers.current.onPick(p.id))
+        .on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          if (!handlers.current.locked) handlers.current.onPickPreset(p.id);
+        })
         .addTo(m);
-      markers.current[p.id] = mk;
+    });
+    m.on("click", (e: L.LeafletMouseEvent) => {
+      if (!handlers.current.locked) handlers.current.onPickPoint({ lat: e.latlng.lat, lon: e.latlng.lng });
     });
     m.on("move zoom resize", place);
     place();
     return () => {
+      clearTimeout(intro);
       m.remove();
       map.current = null;
-      markers.current = {};
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(place, [focusId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(place, [focus?.lat, focus?.lon]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The farmer's own pin.
   useEffect(() => {
-    Object.entries(markers.current).forEach(([id, mk]) => {
-      mk.getElement()?.querySelector(".tgt")?.classList.toggle("is-focus", id === focusId);
-    });
-  }, [focusId]);
+    const m = map.current;
+    if (!m) return;
+    pinMarker.current?.remove();
+    pinMarker.current = null;
+    if (!pin) return;
+    const icon = L.divIcon({ className: "", html: `<span class="tgt tgt-pin is-focus"><i></i><b>Your farm</b></span>`, iconSize: [0, 0] });
+    pinMarker.current = L.marker([pin.lat, pin.lon], { icon, interactive: false }).addTo(m);
+  }, [pin?.lat, pin?.lon]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useImperativeHandle(ref, () => ({
-    flyTo(p) {
+    flyTo(lat, lon) {
       const m = map.current;
       if (!m) return Promise.resolve();
       if (prefersReducedMotion()) {
-        m.setView([p.lat, p.lon], 12, { animate: false });
+        m.setView([lat, lon], 12, { animate: false });
         return Promise.resolve();
       }
       return new Promise((done) => {
@@ -102,14 +126,14 @@ export function TargetMap({
           clearTimeout(t);
           done();
         });
-        m.flyTo([p.lat, p.lon], 12.2, { duration: 2.8, easeLinearity: 0.15 });
+        m.flyTo([lat, lon], 12.2, { duration: 2.8, easeLinearity: 0.15 });
       });
     },
     reset() {
       const m = map.current;
       if (!m) return Promise.resolve();
       if (prefersReducedMotion()) {
-        m.setView(HOME, homeZoom(), { animate: false });
+        m.setView(home(), homeZoom(), { animate: false });
         return Promise.resolve();
       }
       return new Promise((done) => {
@@ -118,20 +142,16 @@ export function TargetMap({
           clearTimeout(t);
           done();
         });
-        m.flyTo(HOME, homeZoom(), { duration: 2.1 });
+        m.flyTo(home(), homeZoom(), { duration: 2.1 });
       });
     },
   }));
 
   return (
     <div className="absolute inset-0">
-      <div ref={el} className="hud-map absolute inset-0" aria-label="Map of the Philippines with 3 target farms" />
+      <div ref={el} className="hud-map absolute inset-0" aria-label="Map of the Philippines: tap anywhere to choose a farm" />
       {pt && (
-        <div
-          aria-hidden
-          className={`reticle ${locked ? "is-locked" : ""}`}
-          style={{ transform: `translate(${pt.x}px, ${pt.y}px)` }}
-        >
+        <div aria-hidden className={`reticle ${locked ? "is-locked" : ""}`} style={{ transform: `translate(${pt.x}px, ${pt.y}px)` }}>
           <span className="reticle-ring" />
           <span className="reticle-brackets" />
           <span className="reticle-cross" />
