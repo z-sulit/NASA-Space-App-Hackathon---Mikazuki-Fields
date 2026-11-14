@@ -29,6 +29,9 @@ END_YEAR = 2024
 WET_MONTHS = [6, 7, 8, 9, 10, 11]
 DRY_MONTHS = [12, 1, 2, 3, 4, 5]
 FILL_VALUE = -999.0
+# The strong 2015-16 El Nino: the wet season it built through, and the dry season it peaked in.
+ELNINO_WET_YM = [(2015, m) for m in WET_MONTHS]
+ELNINO_DRY_YM = [(2015, 12)] + [(2016, m) for m in (1, 2, 3, 4, 5)]
 
 STEEP_SLOPE_PCT = 8.0
 ROLLING_SLOPE_PCT = 3.0
@@ -134,10 +137,13 @@ def build_season_climate(
     months: list[int],
     el_nino: bool = False,
 ) -> SeasonClimate:
-    """Aggregate 6-month normal or El Nino SeasonClimate model."""
+    """Aggregate 6-month normal (or synthetic El Nino) SeasonClimate model, with monthly series."""
     subset = monthly_normals[monthly_normals["month"].isin(months)].copy()
     if len(subset) != 6:
         raise ValueError(f"Expected 6 months in season, got {len(subset)}")
+    # Season order (Dec first for the dry season) for the monthly series.
+    subset["order"] = subset["month"].map({m: i for i, m in enumerate(months)})
+    subset = subset.sort_values("order")
 
     rain_series = subset["rain_mm_month"] * (0.75 if el_nino else 1.0)
     t2m_series = subset["T2M"] + (1.5 if el_nino else 0.0)
@@ -163,7 +169,19 @@ def build_season_climate(
         allsky_mj=allsky_mj,
         et0_mm_day=et0_mm_day,
         heavy_rain_months=heavy_months,
+        monthly_rain_mm=[round(float(r), 1) for r in rain_series],
+        monthly_tmax_c=[round(float(t), 2) for t in tmax_series],
+        monthly_et0_mm_day=[compute_hargreaves_et0(float(t), float(a)) for t, a in zip(t2m_series, allsky_series)],
     )
+
+
+def build_observed_season(df: pd.DataFrame, year_months: list[tuple[int, int]]) -> SeasonClimate:
+    """SeasonClimate from the actual months of one season (e.g. the 2015-16 El Nino), not normals."""
+    indexed = df.set_index(["year", "month"])
+    rows = indexed.loc[year_months].reset_index()
+    if len(rows) != 6:
+        raise ValueError(f"Expected 6 observed months, got {len(rows)}")
+    return build_season_climate(rows.assign(month=[m for _, m in year_months]), [m for _, m in year_months], el_nino=False)
 
 
 def build_climate_bundle_from_df(df: pd.DataFrame) -> ClimateBundle:
@@ -175,16 +193,24 @@ def build_climate_bundle_from_df(df: pd.DataFrame) -> ClimateBundle:
         .mean()
         .sort_values("month")
     )
-    return ClimateBundle(
-        normal=ScenarioClimate(
-            wet=build_season_climate(monthly_normals, WET_MONTHS, el_nino=False),
-            dry=build_season_climate(monthly_normals, DRY_MONTHS, el_nino=False),
-        ),
-        elnino=ScenarioClimate(
+    normal = ScenarioClimate(
+        wet=build_season_climate(monthly_normals, WET_MONTHS, el_nino=False),
+        dry=build_season_climate(monthly_normals, DRY_MONTHS, el_nino=False),
+    )
+    # El Nino replays what this location actually got in Jun 2015-May 2016. A flat
+    # -25%/+1.5 C shift on 6-month totals never runs a Philippine farm short of water;
+    # the real event did (Bukidnon's Jan-Mar 2016 rain was 40, 50 and 20 mm).
+    try:
+        elnino = ScenarioClimate(wet=build_observed_season(df, ELNINO_WET_YM), dry=build_observed_season(df, ELNINO_DRY_YM))
+        basis = "observed_2015_2016"
+    except (KeyError, ValueError):
+        logger.warning("2015-16 months missing; using synthetic El Nino (-25%% rain, +1.5 C)")
+        elnino = ScenarioClimate(
             wet=build_season_climate(monthly_normals, WET_MONTHS, el_nino=True),
             dry=build_season_climate(monthly_normals, DRY_MONTHS, el_nino=True),
-        ),
-    )
+        )
+        basis = "synthetic"
+    return ClimateBundle(normal=normal, elnino=elnino, elnino_basis=basis)
 
 
 def fetch_custom_pin_climate(lat: float, lon: float, timeout_s: float = 10.0) -> ClimateBundle:

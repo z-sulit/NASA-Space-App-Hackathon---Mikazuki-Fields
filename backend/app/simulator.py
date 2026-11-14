@@ -80,6 +80,90 @@ def load_crop_arrays() -> CropArrays:
 CROP_ARRAYS = load_crop_arrays()
 
 
+PADDY_EXTRA_MM = 200.0  # puddling + percolation on top of crop water use
+RAIN_EFFECTIVE = 0.80  # share of rain that reaches the root zone
+BARE_EVAP_FRAC = 0.30  # soil evaporation as a share of ET0 while the field is bare
+
+
+def season_water(
+    c_idx: np.ndarray,
+    store: np.ndarray,
+    s_clim: SeasonClimate,
+    whc: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Water balance for one season, for every sequence at once (c_idx, store: shape (m,)).
+
+    Returns (demand, supply, gap, end_store, crop_tmax), each shape (m,).
+
+    With monthly series it runs a soil bucket month by month while the crop is in the
+    ground (a crop of D days occupies D/30 months from planting), so a dry spell inside
+    the season shows up as a gap even when the 6-month total is plentiful. Without them it
+    falls back to the original season-total balance.
+    """
+    ca = CROP_ARRAYS
+    c_idx = np.asarray(c_idx).astype(np.intp, copy=False)  # one conversion, not one per lookup
+    paddy_extra = np.where(ca.is_paddy, PADDY_EXTRA_MM, 0.0)
+    monthly = len(s_clim.monthly_rain_mm) == 6 and len(s_clim.monthly_et0_mm_day) == 6 and len(s_clim.monthly_tmax_c) == 6
+
+    if not monthly:
+        demand_8 = ca.kc * s_clim.et0_mm_day * ca.days + paddy_extra
+        demand = demand_8[c_idx]
+        supply = RAIN_EFFECTIVE * s_clim.rain_mm + store
+        gap = np.maximum(0.0, demand - supply)
+        end_store = np.maximum(0.0, supply - demand)
+        crop_tmax = np.full(c_idx.shape, s_clim.tmax_c)
+        return demand, supply, gap, end_store, crop_tmax
+
+    rain = np.asarray(s_clim.monthly_rain_mm, dtype=np.float64)
+    et0 = np.asarray(s_clim.monthly_et0_mm_day, dtype=np.float64)
+    tmax = np.asarray(s_clim.monthly_tmax_c, dtype=np.float64)
+    # Fraction of each month the crop is in the ground: (8 crops, 6 months).
+    frac = np.clip(ca.days[:, None] / 30.0 - np.arange(6)[None, :], 0.0, 1.0)
+    crop_months = frac.sum(axis=1)
+    need_8m = ca.kc[:, None] * et0[None, :] * 30.0 * frac + paddy_extra[:, None] * frac / crop_months[:, None]
+    bare_8m = BARE_EVAP_FRAC * et0[None, :] * 30.0 * (1.0 - frac)
+    supply_rain_8 = (RAIN_EFFECTIVE * rain[None, :] * (frac > 0)).sum(axis=1)
+    tmax_8 = (frac * tmax[None, :]).sum(axis=1) / crop_months
+
+    # The batch run covers 262,144 sequences per season, so this loop is kept lean:
+    # float32, 1-D takes from per-month rows, and no per-crop lookup in months when no
+    # crop is in the ground (every crop is out by month 5; max duration is 120 days).
+    need_rows = np.ascontiguousarray(need_8m.T, dtype=np.float32)
+    bare_rows = np.ascontiguousarray(bare_8m.T, dtype=np.float32)
+    planted = frac.max(axis=0) > 0
+    whc32 = np.float32(whc)
+    store32 = store.astype(np.float32, copy=False)
+    # Exact shortcut: if every sequence starts the season with the same soil water (always in
+    # season 1, and usually after a wet season refills the soil), the result depends only on
+    # the crop, so run the 8 crops once and copy the answers out.
+    if c_idx.size > 64 and store32.size and np.all(store32 == store32[0]):
+        crops = np.arange(len(ca.days), dtype=np.intp)
+        d8, s8, g8, e8, t8 = season_water(crops, np.full(crops.shape, store32[0], dtype=np.float32), s_clim, whc)
+        return d8.take(c_idx), s8.take(c_idx), g8.take(c_idx), e8.take(c_idx), t8.take(c_idx)
+    gap = np.zeros(c_idx.shape, dtype=np.float32)
+    bucket = store32.copy()
+    for k in range(6):
+        eff_rain = np.float32(RAIN_EFFECTIVE * rain[k])
+        if planted[k]:
+            need = need_rows[k].take(c_idx)
+            avail = bucket + eff_rain
+            short = need - avail
+            np.maximum(short, np.float32(0.0), out=short)
+            gap += short
+            bucket = avail - need
+            bucket -= bare_rows[k].take(c_idx)
+        else:
+            bucket += eff_rain - bare_rows[k][0]
+        np.clip(bucket, np.float32(0.0), whc32, out=bucket)
+    demand = need_8m.sum(axis=1).astype(np.float32).take(c_idx)
+    supply = supply_rain_8.astype(np.float32).take(c_idx) + store.astype(np.float32, copy=False)
+    return demand, supply, gap, bucket, tmax_8.astype(np.float32).take(c_idx)
+
+
+def heat_loss_from(crop_tmax: np.ndarray, heat_limit: np.ndarray) -> np.ndarray:
+    return np.minimum(0.70, 0.10 * np.maximum(0.0, crop_tmax - heat_limit))
+
+
 @dataclass
 class BatchSimResult:
     total_profit: np.ndarray
@@ -154,8 +238,6 @@ def simulate_batch_vectorized(
         s_clim: SeasonClimate = clim_sc.wet if is_wet else clim_sc.dry
         next_gwet = clim_sc.dry.gwetroot if is_wet else clim_sc.wet.gwetroot
 
-        demand_8 = (ca.kc * s_clim.et0_mm_day * ca.days + np.where(ca.is_paddy, 200.0, 0.0)).astype(np.float32)
-        heat_loss_8 = np.minimum(0.70, 0.10 * np.maximum(0.0, s_clim.tmax_c - ca.heat_limit_c)).astype(np.float32)
         erosion_8 = np.clip(
             (s_clim.rain_mm / 1200.0) * k_soil * (1.0 + slope_pct / 10.0) * c_eff_8 * 50.0,
             0.0,
@@ -169,13 +251,14 @@ def simulate_batch_vectorized(
 
         c_idx = seqs[:, t]
         fam = fam_8[c_idx]
-        demand = demand_8[c_idx]
         is_paddy = ca.is_paddy[c_idx]
         is_legume = ca.is_legume[c_idx]
 
-        # 1. Water Balance
-        supply = np.float32(0.80 * s_clim.rain_mm) + store
-        gap = np.maximum(np.float32(0.0), demand - supply)
+        # 1. Water Balance (monthly when the climate has monthly series)
+        demand, supply, gap, end_store, crop_tmax = season_water(c_idx, store, s_clim, float(whc))
+        demand = demand.astype(np.float32, copy=False)
+        supply = supply.astype(np.float32, copy=False)
+        gap = gap.astype(np.float32, copy=False)
 
         if not is_irrigated:
             paddy_rainfed_infeasible |= is_paddy & (supply < np.float32(0.80) * demand)
@@ -187,11 +270,10 @@ def simulate_batch_vectorized(
             water_yield_loss = np.float32(0.0)
             pumped_sum += gap
 
-        leftover = np.maximum(np.float32(0.0), supply - demand)
-        store = np.float32(0.5) * np.minimum(whc, leftover) + np.float32(0.5 * next_gwet) * whc
+        store = (np.float32(0.5) * np.minimum(whc, end_store.astype(np.float32, copy=False)) + np.float32(0.5 * next_gwet) * whc).astype(np.float32, copy=False)
 
-        # 2. Heat Penalty
-        heat_loss = heat_loss_8[c_idx]
+        # 2. Heat Penalty (mean afternoon heat over the months the crop is in the ground)
+        heat_loss = heat_loss_from(crop_tmax, ca.heat_limit_c.astype(np.float32).take(c_idx.astype(np.intp, copy=False))).astype(np.float32, copy=False)
 
         # 3. Soil Nitrogen & Urea Top-Up
         same_family = (prev_fam >= 0) & (fam == prev_fam)
@@ -295,10 +377,9 @@ def simulate_single_detailed(
         s_clim = clim_sc.wet if is_wet else clim_sc.dry
         next_gwet = clim_sc.dry.gwetroot if is_wet else clim_sc.wet.gwetroot
 
-        # 1. Water Balance
-        demand = float(crop["kc"]) * s_clim.et0_mm_day * days + (200.0 if crop["id"] == "paddy_rice" else 0.0)
-        supply = 0.80 * s_clim.rain_mm + store
-        gap = max(0.0, demand - supply)
+        # 1. Water Balance (same routine as the batch run)
+        d_arr, s_arr, g_arr, end_arr, tmax_arr = season_water(np.array([c_idx]), np.array([store], dtype=np.float64), s_clim, whc)
+        demand, supply, gap, end_store, crop_tmax = float(d_arr[0]), float(s_arr[0]), float(g_arr[0]), float(end_arr[0]), float(tmax_arr[0])
 
         if not is_irrigated:
             pumped = 0.0
@@ -313,11 +394,10 @@ def simulate_single_detailed(
             deficit_t = 0.0
             pumped_sum += pumped
 
-        leftover = max(0.0, supply - demand)
-        store = 0.5 * min(whc, leftover) + 0.5 * (next_gwet * whc)
+        store = 0.5 * min(whc, end_store) + 0.5 * (next_gwet * whc)
 
         # 2. Heat Penalty
-        heat_loss = min(0.70, 0.10 * max(0.0, s_clim.tmax_c - float(crop["heat_limit_c"])))
+        heat_loss = min(0.70, 0.10 * max(0.0, crop_tmax - float(crop["heat_limit_c"])))
 
         # 3. Soil Nitrogen & Urea Top-Up
         same_family = (prev_fam >= 0) and (fam == prev_fam)

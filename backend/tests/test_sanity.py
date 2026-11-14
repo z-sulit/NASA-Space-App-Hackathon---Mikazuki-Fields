@@ -59,11 +59,11 @@ def test_no_paddy_rice_in_rainfed_dry_season():
 
 
 def test_elnino_hurts_status_quo_more_than_plan_c():
-    """4. Profit drop under El Nino (Normal_Profit - ElNino_Profit) is strictly larger for Plan A than for Plan C."""
-    farm = _resolve_farm_context(preset_id="bukidnon", lat=7.90, lon=125.09).model_copy(deep=True)
-    farm.climate.normal.dry.rain_mm = 420.0
-    farm.climate.elnino.dry.rain_mm = 315.0
-    farm.climate.elnino.dry.tmax_c = 36.2
+    """4. Profit drop under El Nino (Normal_Profit - ElNino_Profit) is strictly larger for Plan A than for Plan C.
+
+    Uses Bukidnon's real data as shipped: El Nino replays its 2015-16 NASA POWER months.
+    """
+    farm = _resolve_farm_context(preset_id="bukidnon", lat=7.90, lon=125.09)
     req = _bukidnon_request()
     resp = optimize_plans(req, farm)
     drop_a = (
@@ -74,7 +74,48 @@ def test_elnino_hurts_status_quo_more_than_plan_c():
         resp.scenarios["normal"].plan_c.kpis.total_profit_php
         - resp.scenarios["elnino"].plan_c.kpis.total_profit_php
     )
+    assert drop_a > 0, "corn monoculture should lose money in the 2015-16 El Nino dry season"
     assert drop_a > drop_c
+
+
+def test_elnino_is_observed_2015_16_with_monthly_series():
+    """El Nino climate is the real 2015-16 months (not a flat shift), with month-by-month series."""
+    for pid in ("bukidnon", "davao_del_sur", "isabela"):
+        farm = _resolve_farm_context(preset_id=pid)
+        assert farm.climate.elnino_basis == "observed_2015_2016"
+        for scenario in (farm.climate.normal, farm.climate.elnino):
+            for season in (scenario.wet, scenario.dry):
+                assert len(season.monthly_rain_mm) == 6
+                assert len(season.monthly_tmax_c) == 6
+                assert len(season.monthly_et0_mm_day) == 6
+                assert abs(sum(season.monthly_rain_mm) - season.rain_mm) < 1.0
+        assert farm.climate.elnino.dry.rain_mm < farm.climate.normal.dry.rain_mm
+
+
+def test_monthly_dry_spell_counts_even_when_season_total_is_plentiful():
+    """A dry spell inside the season causes a water gap even if the 6-month total covers demand."""
+    farm = _resolve_farm_context(preset_id="bukidnon").model_copy(deep=True)
+    dry = farm.climate.elnino.dry
+    corn = [i for i, c in enumerate(CROP_ARRAYS.crops) if c["id"] == "corn"][0]
+    # Total rain is far above corn's ~400 mm need, but the months corn is in the ground are dry.
+    dry.monthly_rain_mm = [20.0, 15.0, 10.0, 5.0, 600.0, 600.0]
+    dry.rain_mm = sum(dry.monthly_rain_mm)
+    seq = np.array([corn] * 6)
+    seasons, _ = simulate_single_detailed(seq, farm, _bukidnon_request(), "elnino")
+    assert seasons[1].water_gap_mm > 0
+    assert seasons[1].water_yield_loss > 0
+
+
+def test_vectorized_matches_single_detailed_elnino():
+    """Batch and detailed simulators agree under El Nino too (monthly water balance)."""
+    farm = _resolve_farm_context(preset_id="davao_del_sur")
+    req = _bukidnon_request(preset_id="davao_del_sur")
+    sample_indices = np.array([0, 4681, 12345, 98765, 200000, 262143])
+    batch = simulate_batch_vectorized(ALL_SEQS[sample_indices], farm, req, "elnino")
+    for k, idx in enumerate(sample_indices):
+        _, kpis = simulate_single_detailed(ALL_SEQS[idx], farm, req, "elnino")
+        assert abs(batch.total_profit[k] - kpis.total_profit_php) < 1.0
+        assert abs(batch.total_water_deficit[k] - kpis.total_water_gap_mm) < 0.2
 
 
 def test_water_slider_monotonicity():

@@ -33,7 +33,7 @@ The app talks to the FastAPI backend in `backend/` (contract: `backend/app/schem
 2. **Offline bundle.** If the API cannot be reached, a preset farm with the default settings uses `public/fallback_plans.json` (made by `data-prep/export_fallback.py`). The preset farms' measured data also comes from this file.
 3. **In-browser planner.** Anything else (a tapped point, other settings, a hand-built rotation) runs `src/engine/`, a TypeScript port of the same engine spec, in a Web Worker. A tapped point then gets NASA POWER straight from the browser (`src/api/power.ts`).
 
-The field panel says which source made the plans you are looking at. A hand-built rotation is always simulated in the browser, because the API only returns Plans A, B and C.
+The field panel says which source made the plans you are looking at. **El Niño** replays each farm's real Jun 2015–May 2016 NASA POWER months (`climate.elnino`, `elnino_basis: "observed_2015_2016"`), and water is balanced month by month while a crop is in the ground, so an in-season dry spell counts. With El Niño on, the field panel lists what changed for the route (profit, which seasons lost yield, the short months) or, when nothing changed, the tightest month and closest heat call that show why. A hand-built rotation is always simulated in the browser, because the API only returns Plans A, B and C.
 
 **Where the API is:**
 

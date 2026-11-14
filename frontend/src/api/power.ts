@@ -1,9 +1,10 @@
 import type { Preset, SeasonClimate } from "../types";
 
 /**
- * Live NASA POWER climate for any point (the API allows browser requests).
- * Same math as scripts/fetch_mock_climate.py: monthly 2015–2024 averages folded
- * into a wet season (Jun–Nov) and a dry season (Dec–May).
+ * Live NASA POWER climate for any point (the API allows browser requests), used when
+ * the Mikazuki API is not reachable. Same math as backend/app/power_client.py: monthly
+ * 2015–2024 averages folded into a wet season (Jun–Nov) and a dry season (Dec–May),
+ * with month-by-month series, and El Niño = this point's real Jun 2015–May 2016 months.
  * Slope and green cover are borrowed from the nearest preset until the SRTM / MODIS
  * pulls exist, and are marked as placeholders.
  */
@@ -11,7 +12,8 @@ const PARAMS = "T2M,T2M_MAX,PRECTOTCORR,GWETROOT,ALLSKY_SFC_SW_DWN";
 const WET = [6, 7, 8, 9, 10, 11];
 const DRY = [12, 1, 2, 3, 4, 5];
 const YEARS = Array.from({ length: 10 }, (_, i) => 2015 + i);
-const daysIn = (m: number) => new Date(2021, m, 0).getDate();
+const daysIn = (m: number, y = 2021) => new Date(y, m, 0).getDate();
+const et0 = (t2m: number, allsky: number) => +(0.0135 * (t2m + 17.8) * 0.408 * allsky).toFixed(2);
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
 /** Rough Philippines box; points outside it are refused. */
@@ -55,28 +57,58 @@ export async function fetchPointPreset(lat: number, lon: number, presets: Preset
     const fill = body.header?.fill_value ?? -999;
     const vals = (param: string, m: number) =>
       YEARS.map((y) => p[param][`${y}${String(m).padStart(2, "0")}`]).filter((v) => v !== undefined && v !== fill);
-    const season = (months: number[], label: string): SeasonClimate => {
-      const monthly = months.map((m) => +(mean(vals("PRECTOTCORR", m)) * daysIn(m)).toFixed(1));
-      const t2m = mean(months.map((m) => mean(vals("T2M", m))));
-      const allsky = mean(months.map((m) => mean(vals("ALLSKY_SFC_SW_DWN", m))));
+    /** Build a season from per-month values (10-year means, or one real year). */
+    const build = (label: string, rows: { rain: number; t2m: number; tmax: number; allsky: number; gwet: number }[]): SeasonClimate => {
+      const t2m = mean(rows.map((r) => r.t2m));
+      const allsky = mean(rows.map((r) => r.allsky));
       return {
         label,
-        rain_mm: +monthly.reduce((a, b) => a + b, 0).toFixed(1),
-        monthly_rain_mm: monthly,
+        rain_mm: +rows.reduce((a, r) => a + r.rain, 0).toFixed(1),
+        monthly_rain_mm: rows.map((r) => +r.rain.toFixed(1)),
         t2m_c: +t2m.toFixed(2),
-        tmax_c: +mean(months.map((m) => mean(vals("T2M_MAX", m)))).toFixed(2),
+        tmax_c: +mean(rows.map((r) => r.tmax)).toFixed(2),
         allsky_mj: +allsky.toFixed(2),
-        gwetroot: +mean(months.map((m) => mean(vals("GWETROOT", m)))).toFixed(3),
-        et0_mm_day: +(0.0135 * (t2m + 17.8) * 0.408 * allsky).toFixed(2),
+        gwetroot: +mean(rows.map((r) => r.gwet)).toFixed(3),
+        et0_mm_day: et0(t2m, allsky),
+        monthly_tmax_c: rows.map((r) => +r.tmax.toFixed(2)),
+        monthly_et0_mm_day: rows.map((r) => et0(r.t2m, r.allsky)),
       };
     };
-    const dry = season(DRY, "Dec–May");
-    const k16 = ["201512", "201601", "201602", "201603", "201604", "201605"];
-    const rain16 = k16.reduce((a, k) => a + (p.PRECTOTCORR[k] ?? 0) * daysIn(Number(k.slice(4))), 0);
+    const normal = (months: number[], label: string) =>
+      build(
+        label,
+        months.map((m) => ({
+          rain: mean(vals("PRECTOTCORR", m)) * daysIn(m),
+          t2m: mean(vals("T2M", m)),
+          tmax: mean(vals("T2M_MAX", m)),
+          allsky: mean(vals("ALLSKY_SFC_SW_DWN", m)),
+          gwet: mean(vals("GWETROOT", m)),
+        })),
+      );
+    const observed = (ym: [number, number][], label: string) =>
+      build(
+        label,
+        ym.map(([y, m]) => {
+          const k = `${y}${String(m).padStart(2, "0")}`;
+          const v = (param: string) => {
+            const x = p[param][k];
+            if (x === undefined || x === fill) throw new Error("missing 2015–16 month");
+            return x;
+          };
+          return { rain: v("PRECTOTCORR") * daysIn(m, y), t2m: v("T2M"), tmax: v("T2M_MAX"), allsky: v("ALLSKY_SFC_SW_DWN"), gwet: v("GWETROOT") };
+        }),
+      );
+    const dry = normal(DRY, "Dec–May");
+    const elnino = {
+      wet: observed(WET.map((m) => [2015, m] as [number, number]), "Jun–Nov 2015"),
+      dry: observed(DRY.map((m) => [m === 12 ? 2015 : 2016, m] as [number, number]), "Dec 2015–May 2016"),
+    };
     const preset: Preset = {
       ...base,
-      seasons: { wet: season(WET, "Jun–Nov"), dry },
-      elnino_2016_dry_rain_pct: +((rain16 / dry.rain_mm - 1) * 100).toFixed(1),
+      seasons: { wet: normal(WET, "Jun–Nov"), dry },
+      elnino,
+      elnino_basis: "observed_2015_2016",
+      elnino_2016_dry_rain_pct: +((elnino.dry.rain_mm / dry.rain_mm - 1) * 100).toFixed(1),
       source: "NASA POWER monthly API (live), community AG, 2015–2024",
     };
     if (!Number.isFinite(dry.rain_mm) || !Number.isFinite(dry.tmax_c)) throw new Error("bad data");
@@ -85,7 +117,7 @@ export async function fetchPointPreset(lat: number, lon: number, presets: Preset
   } catch {
     // Offline or the API is down: borrow the nearest preset's climate, and say so.
     return {
-      preset: { ...base, seasons: near.seasons, elnino_2016_dry_rain_pct: near.elnino_2016_dry_rain_pct, source: `Nearest preset (${near.name}, ${distance} km): live NASA POWER unavailable` },
+      preset: { ...base, seasons: near.seasons, elnino: near.elnino, elnino_basis: near.elnino_basis, elnino_2016_dry_rain_pct: near.elnino_2016_dry_rain_pct, source: `Nearest preset (${near.name}, ${distance} km): live NASA POWER unavailable` },
       live: false,
     };
   }
