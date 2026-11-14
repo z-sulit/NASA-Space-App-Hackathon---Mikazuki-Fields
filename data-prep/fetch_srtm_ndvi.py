@@ -18,7 +18,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from backend.app.schemas import FarmContext  # noqa: E402
+from backend.app.power_client import build_banner_metrics as _build_banner_metric_models  # noqa: E402
+from backend.app.schemas import ClimateBundle, FarmContext, NDVIProfile, TerrainInfo  # noqa: E402
 from presets_config import PRESETS  # noqa: E402
 
 DATA_PREP_DIR = Path(__file__).resolve().parent
@@ -55,14 +56,6 @@ EL_NINO_DRY_WINDOWS = {"2015_2016": 2015, "2023_2024": 2023}
 
 HTTP_RETRIES = 5
 HTTP_BACKOFF_S = 2.0
-
-TOOLTIPS = {
-    "soil_thirst": "Water left where roots drink, top ~1 m. 0 is bone dry, 1 is soaked.",
-    "daily_water_use": "Water that sun and heat pull from soil and leaves. 5 mm a day is 50,000 litres per hectare.",
-    "seasonal_rain": "Average rain for this season from 10 years of NASA records (2015–2024).",
-    "erosion_slope": "How steep your field is. Steep + bare + heavy rain washes topsoil away.",
-    "green_cover": "How green your land looks from space. Below 0.3 is mostly bare soil.",
-}
 
 SESSION = requests.Session()
 SESSION.headers.update({"Accept": "application/json", "User-Agent": "MikazukiFields/1.0 (NASA Space Apps 2026)"})
@@ -326,82 +319,14 @@ def compute_ndvi_profile(
     return profile, provenance
 
 
-def soil_thirst_label(gwetroot: float) -> tuple[str, str]:
-    if gwetroot > 0.80:
-        return "Soaked", "good"
-    if gwetroot >= 0.60:
-        return "Comfortable", "good"
-    if gwetroot >= 0.40:
-        return "Thirsty", "warning"
-    return "Very Thirsty", "danger"
-
-
 def build_banner_metrics(climate: dict[str, Any], terrain: dict[str, Any], ndvi: dict[str, Any]) -> list[dict[str, Any]]:
-    """Build the 5 Top Banner MetricChip payloads from fused NASA data (normal scenario)."""
-    wet = climate["normal"]["wet"]
-    dry = climate["normal"]["dry"]
-
-    thirst_label, thirst_status = soil_thirst_label(dry["gwetroot"])
-
-    peak_et0 = max(wet["et0_mm_day"], dry["et0_mm_day"])
-    et0_status = "good" if peak_et0 < 4.5 else ("warning" if peak_et0 < 6.0 else "danger")
-
-    rain_status = "good" if dry["rain_mm"] >= 600.0 else ("warning" if dry["rain_mm"] >= 300.0 else "danger")
-
-    slope = terrain["slope_pct"]
-    slope_status = "danger" if slope > STEEP_SLOPE_PCT else ("warning" if slope >= ROLLING_SLOPE_PCT else "good")
-
-    bare = ndvi["historical_bare_months"]
-    bare_names = ", ".join(date(2000, m, 1).strftime("%b") for m in bare)
-    green_display = f"NDVI {ndvi['mean_ndvi']:.2f}" + (f" · bare in {bare_names}" if bare else " · green year-round")
-
-    return [
-        {
-            "id": "soil_thirst",
-            "scientific_term": f"GWETROOT ({dry['gwetroot']:.2f} Dry / {wet['gwetroot']:.2f} Wet)",
-            "farmer_label": "Soil Thirst Level",
-            "value_display": f"{thirst_label} in Dry Season",
-            "status": thirst_status,
-            "source": "NASA POWER (MERRA-2)",
-            "tooltip": TOOLTIPS["soil_thirst"],
-        },
-        {
-            "id": "daily_water_use",
-            "scientific_term": f"ET0 Hargreaves ({dry['et0_mm_day']:.2f} Dry / {wet['et0_mm_day']:.2f} Wet mm/day)",
-            "farmer_label": "Daily Water Use",
-            "value_display": f"{peak_et0:.1f} mm/day (~{peak_et0 * 10000:,.0f} L/ha)",
-            "status": et0_status,
-            "source": "NASA POWER (T2M + ALLSKY_SFC_SW_DWN)",
-            "tooltip": TOOLTIPS["daily_water_use"],
-        },
-        {
-            "id": "seasonal_rain",
-            "scientific_term": f"PRECTOTCORR ({wet['rain_mm']:.0f} mm Wet / {dry['rain_mm']:.0f} mm Dry)",
-            "farmer_label": "Rain You Can Count On",
-            "value_display": f"{wet['rain_mm']:.0f} mm Wet · {dry['rain_mm']:.0f} mm Dry",
-            "status": rain_status,
-            "source": "NASA POWER (2015–2024)",
-            "tooltip": TOOLTIPS["seasonal_rain"],
-        },
-        {
-            "id": "erosion_slope",
-            "scientific_term": f"SRTM 30m Slope ({slope:.1f}%)",
-            "farmer_label": "Erosion Slope Risk",
-            "value_display": f"{slope:.1f}% slope · {terrain['erosion_risk_label']}",
-            "status": slope_status,
-            "source": "NASA SRTM 30m (OpenTopoData)",
-            "tooltip": TOOLTIPS["erosion_slope"],
-        },
-        {
-            "id": "green_cover",
-            "scientific_term": f"MODIS MOD13Q1 NDVI (mean {ndvi['mean_ndvi']:.2f})",
-            "farmer_label": "Green Cover Score",
-            "value_display": green_display,
-            "status": "warning" if bare else "good",
-            "source": "NASA MODIS MOD13Q1 (ORNL DAAC, 2015–2024)",
-            "tooltip": TOOLTIPS["green_cover"],
-        },
-    ]
+    """Build the 5 Top Banner MetricChip dicts using the shared backend builder."""
+    metrics = _build_banner_metric_models(
+        ClimateBundle.model_validate(climate),
+        TerrainInfo.model_validate(terrain),
+        NDVIProfile.model_validate(ndvi),
+    )
+    return [m.model_dump(mode="json") for m in metrics]
 
 
 def process_preset(preset_id: str) -> dict[str, Any]:
