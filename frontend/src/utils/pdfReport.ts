@@ -1,12 +1,12 @@
 import { jsPDF } from "jspdf";
 import type { DataSource } from "../api/client";
-import { emblemSvg } from "../components/Emblem";
 import { planSpan, type SeasonWindow } from "../data/calendar";
 import { CROP } from "../data/crops";
 import { climate, SOIL_LABEL } from "../engine/simulate";
 import type { PlanRequest, PlanResult, Preset, Scenario } from "../types";
 import { PHP_PER_USD } from "./currency";
 import { fieldReportFilename, fieldReportHeader } from "./locationName";
+import { seasonAlerts } from "./seasonAlerts";
 
 export { fieldReportFilename };
 
@@ -37,6 +37,9 @@ const ROW_ALT: Rgb = [242, 245, 236];
 const BORDER: Rgb = [212, 214, 202];
 const GOOD_INK: Rgb = [47, 74, 18];
 const WARN_INK: Rgb = [143, 58, 36];
+const LOSS_BG: Rgb = [253, 236, 234];
+const LOSS_RED: Rgb = [185, 28, 28];
+const WHITE: Rgb = [255, 255, 255];
 
 const N_LABEL: Record<PlanRequest["overrides"]["soilTestN"], string> = {
   untested: "Untested",
@@ -79,7 +82,15 @@ function setText(doc: jsPDF, size: number, color: Rgb, style: "normal" | "bold" 
 function splitMoneyLines(phpAmount: number): [string, string] {
   const php = Math.round(phpAmount) || 0;
   const usd = Math.round(phpAmount / PHP_PER_USD) || 0;
-  return [`PHP ${php.toLocaleString("en-PH")}`, `USD ${usd.toLocaleString("en-US")}`];
+  const fmt = (cur: string, n: number) => `${n < 0 ? "-" : ""}${cur} ${Math.abs(n).toLocaleString(cur === "PHP" ? "en-PH" : "en-US")}`;
+  return [fmt("PHP", php), fmt("USD", usd)];
+}
+
+function drawBadge(doc: jsPDF, label: string, x: number, y: number, w: number, h: number, fill: Rgb, text: Rgb, fontSize = 5.8) {
+  doc.setFillColor(fill[0], fill[1], fill[2]);
+  doc.roundedRect(x, y, w, h, 0.8, 0.8, "F");
+  setText(doc, fontSize, text, "bold");
+  doc.text(label, x + w / 2, y + h - 1.2, { align: "center" });
 }
 
 function drawFooter(doc: jsPDF, pageNum: number, totalPages: number) {
@@ -94,6 +105,7 @@ function drawFooter(doc: jsPDF, pageNum: number, totalPages: number) {
 async function emblemPngDataUrl(sizePx = 128): Promise<string | null> {
   if (typeof document === "undefined" || typeof Image === "undefined") return null;
   try {
+    const { emblemSvg } = await import("../components/Emblem");
     const dataUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(emblemSvg({ size: sizePx, backdrop: true }))}`;
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const el = new Image();
@@ -229,7 +241,17 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
       : "Provenance: Live NASA POWER unavailable; climate, terrain, and MODIS NDVI anchored to nearest Philippine reference site."
     : `Provenance: Cached Philippine reference site (${farmSource === "api" ? "API-verified" : farmSource === "bundle" ? "offline bundle" : "bundled"}) - NASA POWER 2015-2024, SRTM 30 m, MODIS MOD13Q1.`;
   const provLines = doc.splitTextToSize(pdfText(provenanceNote), W - 8) as string[];
-  const teleCardH = 44 + provLines.length * 4;
+  const elevVal = altitude ? `${Math.round(altitude.m)} m (${altitude.from})` : target.elevation_m !== undefined ? `${Math.round(target.elevation_m)} m` : "N/A";
+  const elninoRain =
+    target.elnino_2016_dry_rain_pct !== null
+      ? `${target.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(target.elnino_2016_dry_rain_pct)}% dry rain`
+      : "Synthetic (-25%)";
+  setText(doc, 8.5, INK, "bold");
+  const teleMetaLines = doc.splitTextToSize(
+    pdfText(`Elevation: ${elevVal}   |   Slope: ${target.slope_pct.toFixed(1)}%   |   MODIS NDVI: ${target.ndvi_dry_min.toFixed(2)}   |   2015-16 El Niño: ${elninoRain}`),
+    W - 8,
+  ) as string[];
+  const teleCardH = 44 + Math.max(0, teleMetaLines.length - 1) * 4 + provLines.length * 4;
 
   doc.setFillColor(CARD_BG[0], CARD_BG[1], CARD_BG[2]);
   doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
@@ -261,18 +283,9 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
 
   doc.line(M + 4, ty - 2, M + W - 4, ty - 2);
   ty += 3;
-  const elevVal = altitude ? `${Math.round(altitude.m)} m (${altitude.from})` : target.elevation_m !== undefined ? `${Math.round(target.elevation_m)} m` : "N/A";
-  const elninoRain =
-    target.elnino_2016_dry_rain_pct !== null
-      ? `${target.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(target.elnino_2016_dry_rain_pct)}% dry rain`
-      : "Synthetic (-25%)";
   setText(doc, 8.5, INK, "bold");
-  doc.text(
-    pdfText(`Elevation: ${elevVal}   |   Slope: ${target.slope_pct.toFixed(1)}%   |   MODIS NDVI: ${target.ndvi_dry_min.toFixed(2)}   |   2015-16 El Niño: ${elninoRain}`),
-    M + 4,
-    ty,
-  );
-  ty += 5.5;
+  doc.text(teleMetaLines, M + 4, ty);
+  ty += teleMetaLines.length * 4 + 1.5;
   setText(doc, 8, MUTED);
   doc.text(provLines, M + 4, ty);
 
@@ -329,9 +342,9 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
     doc.roundedRect(cx, cy, cardW, cardH, 1.5, 1.5, "FD");
 
     setText(doc, 7, MUTED, "bold");
-    doc.text(pdfText(card.label), cx + 3, cy + 5);
+    doc.text(doc.splitTextToSize(pdfText(card.label), cardW - 6)[0] ?? "", cx + 3, cy + 5);
     setText(doc, 10, INK, "bold");
-    doc.text(pdfText(card.value), cx + 3, cy + 11.2);
+    doc.text(doc.splitTextToSize(pdfText(card.value), cardW - 6)[0] ?? "", cx + 3, cy + 11.2);
     setText(doc, 7.5, card.subWarn ? WARN_INK : MUTED);
     const subText = doc.splitTextToSize(pdfText(card.sub), cardW - 6)[0] ?? "";
     doc.text(subText, cx + 3, cy + 16);
@@ -363,8 +376,12 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
   doc.text(pdfText(`3-Year (6-Season) Crop Rotation Schedule`), M, y2);
   y2 += 6;
   setText(doc, 9.5, MUTED);
-  doc.text(pdfText(`${target.name}  |  ${routeBadge}: ${plan.name}  |  ${planSpan(startYear)}  |  ${landHa} ha  |  ${scenarioLabel}`), M, y2);
-  y2 += 4;
+  const p2SubLines = doc.splitTextToSize(
+    pdfText(`${header.locationValue}  |  ${routeBadge}: ${plan.name}  |  ${planSpan(startYear)}  |  ${landHa} ha  |  ${scenarioLabel}`),
+    W,
+  ) as string[];
+  doc.text(p2SubLines, M, y2);
+  y2 += p2SubLines.length * 4.5 + 1;
   doc.setDrawColor(OLIVE[0], OLIVE[1], OLIVE[2]);
   doc.setLineWidth(0.6);
   doc.line(M, y2, PAGE_W - M, y2);
@@ -400,8 +417,14 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
     const w = windows[i];
     const crop = CROP[s.crop];
     const [pPhp, pUsd] = splitMoneyLines(s.profit);
+    const alert = seasonAlerts(s);
 
-    if (i % 2 === 1) {
+    if (alert.severe) {
+      doc.setFillColor(LOSS_BG[0], LOSS_BG[1], LOSS_BG[2]);
+      doc.rect(M, y2, W, rowH, "F");
+      doc.setFillColor(LOSS_RED[0], LOSS_RED[1], LOSS_RED[2]);
+      doc.rect(M, y2, 1.6, rowH, "F");
+    } else if (i % 2 === 1) {
       doc.setFillColor(ROW_ALT[0], ROW_ALT[1], ROW_ALT[2]);
       doc.rect(M, y2, W, rowH, "F");
     }
@@ -415,9 +438,9 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
 
     // 1. Season
     setText(doc, 8.5, INK, "bold");
-    doc.text(`S${s.index + 1}`, x + 2.5, topY);
+    doc.text(`S${s.index + 1}`, x + 3, topY);
     setText(doc, 7.5, MUTED);
-    doc.text(s.kind === "wet" ? "Wet" : "Dry", x + 2.5, subY);
+    doc.text(s.kind === "wet" ? "Wet" : "Dry", x + 3, subY);
     x += cols[0].w;
 
     // 2. Calendar
@@ -441,11 +464,15 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
       cy += 3.3;
     }
     setText(doc, 6.8, MUTED);
+    const estMaxY = alert.wiltRisk ? y2 + rowH - 6.8 : y2 + rowH - 2;
     const estLines = (doc.splitTextToSize(pdfText(crop.establishment), cols[2].w - 4.5) as string[]).slice(0, 2);
     for (const line of estLines) {
-      if (cy > y2 + rowH - 2) break;
+      if (cy > estMaxY) break;
       doc.text(line, x + 2.5, cy);
       cy += 3.2;
+    }
+    if (alert.wiltRisk) {
+      drawBadge(doc, "CROP WILT / DROUGHT RISK", x + 2.5, y2 + rowH - 5.2, 37, 4, LOSS_RED, WHITE, 5.6);
     }
     x += cols[2].w;
 
@@ -458,11 +485,14 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
 
     // 5. Water
     const waterVal = req.irrigation === "irrigated" ? s.pumpedMm : s.gapMm;
-    setText(doc, 8.5, INK);
+    setText(doc, 8.5, alert.wiltRisk ? LOSS_RED : INK, alert.wiltRisk ? "bold" : "normal");
     doc.text(`${Math.round(waterVal)} mm`, x + cols[4].w - 2.5, topY, { align: "right" });
     if (req.irrigation === "irrigated" && s.gapMm > 0) {
       setText(doc, 7.5, WARN_INK);
       doc.text(`${Math.round(s.gapMm)} gap`, x + cols[4].w - 2.5, subY, { align: "right" });
+    } else if (alert.wiltRisk) {
+      setText(doc, 6.5, LOSS_RED, "bold");
+      doc.text("Severe deficit", x + cols[4].w - 2.5, subY, { align: "right" });
     }
     x += cols[4].w;
 
@@ -482,10 +512,13 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
     x += cols[6].w;
 
     // 8. Profit (PHP / USD)
-    setText(doc, 8.5, s.profit < 0 ? WARN_INK : INK, "bold");
+    setText(doc, 8.5, alert.netLoss ? LOSS_RED : INK, "bold");
     doc.text(pPhp, x + cols[7].w - 2.5, topY, { align: "right" });
-    setText(doc, 7.5, MUTED);
+    setText(doc, 7.5, alert.netLoss ? LOSS_RED : MUTED, alert.netLoss ? "bold" : "normal");
     doc.text(pUsd, x + cols[7].w - 2.5, subY, { align: "right" });
+    if (alert.netLoss) {
+      drawBadge(doc, "NET LOSS", x + cols[7].w - 17.5, y2 + rowH - 5.2, 15, 4, LOSS_RED, WHITE, 5.8);
+    }
 
     y2 += rowH;
   });
@@ -520,14 +553,22 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
   doc.text(profitUsd, M + W - 2.5, y2 + 10.6, { align: "right" });
   y2 += totH + 7;
 
+  // Model Limits Disclaimer metrics (compute early to prevent notes collision)
+  const disclaimerText = pdfText(
+    "Model & Data Limits: NASA POWER weather is averaged over a ~50-70 km grid cell, and root-zone soil wetness is model-derived rather than an in-field sensor. Crop prices and yields reflect baseline assumptions. Validate soil fertility at a Department of Agriculture (DA) regional soils laboratory and consult your Municipal Agriculturist before changing crops.",
+  );
+  const discLines = doc.splitTextToSize(disclaimerText, W - 8) as string[];
+  const discH = 10 + discLines.length * 4;
+  const discFloorY = 274 - discH;
+
   // Site / Ground-Truth Notes (if any)
-  if (notes.length > 0 && y2 < 228) {
+  if (notes.length > 0 && y2 < discFloorY - 12) {
     setText(doc, 9, OLIVE, "bold");
     doc.text("SITE & GROUND-TRUTH ADVISORIES", M, y2);
     y2 += 5;
     for (const note of notes.slice(0, 4)) {
-      if (y2 > 238) break;
       const lines = doc.splitTextToSize(pdfText(note), W - 7) as string[];
+      if (y2 + lines.length * 4.2 > discFloorY - 4) break;
       setText(doc, 8.5, INK);
       doc.text("-", M + 1.5, y2);
       doc.text(lines, M + 5.5, y2);
@@ -536,12 +577,7 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
   }
 
   // Model Limits Disclaimer Card
-  const disclaimerText = pdfText(
-    "Model & Data Limits: NASA POWER weather is averaged over a ~50-70 km grid cell, and root-zone soil wetness is model-derived rather than an in-field sensor. Crop prices and yields reflect baseline assumptions. Validate soil fertility at a Department of Agriculture (DA) regional soils laboratory and consult your Municipal Agriculturist before changing crops.",
-  );
-  const discLines = doc.splitTextToSize(disclaimerText, W - 8) as string[];
-  const discH = 10 + discLines.length * 4;
-  const discY = Math.max(y2 + 6, 274 - discH);
+  const discY = Math.max(y2 + 4, discFloorY);
   doc.setFillColor(CARD_BG[0], CARD_BG[1], CARD_BG[2]);
   doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
   doc.setLineWidth(0.25);
