@@ -1,8 +1,8 @@
 import { Fragment, useState, type CSSProperties } from "react";
-import { ArrowLeft, Loader2, Bean, BugOff, ChevronDown, CloudRain, Sprout, TriangleAlert, Wheat } from "lucide-react";
-import type { CropId, Family, PlanId, PlanRequest, PlanResult, SeasonResult } from "../../types";
+import { ArrowLeft, Loader2, Bean, BugOff, CloudRain, Sprout, TriangleAlert, Wheat } from "lucide-react";
+import type { CropId, Family, PlanId, PlanRequest, PlanResult, Scenario, SeasonResult } from "../../types";
 import { CROP, CROPS } from "../../data/crops";
-import { peso } from "../ui";
+import { peso, Switch } from "../ui";
 
 const FAMILY_VAR: Record<Family, string> = {
   Poaceae: "var(--family-poaceae)",
@@ -91,6 +91,8 @@ export function PickPlants({
   onCustomRotation,
   req,
   onReq,
+  scenario,
+  onScenario,
   notes,
   busy,
   onPlant,
@@ -105,15 +107,23 @@ export function PickPlants({
   onCustomRotation: (r: CropId[]) => void;
   req: PlanRequest;
   onReq: (patch: Partial<PlanRequest>) => void;
+  scenario: Scenario;
+  onScenario: (s: Scenario) => void;
   notes: string[];
   busy: boolean;
   onPlant: () => void;
   onBack: () => void;
 }) {
   const [slot, setSlot] = useState(0);
-  const [settings, setSettings] = useState(false);
   const cards: { id: Choice; plan: PlanResult }[] = [...plans.map((p) => ({ id: p.id as Choice, plan: p })), { id: "custom", plan: custom }];
   const sum = req.weights.water + req.weights.soil + req.weights.econ || 1;
+  const ha = Number.isFinite(req.landSizeHa) && req.landSizeHa > 0 ? req.landSizeHa : 1;
+  const sliderHa = Math.min(20, Math.max(0.25, ha));
+  const sliderFill = ((sliderHa - 0.25) / (20 - 0.25)) * 100;
+  const setLandSize = (raw: number) => {
+    if (!Number.isFinite(raw)) return;
+    onReq({ landSizeHa: Math.round(Math.min(500, Math.max(0.1, raw)) * 100) / 100 });
+  };
 
   return (
     <div className="pick-wrap">
@@ -164,8 +174,9 @@ export function PickPlants({
                 <span className="mt-0.5 block font-display text-xl leading-6">{plan.name}</span>
                 <span className="block text-xs text-ink/70">{plan.promise}</span>
                 <Chips rotation={plan.rotation} seasons={plan.seasons} />
-                <span className="mt-3 flex justify-between text-xs text-ink/80 tabular">
+                <span className="mt-3 flex justify-between gap-2 text-xs text-ink/80 tabular">
                   <span>{peso(plan.kpis.totalProfit)}</span>
+                  <span>{plan.seasons.reduce((acc, s) => acc + s.yieldT, 0).toFixed(1)} t</span>
                   <span>Soil N → {Math.round(plan.kpis.nFinal)}</span>
                 </span>
               </button>
@@ -228,47 +239,90 @@ export function PickPlants({
           </div>
         )}
 
-        <div className="mt-4 rounded-[10px] border border-ink/12">
-          <button type="button" onClick={() => setSettings((s) => !s)} aria-expanded={settings} className="flex min-h-11 w-full items-center justify-between px-3 text-sm">
-            <span>
-              <span className="font-semibold">Farm settings</span>
-              <span className="text-ink/70"> · {req.soil}, {req.irrigation === "rainfed" ? "rain only" : "irrigated"}, {req.goal === "cash" ? "cash crop" : "animal feed"}</span>
-            </span>
-            <ChevronDown className={`size-4 transition-transform duration-200 ${settings ? "rotate-180" : ""}`} aria-hidden />
-          </button>
-          {settings && (
-            <div className="grid gap-3 px-3 pb-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Seg label="Soil" value={req.soil} options={[["clay", "Clay"], ["loam", "Loam"], ["sandy", "Sandy"]]} onChange={(soil) => onReq({ soil })} />
-              <Seg label="Water" value={req.irrigation} options={[["rainfed", "Rain only"], ["irrigated", "Irrigated"]]} onChange={(irrigation) => onReq({ irrigation })} />
-              <Seg label="Goal" value={req.goal} options={[["cash", "Cash crop"], ["forage", "Animal feed"]]} onChange={(goal) => onReq({ goal })} />
-              <Seg
-                label="Soil test: nitrogen"
-                value={req.overrides.soilTestN}
-                options={[["untested", "Not tested"], ["low", "Low"], ["medium", "Med"], ["high", "High"]]}
-                onChange={(soilTestN) => onReq({ overrides: { ...req.overrides, soilTestN } })}
+        <div className="mt-4 rounded-[10px] border border-ink/12 p-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 pb-2.5">
+            <p className="text-sm font-semibold">Farm settings</p>
+            <p className="text-xs text-ink/70 tabular">
+              {ha} ha · {req.soil} · {req.irrigation === "rainfed" ? "rain only" : "irrigated"} · {req.goal === "cash" ? "cash crop" : "animal feed"} ·{" "}
+              {scenario === "elnino" ? "El Niño (2015–16)" : "Normal climate"}
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="flex items-center justify-between gap-3 rounded-[8px] border border-ink/15 px-3 py-2">
+              <span>
+                <span className="block text-xs font-semibold">El Niño (2015–16)</span>
+                <span className="block text-[11px] text-ink/70">Simulate 2015–16 drought &amp; heat</span>
+              </span>
+              <Switch
+                checked={scenario === "elnino"}
+                onChange={(on) => onScenario(on ? "elnino" : "normal")}
+                label="Simulate El Niño (2015–16)"
               />
-              <Seg
-                label="Pests hit my last crop"
-                value={req.overrides.pestLastSeason ? "yes" : "no"}
-                options={[["no", "No"], ["yes", "Yes"]]}
-                onChange={(v) => onReq({ overrides: { ...req.overrides, pestLastSeason: v === "yes" } })}
+            </label>
+            <div className="rounded-[8px] border border-ink/15 px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <label htmlFor="land-size-ha" className="text-xs font-semibold">
+                  Land size (ha)
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    id="land-size-ha"
+                    type="number"
+                    min={0.1}
+                    max={500}
+                    step={0.1}
+                    value={ha}
+                    onChange={(e) => setLandSize(Number(e.target.value))}
+                    className="w-16 rounded-[6px] border border-ink/25 bg-transparent px-1.5 py-0.5 text-right text-xs text-ink tabular"
+                    aria-label="Land size in hectares"
+                  />
+                  <span className="text-xs text-ink/70">ha</span>
+                </div>
+              </div>
+              <input
+                type="range"
+                min={0.25}
+                max={20}
+                step={0.25}
+                value={sliderHa}
+                onChange={(e) => setLandSize(Number(e.target.value))}
+                aria-label="Land size slider in hectares"
+                className="mf-range mt-1.5 h-5 w-full"
+                style={{ ["--fill" as string]: `${sliderFill}%` } as CSSProperties}
               />
-              <Seg
-                label="Soil test: pH"
-                value={phChoice(req.overrides.soilPh)}
-                options={[["untested", "Not tested"], ["acidic", "Acidic 5.1"], ["neutral", "Neutral 6.5"]]}
-                onChange={(v) => onReq({ overrides: { ...req.overrides, soilPh: PH_VALUE[v] } })}
-              />
-              <Seg
-                label="Field floods in"
-                value={req.overrides.floods}
-                options={[["never", "Never"], ["wet", "Wet season"], ["dry", "Dry season"]]}
-                onChange={(floods) => onReq({ overrides: { ...req.overrides, floods } })}
-              />
-              <div className="sm:col-span-2 lg:col-span-1">
-                <p className="text-xs font-medium text-ink/70">What matters most</p>
+            </div>
+            <Seg label="Soil" value={req.soil} options={[["clay", "Clay"], ["loam", "Loam"], ["sandy", "Sandy"]]} onChange={(soil) => onReq({ soil })} />
+            <Seg label="Water" value={req.irrigation} options={[["rainfed", "Rain only"], ["irrigated", "Irrigated"]]} onChange={(irrigation) => onReq({ irrigation })} />
+            <Seg label="Goal" value={req.goal} options={[["cash", "Cash crop"], ["forage", "Animal feed"]]} onChange={(goal) => onReq({ goal })} />
+            <Seg
+              label="Soil test: nitrogen"
+              value={req.overrides.soilTestN}
+              options={[["untested", "Not tested"], ["low", "Low"], ["medium", "Med"], ["high", "High"]]}
+              onChange={(soilTestN) => onReq({ overrides: { ...req.overrides, soilTestN } })}
+            />
+            <Seg
+              label="Pests hit my last crop"
+              value={req.overrides.pestLastSeason ? "yes" : "no"}
+              options={[["no", "No"], ["yes", "Yes"]]}
+              onChange={(v) => onReq({ overrides: { ...req.overrides, pestLastSeason: v === "yes" } })}
+            />
+            <Seg
+              label="Soil test: pH"
+              value={phChoice(req.overrides.soilPh)}
+              options={[["untested", "Not tested"], ["acidic", "Acidic 5.1"], ["neutral", "Neutral 6.5"]]}
+              onChange={(v) => onReq({ overrides: { ...req.overrides, soilPh: PH_VALUE[v] } })}
+            />
+            <Seg
+              label="Field floods in"
+              value={req.overrides.floods}
+              options={[["never", "Never"], ["wet", "Wet season"], ["dry", "Dry season"]]}
+              onChange={(floods) => onReq({ overrides: { ...req.overrides, floods } })}
+            />
+            <div className="sm:col-span-2 lg:col-span-3">
+              <p className="text-xs font-medium text-ink/70">What matters most</p>
+              <div className="mt-1 grid gap-x-4 gap-y-1 sm:grid-cols-3">
                 {(["water", "soil", "econ"] as const).map((k) => (
-                  <label key={k} className="mt-1 flex items-center gap-2 text-xs">
+                  <label key={k} className="flex items-center gap-2 text-xs">
                     <span className="w-16">{k === "water" ? "Save water" : k === "soil" ? "Soil" : "Earn more"}</span>
                     <input
                       type="range"
@@ -284,7 +338,7 @@ export function PickPlants({
                 ))}
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         <button type="button" onClick={onPlant} disabled={busy} className="btn btn-primary btn-lg mt-4 w-full">
