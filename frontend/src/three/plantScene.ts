@@ -12,6 +12,7 @@ import {
   CylinderGeometry,
   BufferAttribute,
   DirectionalLight,
+  ExtrudeGeometry,
   Float32BufferAttribute,
   Group,
   HemisphereLight,
@@ -27,6 +28,8 @@ import {
   Points,
   PointsMaterial,
   Scene,
+  Shape,
+  ShapeGeometry,
   SphereGeometry,
   Sprite,
   SpriteMaterial,
@@ -38,6 +41,7 @@ import {
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Family } from "../types";
+import { fitPolygonToField, pointInPolygon, type Point, type XYPoint } from "../utils/geo";
 
 export interface PlotSpec {
   family: Family;
@@ -188,7 +192,115 @@ function crackTexture(): CanvasTexture {
   return tex;
 }
 
-export function createPlantScene(host: HTMLElement): PlantHandle {
+interface PlantSlot {
+  plot: number;
+  x: number;
+  z: number;
+  rot: number;
+  delay: number;
+  size: number;
+}
+
+interface PolygonLayout {
+  poly: XYPoint[];
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+  slots: PlantSlot[];
+  plotCenters: { x: number; z: number; maxZ: number }[];
+}
+
+function insideWithMargin(x: number, z: number, poly: readonly XYPoint[], margin: number): boolean {
+  if (!pointInPolygon(x, z, poly)) return false;
+  if (margin <= 0) return true;
+  return (
+    pointInPolygon(x + margin, z, poly) &&
+    pointInPolygon(x - margin, z, poly) &&
+    pointInPolygon(x, z + margin, poly) &&
+    pointInPolygon(x, z - margin, poly)
+  );
+}
+
+function buildPolygonLayout(poly: XYPoint[], maxTotal: number): PolygonLayout | null {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  for (const p of poly) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.z < minZ) minZ = p.z;
+    if (p.z > maxZ) maxZ = p.z;
+  }
+
+  const sampleGrid = (margin: number) => {
+    const pts: { x: number; z: number }[] = [];
+    const gx = 30;
+    const gz = 18;
+    const dx = (maxX - minX) / gx;
+    const dz = (maxZ - minZ) / gz;
+    for (let ix = 0; ix < gx; ix++) {
+      for (let iz = 0; iz < gz; iz++) {
+        const jx = (((ix * 7 + iz * 13) % 11) / 11 - 0.5) * dx * 0.35;
+        const jz = (((ix * 17 + iz * 5) % 11) / 11 - 0.5) * dz * 0.35;
+        const x = minX + (ix + 0.5) * dx + jx;
+        const z = minZ + (iz + 0.5) * dz + jz;
+        if (insideWithMargin(x, z, poly, margin)) pts.push({ x, z });
+      }
+    }
+    return pts;
+  };
+
+  let inside = sampleGrid(0.14);
+  if (inside.length < 24) inside = sampleGrid(0);
+  if (inside.length < 12) return null;
+
+  inside.sort((a, b) => a.x - b.x || a.z - b.z);
+  const count = Math.min(maxTotal, inside.length);
+  const chosen: { x: number; z: number }[] = [];
+  if (inside.length === count) {
+    chosen.push(...inside);
+  } else {
+    for (let i = 0; i < count; i++) {
+      chosen.push(inside[Math.floor((i * inside.length) / count)]);
+    }
+  }
+
+  const plotCenters = Array.from({ length: 6 }, () => ({ x: 0, z: 0, maxZ: -Infinity, n: 0 }));
+  const slots: PlantSlot[] = chosen.map((pt, i) => {
+    const plot = Math.min(5, Math.floor((i * 6) / chosen.length));
+    const c = plotCenters[plot];
+    c.x += pt.x;
+    c.z += pt.z;
+    if (pt.z > c.maxZ) c.maxZ = pt.z;
+    c.n++;
+    return {
+      plot,
+      x: pt.x,
+      z: pt.z,
+      rot: ((i * 53) % 360) * (Math.PI / 180),
+      delay: (i % 24) * 0.009,
+      size: 0.85 + ((i * 29) % 10) / 40,
+    };
+  });
+
+  return {
+    poly,
+    minX,
+    maxX,
+    minZ,
+    maxZ,
+    slots,
+    plotCenters: plotCenters.map((c) => ({
+      x: c.n ? c.x / c.n : 0,
+      z: c.n ? c.z / c.n : 0,
+      maxZ: c.n ? c.maxZ : maxZ,
+    })),
+  };
+}
+
+export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHandle {
   const renderer = new WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   renderer.outputColorSpace = SRGBColorSpace;
@@ -209,53 +321,115 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
   const field = new Group();
   scene.add(field);
   const totalW = 6 * PLOT_W + 5 * GAP;
+  const perPlot = COLS * ROWS;
+  const total = perPlot * 6;
+  const polyPts = polygon && polygon.length >= 3 ? fitPolygonToField(polygon, totalW, PLOT_D) : null;
+  const polyData = polyPts ? buildPolygonLayout(polyPts, total) : null;
 
-  // Ground slab and six plots
+  // Ground slab and soil bed(s): polygon-conforming extruded bed when drawn, else 6 rectangular plots.
   const disposables: { dispose(): void }[] = [];
-  const slabGeo = new BoxGeometry(totalW + 0.8, 0.3, PLOT_D + 0.8);
   const slabMat = new MeshStandardMaterial({ color: "#3b2f20", roughness: 0.95 });
-  const slab = new Mesh(slabGeo, slabMat);
-  slab.position.y = -0.16;
-  field.add(slab);
-  const plotGeo = new BoxGeometry(PLOT_W, 0.12, PLOT_D);
-  disposables.push(slabGeo, slabMat, plotGeo);
+  const crackTex = crackTexture();
+  const crackMat = new MeshBasicMaterial({ map: crackTex, transparent: true, opacity: 0, depthWrite: false });
+  disposables.push(slabMat, crackTex, crackMat);
+
   const plotX = (i: number) => -totalW / 2 + PLOT_W / 2 + i * (PLOT_W + GAP);
   const plotMats: MeshStandardMaterial[] = [];
-  const crackTex = crackTexture();
-  const crackGeo = new PlaneGeometry(PLOT_W * 0.98, PLOT_D * 0.98);
-  const crackMat = new MeshBasicMaterial({ map: crackTex, transparent: true, opacity: 0, depthWrite: false });
-  disposables.push(crackTex, crackGeo, crackMat);
   const beds: Group[] = [];
-  for (let i = 0; i < 6; i++) {
-    const bed = new Group();
-    field.add(bed);
-    beds.push(bed);
-    const mat = new MeshStandardMaterial({ color: "#5a4632", roughness: 0.9 });
-    const plot = new Mesh(plotGeo, mat);
-    plot.position.set(plotX(i), 0.02, 0);
-    bed.add(plot);
-    plotMats.push(mat);
-    disposables.push(mat);
+  let polySoilMat: MeshStandardMaterial | null = null;
+
+  if (polyData) {
+    const shape = new Shape();
+    polyData.poly.forEach((p, i) => (i === 0 ? shape.moveTo(p.x, -p.z) : shape.lineTo(p.x, -p.z)));
+    shape.closePath();
+
+    const slabGeo = new ExtrudeGeometry(shape, { depth: 0.22, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.24, bevelSegments: 2, curveSegments: 1 });
+    slabGeo.rotateX(-Math.PI / 2);
+    const slab = new Mesh(slabGeo, slabMat);
+    slab.position.y = -0.27;
+    field.add(slab);
+
+    const soilGeo = new ExtrudeGeometry(shape, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.03, bevelSegments: 2, curveSegments: 1 });
+    soilGeo.rotateX(-Math.PI / 2);
+    polySoilMat = new MeshStandardMaterial({ color: "#5a4632", roughness: 0.9 });
+    const soilBed = new Mesh(soilGeo, polySoilMat);
+    soilBed.position.y = -0.04;
+    field.add(soilBed);
+
+    const crackGeo = new ShapeGeometry(shape);
+    const uv = crackGeo.getAttribute("uv");
+    const posAttr = crackGeo.getAttribute("position");
+    const spanX = polyData.maxX - polyData.minX || 1;
+    const spanZ = polyData.maxZ - polyData.minZ || 1;
+    for (let i = 0; i < uv.count; i++) {
+      uv.setXY(i, (posAttr.getX(i) - polyData.minX) / spanX, (posAttr.getY(i) + polyData.maxZ) / spanZ);
+    }
+    uv.needsUpdate = true;
+    crackGeo.rotateX(-Math.PI / 2);
     const crack = new Mesh(crackGeo, crackMat);
-    crack.rotation.x = -Math.PI / 2;
-    crack.position.set(plotX(i), 0.084, 0);
+    crack.position.y = 0.084;
     crack.renderOrder = 1;
-    bed.add(crack);
-    // furrows
+    field.add(crack);
+    disposables.push(slabGeo, soilGeo, polySoilMat, crackGeo);
+
+    // Clipped furrows strictly inside the drawn polygon
     for (let r = 0; r < ROWS; r++) {
-      const fg = new BoxGeometry(PLOT_W * 0.9, 0.03, 0.06);
-      const fm = new Mesh(fg, slabMat);
-      fm.position.set(plotX(i), 0.09, -PLOT_D / 2 + (r + 0.5) * (PLOT_D / ROWS));
-      bed.add(fm);
-      disposables.push(fg);
+      const z = polyData.minZ + ((r + 0.5) / ROWS) * (polyData.maxZ - polyData.minZ);
+      const hits: number[] = [];
+      for (let i = 0; i < polyData.poly.length; i++) {
+        const a = polyData.poly[i];
+        const b = polyData.poly[(i + 1) % polyData.poly.length];
+        if ((a.z > z) !== (b.z > z)) hits.push(a.x + ((z - a.z) * (b.x - a.x)) / (b.z - a.z));
+      }
+      hits.sort((a, b) => a - b);
+      for (let k = 0; k + 1 < hits.length; k += 2) {
+        const x0 = hits[k] + 0.1;
+        const x1 = hits[k + 1] - 0.1;
+        if (x1 - x0 < 0.24) continue;
+        const fg = new BoxGeometry(x1 - x0, 0.03, 0.06);
+        const fm = new Mesh(fg, slabMat);
+        fm.position.set((x0 + x1) / 2, 0.09, z);
+        field.add(fm);
+        disposables.push(fg);
+      }
+    }
+  } else {
+    const slabGeo = new BoxGeometry(totalW + 0.8, 0.3, PLOT_D + 0.8);
+    const slab = new Mesh(slabGeo, slabMat);
+    slab.position.y = -0.16;
+    field.add(slab);
+    const plotGeo = new BoxGeometry(PLOT_W, 0.12, PLOT_D);
+    const crackGeo = new PlaneGeometry(PLOT_W * 0.98, PLOT_D * 0.98);
+    disposables.push(slabGeo, plotGeo, crackGeo);
+    for (let i = 0; i < 6; i++) {
+      const bed = new Group();
+      field.add(bed);
+      beds.push(bed);
+      const mat = new MeshStandardMaterial({ color: "#5a4632", roughness: 0.9 });
+      const plot = new Mesh(plotGeo, mat);
+      plot.position.set(plotX(i), 0.02, 0);
+      bed.add(plot);
+      plotMats.push(mat);
+      disposables.push(mat);
+      const crack = new Mesh(crackGeo, crackMat);
+      crack.rotation.x = -Math.PI / 2;
+      crack.position.set(plotX(i), 0.084, 0);
+      crack.renderOrder = 1;
+      bed.add(crack);
+      // furrows
+      for (let r = 0; r < ROWS; r++) {
+        const fg = new BoxGeometry(PLOT_W * 0.9, 0.03, 0.06);
+        const fm = new Mesh(fg, slabMat);
+        fm.position.set(plotX(i), 0.09, -PLOT_D / 2 + (r + 0.5) * (PLOT_D / ROWS));
+        bed.add(fm);
+        disposables.push(fg);
+      }
     }
   }
 
   // Instanced plants, one mesh per family
   const plantMat = new MeshStandardMaterial({ vertexColors: true, roughness: 0.7, side: DoubleSide });
   disposables.push(plantMat);
-  const perPlot = COLS * ROWS;
-  const total = perPlot * 6;
   const models: Record<Family, InstancedMesh> = {
     Poaceae: new InstancedMesh(grassModel(), plantMat, total),
     Fabaceae: new InstancedMesh(beanModel(), plantMat, total),
@@ -266,21 +440,25 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
     field.add(m);
     disposables.push(m.geometry, m);
   });
-  const slots = Array.from({ length: total }, (_, i) => {
-    const plot = Math.floor(i / perPlot);
-    const j = i % perPlot;
-    const c = j % COLS;
-    const r = Math.floor(j / COLS);
-    const jitter = (((i * 37) % 13) / 13 - 0.5) * 0.12;
-    return {
-      plot,
-      x: plotX(plot) - PLOT_W / 2 + (c + 0.5) * (PLOT_W / COLS) + jitter,
-      z: -PLOT_D / 2 + (r + 0.5) * (PLOT_D / ROWS),
-      rot: ((i * 53) % 360) * (Math.PI / 180),
-      delay: (r * COLS + c) * 0.009,
-      size: 0.85 + ((i * 29) % 10) / 40,
-    };
-  });
+  const slots: PlantSlot[] = polyData
+    ? polyData.slots
+    : Array.from({ length: total }, (_, i) => {
+        const plot = Math.floor(i / perPlot);
+        const j = i % perPlot;
+        const c = j % COLS;
+        const r = Math.floor(j / COLS);
+        const jitter = (((i * 37) % 13) / 13 - 0.5) * 0.12;
+        return {
+          plot,
+          x: plotX(plot) - PLOT_W / 2 + (c + 0.5) * (PLOT_W / COLS) + jitter,
+          z: -PLOT_D / 2 + (r + 0.5) * (PLOT_D / ROWS),
+          rot: ((i * 53) % 360) * (Math.PI / 180),
+          delay: (r * COLS + c) * 0.009,
+          size: 0.85 + ((i * 29) % 10) / 40,
+        };
+      });
+  const plotCenter = (i: number) =>
+    polyData ? polyData.plotCenters[i] : { x: plotX(i), z: 0, maxZ: PLOT_D / 2 };
 
   // The suit: a glowing sakura orb with a scan beam and its own light
   const drone = new Group();
@@ -299,7 +477,8 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
   const droneLight = new PointLight("#ffd0dc", 10, 5, 1.5);
   droneLight.position.y = -0.4;
   drone.add(droneLight);
-  drone.position.set(plotX(0), 2.6, 0);
+  const p0 = plotCenter(0);
+  drone.position.set(p0.x, 2.6, p0.z);
   scene.add(drone);
   disposables.push(orbGeo, orbMat, ringGeo, ringMat, beamGeo, beamMat);
 
@@ -460,7 +639,9 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
       seasonCb(season);
     }
     const active = focus >= 0 && season >= 6 ? focus : Math.min(5, Math.max(0, season));
-    drone.position.x += (plotX(active) - drone.position.x) * 0.25;
+    const activePos = plotCenter(active);
+    drone.position.x += (activePos.x - drone.position.x) * 0.25;
+    drone.position.z += (activePos.z - drone.position.z) * 0.25;
     drone.position.y = 2.6 + Math.sin(t * 2.2) * 0.12;
     ring.rotation.y = t * 1.5;
     const droneOn = season >= 0 && season < 6 ? 1 : 0;
@@ -495,17 +676,32 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
       const on = focus < 0 || focus === p;
       lift[p] += ((focus === p ? 0.32 : 0) - lift[p]) * 0.25;
       bright[p] += ((on ? 1 : 0.32) - bright[p]) * 0.25;
-      beds[p].position.y = lift[p];
-      const spec = plots[p];
-      const planted = pt >= 0 && (quickStart >= 0 || pt >= p * STEP);
-      const target = (spec && planted ? new Color(FAMILY_TINT[spec.family]) : soilNow.clone()).lerp(soilNow, 0.55).multiplyScalar(bright[p]);
-      plotMats[p].color.lerp(target, 0.3);
+      if (!polyData) {
+        beds[p].position.y = lift[p];
+        const spec = plots[p];
+        const planted = pt >= 0 && (quickStart >= 0 || pt >= p * STEP);
+        const target = (spec && planted ? new Color(FAMILY_TINT[spec.family]) : soilNow.clone()).lerp(soilNow, 0.55).multiplyScalar(bright[p]);
+        plotMats[p].color.lerp(target, 0.3);
+      }
+    }
+    if (polySoilMat) {
+      const activeSpec = focus >= 0 ? plots[focus] : plots[Math.min(5, Math.max(0, season))];
+      const planted = pt >= 0 && (focus < 0 || quickStart >= 0 || pt >= focus * STEP);
+      const target = (activeSpec && planted ? new Color(FAMILY_TINT[activeSpec.family]) : soilNow.clone()).lerp(soilNow, 0.65);
+      polySoilMat.color.lerp(target, 0.2);
     }
 
     (Object.keys(models) as Family[]).forEach((fam) => {
       const mesh = models[fam];
       for (let i = 0; i < total; i++) {
         const s = slots[i];
+        if (!s) {
+          dummy.position.set(0, -10, 0);
+          dummy.scale.set(0.0001, 0.0001, 0.0001);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(i, dummy.matrix);
+          continue;
+        }
         const spec = plots[s.plot];
         let g = 0;
         if (spec && spec.family === fam && pt >= 0) {
@@ -545,7 +741,8 @@ export function createPlantScene(host: HTMLElement): PlantHandle {
       });
       labels = next.map((p, i) => {
         const s = labelSprite(p.label);
-        s.position.set(plotX(i), 0.36, PLOT_D / 2 + 0.62);
+        const c = plotCenter(i);
+        s.position.set(c.x, 0.36, polyData ? Math.min(c.maxZ + 0.52, polyData.maxZ + 0.62) : PLOT_D / 2 + 0.62);
         field.add(s);
         return s;
       });

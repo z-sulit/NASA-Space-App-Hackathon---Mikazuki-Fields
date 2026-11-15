@@ -869,6 +869,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               onSeason={onSeason}
               drought={scenario === "elnino"}
               focus={season >= 6 ? focusSeason : null}
+              polygon={boundary.length >= 3 ? boundary : undefined}
             />
             <div className="pointer-events-none absolute top-20 left-4 z-10 sm:left-8">
               <h2 className="font-display text-[clamp(24px,3.2vw,40px)] leading-tight font-normal tracking-[-0.02em]">
