@@ -1,6 +1,6 @@
 /**
  * Step 05 in WebGL: six soil plots, one per season, planted one after another by the hovering suit.
- * One instanced mesh per crop family keeps ~200 plants cheap.
+ * One instanced mesh per crop (models in ./cropModels) keeps ~200 plants cheap.
  */
 import {
   ACESFilmicToneMapping,
@@ -13,11 +13,9 @@ import {
   BufferAttribute,
   DirectionalLight,
   ExtrudeGeometry,
-  Float32BufferAttribute,
   Group,
   HemisphereLight,
   InstancedMesh,
-  Matrix4,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
@@ -39,12 +37,14 @@ import {
   AdditiveBlending,
   DoubleSide,
 } from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import type { Family } from "../types";
+import type { CropId, Family } from "../types";
+import { cropModel } from "./cropModels";
+import { CROPS } from "../data/crops";
 import { fitPolygonToField, pointInPolygon, type Point, type XYPoint } from "../utils/geo";
 import { nextPlotCropAppearance } from "../utils/plantFocus";
 
 export interface PlotSpec {
+  crop: CropId;
   family: Family;
   label: string;
   wilt: boolean;
@@ -74,57 +74,6 @@ const ROWS = 8;
 const STEP = 0.3; // seconds between seasons
 const GROW = 0.35; // seconds for one plant to grow in
 const FAMILY_TINT: Record<Family, string> = { Poaceae: "#a87c0e", Fabaceae: "#4d8b3a", Convolvulaceae: "#8e5ba8" };
-
-/** Paint a geometry one solid color (vertex colors), so parts can be merged into one plant. */
-function paint(g: BufferGeometry, hex: string) {
-  const c = new Color(hex);
-  const n = g.getAttribute("position").count;
-  const arr = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) arr.set([c.r, c.g, c.b], i * 3);
-  g.setAttribute("color", new Float32BufferAttribute(arr, 3));
-  g.deleteAttribute("uv");
-  return g;
-}
-const at = (g: BufferGeometry, m: Matrix4) => g.applyMatrix4(m);
-const T = (x: number, y: number, z: number) => new Matrix4().makeTranslation(x, y, z);
-
-function grassModel() {
-  const parts: BufferGeometry[] = [];
-  parts.push(paint(at(new CylinderGeometry(0.025, 0.035, 0.9, 6), T(0, 0.45, 0)), "#5d8a2c"));
-  for (let k = 0; k < 4; k++) {
-    const leaf = new PlaneGeometry(0.08, 0.5, 1, 3);
-    const pos = leaf.getAttribute("position");
-    for (let i = 0; i < pos.count; i++) pos.setZ(i, (pos.getY(i) + 0.25) ** 2 * 0.6); // arch the leaf
-    leaf.computeVertexNormals();
-    const m = new Matrix4().makeRotationY((k * Math.PI) / 2 + 0.4).multiply(new Matrix4().makeRotationX(-0.9)).premultiply(T(0, 0.25 + k * 0.13, 0));
-    parts.push(paint(at(leaf, m), k % 2 ? "#6f9a35" : "#4f7d27"));
-  }
-  parts.push(paint(at(new SphereGeometry(0.07, 8, 6).scale(1, 2.4, 1), T(0, 0.98, 0)), "#e3b341"));
-  return mergeGeometries(parts)!;
-}
-function beanModel() {
-  const parts: BufferGeometry[] = [paint(at(new CylinderGeometry(0.02, 0.03, 0.3, 5), T(0, 0.15, 0)), "#4a6f22")];
-  const blobs = [
-    [0, 0.42, 0, 0.2],
-    [0.16, 0.32, 0.06, 0.15],
-    [-0.15, 0.33, -0.05, 0.15],
-    [0.05, 0.3, -0.16, 0.14],
-    [-0.04, 0.3, 0.16, 0.14],
-  ];
-  blobs.forEach(([x, y, z, r], i) => parts.push(paint(at(new SphereGeometry(r, 9, 7), T(x, y, z)), i % 2 ? "#5da344" : "#4d8b3a")));
-  parts.push(paint(at(new SphereGeometry(0.035, 6, 4).scale(1, 2.2, 1), T(0.2, 0.22, 0.12)), "#b7d36a"));
-  return mergeGeometries(parts)!;
-}
-function vineModel() {
-  const parts: BufferGeometry[] = [];
-  for (let k = 0; k < 6; k++) {
-    const a = (k / 6) * Math.PI * 2;
-    const r = 0.18 + (k % 2) * 0.07;
-    parts.push(paint(at(new SphereGeometry(0.12, 8, 6).scale(1.2, 0.35, 1), T(Math.cos(a) * r, 0.08 + (k % 2) * 0.05, Math.sin(a) * r)), k % 2 ? "#7a9c3a" : "#6a5a8e"));
-  }
-  parts.push(paint(at(new SphereGeometry(0.11, 8, 6).scale(1, 0.6, 1), T(0, 0.2, 0)), "#8e5ba8"));
-  return mergeGeometries(parts)!;
-}
 
 /** Bed label. "S1 · Jun–Nov '27\nPeanut" draws as two lines: the season and dates, then the crop. */
 function labelSprite(text: string) {
@@ -428,13 +377,13 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
     }
   }
 
-  // Instanced plants: shared family geometries, per-plot material & mesh so focus fading isolates each plot cleanly.
-  const geos: Record<Family, BufferGeometry> = {
-    Poaceae: grassModel(),
-    Fabaceae: beanModel(),
-    Convolvulaceae: vineModel(),
-  };
-  disposables.push(geos.Poaceae, geos.Fabaceae, geos.Convolvulaceae);
+  // Instanced plants: 8 distinct crop geometries from ./cropModels with per-plot materials & meshes for independent focus fading.
+  const geos = {} as Record<CropId, BufferGeometry>;
+  for (const { id } of CROPS) {
+    const g = cropModel(id);
+    geos[id] = g;
+    disposables.push(g);
+  }
   const slots: PlantSlot[] = polyData
     ? polyData.slots
     : Array.from({ length: total }, (_, i) => {
@@ -459,7 +408,7 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
   for (let p = 0; p < 6; p++) {
     const mat = new MeshStandardMaterial({ vertexColors: true, roughness: 0.7, side: DoubleSide });
     const count = plotSlots[p].length;
-    const mesh = new InstancedMesh(geos.Poaceae, mat, Math.max(1, count));
+    const mesh = new InstancedMesh(geos.corn, mat, Math.max(1, count));
     mesh.count = count;
     mesh.visible = false;
     mesh.frustumCulled = false;
@@ -755,7 +704,7 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
         const spec = next[p];
         const mesh = cropMeshes[p];
         if (spec && plotSlots[p].length > 0) {
-          mesh.geometry = geos[spec.family];
+          mesh.geometry = geos[spec.crop];
           mesh.visible = true;
         } else {
           mesh.visible = false;
