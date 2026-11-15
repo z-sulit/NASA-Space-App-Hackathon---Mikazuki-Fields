@@ -1,15 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import type { PlantHandle, PlotSpec } from "../../three/plantScene";
+import type { LatLon } from "./TargetMap";
 
 /** React wrapper for the WebGL plantation. Shows a simple message if WebGL is missing. */
-export function PlantField({ plots, plantKey, onSeason, drought = false, focus = null }: { plots: PlotSpec[]; plantKey: string; onSeason: (i: number) => void; drought?: boolean; focus?: number | null }) {
+export function PlantField({
+  plots,
+  plantKey,
+  onSeason,
+  drought = false,
+  focus = null,
+  polygon,
+}: {
+  plots: PlotSpec[];
+  plantKey: string;
+  onSeason: (i: number) => void;
+  drought?: boolean;
+  focus?: number | null;
+  polygon?: LatLon[];
+}) {
   const host = useRef<HTMLDivElement>(null);
   const handle = useRef<PlantHandle | null>(null);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
-  const latest = useRef({ plots, onSeason, drought, focus });
-  latest.current = { plots, onSeason, drought, focus };
+  const latest = useRef({ plots, onSeason, drought, focus, polygon });
+  latest.current = { plots, onSeason, drought, focus, polygon };
 
   useEffect(() => {
     let dead = false;
@@ -17,7 +32,7 @@ export function PlantField({ plots, plantKey, onSeason, drought = false, focus =
       .then(({ createPlantScene }) => {
         if (dead || !host.current) return;
         try {
-          handle.current = createPlantScene(host.current);
+          handle.current = createPlantScene(host.current, latest.current.polygon);
           handle.current.plant(latest.current.plots, (i) => latest.current.onSeason(i));
           handle.current.setDrought(latest.current.drought);
           handle.current.setFocus(latest.current.focus);
