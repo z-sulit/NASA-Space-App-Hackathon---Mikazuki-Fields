@@ -527,7 +527,7 @@
       position: absolute;
       left: 12px;
       right: 12px;
-      bottom: 56px;
+      bottom: 98px;
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -544,7 +544,7 @@
       padding: 8px 12px 10px;
       transform: none;
       animation: fade-up 0.25s var(--mf-ease) 0.05s both;
-      max-height: 34svh;
+      max-height: 29svh;
     }
     .hud-panel-right dl {
       display: none;
@@ -831,7 +831,7 @@
 .hud-map .leaflet-tile-pane {
   filter: grayscale(1) sepia(0.55) hue-rotate(35deg) saturate(1.5) brightness(0.62) contrast(1.15);
 }
-.hud-map.is-satellite .leaflet-tile-pane {
+.is-satellite .hud-map .leaflet-tile-pane {
   filter: none;
 }
 .hud-map .leaflet-control-attribution {
@@ -1458,7 +1458,20 @@
   justify-content: center;
   gap: 6px;
 }
-/* Map / Satellite + NASA GIBS overlay pills & legend (#57, #65) */
+/* Map / Satellite + NASA GIBS overlay pills & legend (#57, #65, #72) */
+.map-dock {
+  position: absolute;
+  z-index: 26;
+  left: 50%;
+  bottom: 58px;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100vw - 24px);
+  pointer-events: none;
+}
 .map-layers {
   display: flex;
   flex-wrap: wrap;
@@ -1779,9 +1792,9 @@
   }
 }
 @media (max-width: 639px) {
-  /* Phones: tighter cockpit title so the map keeps the middle of the screen. */
+  /* Phones: tighter cockpit title below top bar so the map keeps the middle of the screen. */
   .hud-title {
-    top: calc(2.5% + 64px);
+    top: calc(2.5% + 86px);
     padding: 8px 12px 10px;
   }
   .heading-tape {
