@@ -11,7 +11,7 @@ import { ringAreaHa, ringCentroid } from "../../utils/geo";
 import { CROP } from "../../data/crops";
 import { Emblem } from "../Emblem";
 import { CountUp, formatPhpUsd, formatPhpUsdInText, prefersReducedMotion, Switch, useScramble } from "../ui";
-import { TargetMap, type LatLon, type TargetMapHandle } from "./TargetMap";
+import { TargetMap, type GibsOverlay, type LatLon, type TargetMapHandle } from "./TargetMap";
 import { HaInput, PickPlants, SeasonFlags, Seg, type Choice } from "./PickPlants";
 import { PlantField } from "./PlantField";
 import { ElNinoReport } from "./ElNinoReport";
@@ -20,7 +20,8 @@ import { SeasonTimeline } from "./SeasonTimeline";
 import { PlaceSearch } from "./PlaceSearch";
 import { firstVisitStep, stepOnScreen, Tour, type TourTarget } from "./Tour";
 import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
-import type { Place } from "../../api/geocode";
+import { reverseGeocode, type Place } from "../../api/geocode";
+import { inTargetName, lockTargetName, shortTargetName } from "../../utils/locationName";
 import { planSpan, planStartYear, seasonWindows } from "../../data/calendar";
 import type { FieldHandle } from "../../three/tileField";
 
@@ -303,10 +304,17 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const [tryAgain, setTryAgain] = useState<{ text: string; key: number } | null>(null);
   const [rejected, setRejected] = useState<(LatLon & { key: number }) | null>(null);
   const tapSeq = useRef(0);
+  const revGeoAbort = useRef<AbortController | null>(null);
+  // Map base layer (#57) & NASA GIBS overlay (#65): auto-switches to Satellite at field zoom unless toggled.
+  const [baseChoice, setBaseChoice] = useState<"map" | "satellite" | null>(null);
+  const [gibsOverlay, setGibsOverlay] = useState<GibsOverlay>("none");
+  const [gibsOffline, setGibsOffline] = useState(false);
   // Farm outline (#31): its corners, and whether taps add corners or drop a pin.
   const [drawing, setDrawing] = useState(false);
   const [boundary, setBoundary] = useState<LatLon[]>([]);
   const [weather, setWeather] = useState<Weather | null | undefined>(undefined);
+
+  useEffect(() => () => revGeoAbort.current?.abort(), []);
   // Walkthrough (#30): the step it is on, or null when closed.
   const [tour, setTour] = useState(firstVisitStep);
   const [req, setReq] = useState<PlanRequest>(last?.req ?? DEFAULT_REQ);
@@ -427,15 +435,14 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const dry = climate(focus, "dry", scenario);
   const lat = `${Math.abs(focus.lat).toFixed(2)}° ${focus.lat >= 0 ? "N" : "S"}`;
   const lon = `${Math.abs(focus.lon).toFixed(2)}° ${focus.lon >= 0 ? "E" : "W"}`;
-  const shortName = (p: Preset) => (p.id.startsWith("pin-") ? "Your farm" : p.name.split(" (")[0]);
   /** Where a terrain value comes from: measured, anchored to the nearest reference site, or a sample. */
   const sampleTag = (p: Preset, key: string, measured: string) =>
     !p.placeholders.includes(key) ? measured : p.id.startsWith("pin-") ? "nearest ref" : "sample";
-  /** Mid-sentence form: "in your farm", "in Bukidnon". */
-  const inName = (p: Preset) => (p.id.startsWith("pin-") ? "your farm" : shortName(p));
 
   const pickPreset = (id: string) => {
     const next = presets.find((p) => p.id === id)!;
+    ++tapSeq.current;
+    revGeoAbort.current?.abort();
     resetBoundary();
     setHasPickedLocation(true);
     setPin(null);
@@ -452,6 +459,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const pickPoint = async (tap: LatLon, place?: string) => {
     let p = tap;
     const seq = ++tapSeq.current;
+    revGeoAbort.current?.abort();
     // A new tap supersedes any check or fetch still running for an older one.
     setMapNote(null);
     setTryAgain(null);
@@ -476,6 +484,16 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     const currentZoom = mapRef.current?.getZoom() ?? mapZoom;
     if (drawing && currentZoom < 12) void mapRef.current?.glideTo(p.lat, p.lon, 16);
     setPin(p);
+    let resolvedName: string | null = place ?? null;
+    if (!place) {
+      const ac = new AbortController();
+      revGeoAbort.current = ac;
+      void reverseGeocode(p.lat, p.lon, ac.signal).then((name) => {
+        if (!name || seq !== tapSeq.current) return;
+        resolvedName = name;
+        setTarget((cur) => (cur.id.startsWith("pin-") && cur.lat === p.lat && cur.lon === p.lon ? { ...cur, name } : cur));
+      });
+    }
     setAcquiring(true);
     const { preset, live, via } = await fetchPinFarm(p.lat, p.lon, presets);
     if (seq !== tapSeq.current) return;
@@ -485,7 +503,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     else if (ground.snapped) setMapNote(`Moved your pin ${Math.round(ground.snapped.meters)} m onto the nearest land.`);
     else if (ground.kind === "unknown") setMapNote("Couldn't check the ground here (map offline); treating it as land.");
     else if (place) setMapNote(`Targeting ${place}. Lock it to plan this farm.`);
-    setTarget(preset);
+    setTarget(resolvedName ? { ...preset, name: resolvedName } : preset);
     // One Enter away from planning (after the re-render that enables the button).
     if (place) requestAnimationFrame(() => lockBtn.current?.focus());
   };
@@ -553,7 +571,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     resetBoundary(); // a new place is a new farm
     setHasPickedLocation(true);
     await mapRef.current?.glideTo(pl.lat, pl.lon, drawing ? 16 : undefined);
-    await pickPoint({ lat: pl.lat, lon: pl.lon }, pl.name);
+    await pickPoint({ lat: pl.lat, lon: pl.lon }, pl.context ? `${pl.name}, ${pl.context}` : pl.name);
   };
 
   const navSeq = useRef(0);
@@ -580,6 +598,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     if (stage === "intro" || stage === "leaving") return;
     const fromDeep = stage === "plants" || stage === "planting" || stage === "flying";
     setDrawing(false);
+    setBaseChoice(null);
     resetBoundary();
     setHasPickedLocation(false);
     setTryAgain(null);
@@ -726,6 +745,9 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     return false;
   };
 
+  const autoSatellite = mapZoom >= 13 || (drawing && mapZoom >= 12);
+  const satellite = baseChoice ? baseChoice === "satellite" : autoSatellite;
+
   return (
     <section
       aria-label="Mikazuki Fields"
@@ -743,6 +765,8 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             pin={pin}
             rejected={stage === "target" ? rejected : null}
             locked={stage !== "target" && stage !== "leaving"}
+            satellite={satellite}
+            gibsOverlay={gibsOverlay}
             onHover={setHoverId}
             onPickPreset={pickPreset}
             onPickPoint={(p) => void pickPoint(p)}
@@ -750,6 +774,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             drawing={drawing && stage === "target"}
             onBoundary={drawBoundary}
             onZoom={setMapZoom}
+            onOverlayError={setGibsOffline}
             onTilesReady={() => setMapReady(true)}
           />
           <div className={`mission-dim ${stage === "plants" || stage === "planting" ? "is-on" : ""}`} aria-hidden />
@@ -867,6 +892,52 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                       </button>
                     </div>
                   )}
+                  <div className="map-layers">
+                    <div className="layer-group" role="group" aria-label="Base map">
+                      <button type="button" aria-pressed={!satellite} onClick={() => setBaseChoice("map")} className={`layer-pill ${satellite ? "" : "is-on"}`}>
+                        Map
+                      </button>
+                      <button type="button" aria-pressed={satellite} onClick={() => setBaseChoice("satellite")} className={`layer-pill ${satellite ? "is-on" : ""}`}>
+                        Satellite
+                      </button>
+                    </div>
+                    <div className="layer-group" role="group" aria-label="NASA GIBS overlay">
+                      {([
+                        ["none", "None"],
+                        ["ndvi", "NDVI"],
+                        ["rain", "Rain"],
+                      ] as const).map(([id, label]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          aria-pressed={gibsOverlay === id}
+                          onClick={() => setGibsOverlay(id)}
+                          className={`layer-pill ${gibsOverlay === id ? "is-on" : ""}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {gibsOverlay !== "none" && (
+                    <p className="layer-legend" aria-live="polite">
+                      {gibsOffline ? (
+                        "NASA GIBS imagery unavailable offline"
+                      ) : gibsOverlay === "ndvi" ? (
+                        <>
+                          <span>Dry</span>
+                          <span className="layer-swatch is-ndvi" aria-hidden />
+                          <span>Lush · MODIS 8-Day NDVI</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Light</span>
+                          <span className="layer-swatch is-rain" aria-hidden />
+                          <span>Heavy · NASA IMERG Rain</span>
+                        </>
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -894,7 +965,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                 <MapPin className="size-3.5" aria-hidden /> Target
                 {acquiring && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
               </p>
-              <p className="truncate font-display text-xl leading-6">{shortName(focus)}</p>
+              <p className="truncate font-display text-xl leading-6" title={shortTargetName(focus)}>{shortTargetName(focus)}</p>
             </PanelBar>
             {!leftPanel.collapsed && (
             <div className="panel-body">
@@ -970,7 +1041,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               className={`btn btn-primary btn-lg w-full ${rightPanel.collapsed ? "" : "mt-4"}`}
             >
               {stage === "locking" ? <Lock className="size-4" aria-hidden /> : <Crosshair className="size-4" aria-hidden />}
-              {stage === "locking" ? "Locked" : `Lock ${shortName(target)}`}
+              {stage === "locking" ? "Locked" : `Lock ${lockTargetName(target)}`}
             </button>
             </div>
             <ResizeGrip panel={rightPanel} label="conditions" />
@@ -983,7 +1054,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       {(stage === "flying" || stage === "rising") && (
         <div className="hud-title">
           <h2 className="font-display text-[clamp(22px,2.6vw,32px)] leading-tight font-normal tracking-[-0.02em]">
-            {stage === "flying" ? `Descending to ${inName(target)}` : "Back to the map"}
+            {stage === "flying" ? `Descending to ${inTargetName(target)}` : "Back to the map"}
           </h2>
           <p className="mt-1 text-sm text-ink/80 tabular" aria-live="polite">
             {stage === "flying" ? `${lat} / ${lon} · working out your routes` : "Climbing back up"}
@@ -994,7 +1065,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       {/* Step 04 */}
       {stage === "plants" && scaledResult && (
         <PickPlants
-          farmName={inName(target)}
+          farmName={inTargetName(target)}
           plans={scaledResult[scenario]}
           custom={custom[scenario]}
           choice={choice}
@@ -1026,7 +1097,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             />
             <div className="pointer-events-none absolute top-20 left-4 z-10 sm:left-8">
               <h2 className="font-display text-[clamp(24px,3.2vw,40px)] leading-tight font-normal tracking-[-0.02em]">
-                {chosen.now.custom ? "Your rotation" : `Route ${chosen.now.id}`} in {inName(target)}
+                {chosen.now.custom ? "Your rotation" : `Route ${chosen.now.id}`} in {inTargetName(target)}
               </h2>
               <p className="micro mt-2 min-h-4 text-ink/80 tabular" aria-live="polite">
                 {current
@@ -1256,11 +1327,17 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
 
       {stage !== "intro" && (
         <p className="map-credit">
-          ©{" "}
-          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
-            OpenStreetMap
-          </a>{" "}
-          · NASA POWER
+          {satellite ? (
+            "Tiles © Esri"
+          ) : (
+            <>
+              ©{" "}
+              <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+                OpenStreetMap
+              </a>
+            </>
+          )}{" "}
+          · NASA POWER{gibsOverlay !== "none" ? " · NASA GIBS" : ""}
         </p>
       )}
     </section>
