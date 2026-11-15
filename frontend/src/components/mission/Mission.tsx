@@ -22,6 +22,7 @@ import { deleteSavedFarm, loadSavedFarms, renameSavedFarm, saveFarmPlot, type Sa
 import { telemetryStatus, type TelemetryBadge } from "../../utils/telemetryStatus";
 import { planSpan, planStartYear, seasonWindows } from "../../data/calendar";
 import type { FieldHandle } from "../../three/tileField";
+import { DataFeedsPanel } from "./DataFeedsPanel";
 
 const PickPlants = lazy(() => import("./PickPlants").then((m) => ({ default: m.PickPlants })));
 const PlantField = lazy(() => import("./PlantField").then((m) => ({ default: m.PlantField })));
@@ -895,7 +896,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       <div className="hud-frame" aria-hidden />
 
       {/* Top bar */}
-      <div className="pointer-events-none relative z-40 mx-auto flex max-w-[1400px] items-center justify-between gap-2 px-4 pt-3 sm:pt-4">
+      <div className="pointer-events-none relative z-40 mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-2 px-4 pt-3 sm:pt-4">
         <button
           type="button"
           onClick={() => void returnHome()}
@@ -909,6 +910,72 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
           <Emblem size={30} />
           <span className="micro whitespace-nowrap">Mikazuki Fields</span>
         </button>
+        {stage === "target" && (
+          <div className="saved-farms order-3 w-full sm:order-none sm:w-auto sm:flex-1" role="region" aria-label="My saved farms">
+            {savedFarms.map((farm) => {
+              const on = activeFarmId === farm.id;
+              if (editingFarmId === farm.id) {
+                return (
+                  <span key={farm.id} className={`farm-pill ${on ? "is-on" : ""}`}>
+                    <input
+                      type="text"
+                      value={editLabel}
+                      onChange={(e) => setEditLabel(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitRenameFarm();
+                        else if (e.key === "Escape") setEditingFarmId(null);
+                      }}
+                      onBlur={commitRenameFarm}
+                      aria-label="Rename farm"
+                      maxLength={32}
+                      autoFocus
+                      className="farm-pill-input"
+                    />
+                  </span>
+                );
+              }
+              return (
+                <span key={farm.id} className={`farm-pill ${on ? "is-on" : ""}`}>
+                  <button
+                    type="button"
+                    onClick={() => void loadSavedPlot(farm)}
+                    onDoubleClick={() => startRenameFarm(farm)}
+                    aria-pressed={on}
+                    title={`${farm.label} (${farm.req.landSizeHa} ha) · Click to load, double-click to rename`}
+                    className="farm-pill-name"
+                  >
+                    {farm.label}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startRenameFarm(farm);
+                    }}
+                    aria-label={`Rename ${farm.label}`}
+                    className="farm-pill-act"
+                  >
+                    <Pencil className="size-2.5" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeSavedPlot(farm.id);
+                    }}
+                    aria-label={`Delete ${farm.label}`}
+                    className="farm-pill-act"
+                  >
+                    <X className="size-3" aria-hidden />
+                  </button>
+                </span>
+              );
+            })}
+            <button type="button" onClick={saveCurrentFarm} className="farm-save-pill">
+              <BookmarkPlus className="size-3" aria-hidden /> Save farm
+            </button>
+          </div>
+        )}
         {stage !== "intro" && stage !== "leaving" && (
           <button
             type="button"
@@ -994,116 +1061,6 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                       </button>
                     </div>
                   )}
-                  <div className="map-layers">
-                    <div className="layer-group" role="group" aria-label="Base map">
-                      <button type="button" aria-pressed={!satellite} onClick={() => setBaseChoice("map")} className={`layer-pill ${satellite ? "" : "is-on"}`}>
-                        Map
-                      </button>
-                      <button type="button" aria-pressed={satellite} onClick={() => setBaseChoice("satellite")} className={`layer-pill ${satellite ? "is-on" : ""}`}>
-                        Satellite
-                      </button>
-                    </div>
-                    <div className="layer-group" role="group" aria-label="NASA GIBS overlay">
-                      {([
-                        ["none", "None"],
-                        ["ndvi", "NDVI"],
-                        ["rain", "Rain"],
-                      ] as const).map(([id, label]) => (
-                        <button
-                          key={id}
-                          type="button"
-                          aria-pressed={gibsOverlay === id}
-                          onClick={() => setGibsOverlay(id)}
-                          className={`layer-pill ${gibsOverlay === id ? "is-on" : ""}`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {gibsOverlay !== "none" && (
-                    <p className="layer-legend" aria-live="polite">
-                      {gibsOffline ? (
-                        "NASA GIBS imagery unavailable offline"
-                      ) : gibsOverlay === "ndvi" ? (
-                        <>
-                          <span>Dry</span>
-                          <span className="layer-swatch is-ndvi" aria-hidden />
-                          <span>Lush · MODIS 8-Day NDVI</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Light</span>
-                          <span className="layer-swatch is-rain" aria-hidden />
-                          <span>Heavy · NASA IMERG Rain</span>
-                        </>
-                      )}
-                    </p>
-                  )}
-                  <div className="saved-farms" role="region" aria-label="My saved farms">
-                    {savedFarms.map((farm) => {
-                      const on = activeFarmId === farm.id;
-                      if (editingFarmId === farm.id) {
-                        return (
-                          <span key={farm.id} className={`farm-pill ${on ? "is-on" : ""}`}>
-                            <input
-                              type="text"
-                              value={editLabel}
-                              onChange={(e) => setEditLabel(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") commitRenameFarm();
-                                else if (e.key === "Escape") setEditingFarmId(null);
-                              }}
-                              onBlur={commitRenameFarm}
-                              aria-label="Rename farm"
-                              maxLength={32}
-                              autoFocus
-                              className="farm-pill-input"
-                            />
-                          </span>
-                        );
-                      }
-                      return (
-                        <span key={farm.id} className={`farm-pill ${on ? "is-on" : ""}`}>
-                          <button
-                            type="button"
-                            onClick={() => void loadSavedPlot(farm)}
-                            onDoubleClick={() => startRenameFarm(farm)}
-                            aria-pressed={on}
-                            title={`${farm.label} (${farm.req.landSizeHa} ha) · Click to load, double-click to rename`}
-                            className="farm-pill-name"
-                          >
-                            {farm.label}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startRenameFarm(farm);
-                            }}
-                            aria-label={`Rename ${farm.label}`}
-                            className="farm-pill-act"
-                          >
-                            <Pencil className="size-2.5" aria-hidden />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeSavedPlot(farm.id);
-                            }}
-                            aria-label={`Delete ${farm.label}`}
-                            className="farm-pill-act"
-                          >
-                            <X className="size-3" aria-hidden />
-                          </button>
-                        </span>
-                      );
-                    })}
-                    <button type="button" onClick={saveCurrentFarm} className="farm-save-pill">
-                      <BookmarkPlus className="size-3" aria-hidden /> Save farm
-                    </button>
-                  </div>
                 </div>
               </div>
             )}
@@ -1213,6 +1170,57 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             <ResizeGrip panel={rightPanel} label="conditions" />
           </aside>
           </div>
+          {stage === "target" && (
+            <div className="map-dock">
+              {gibsOverlay !== "none" && (
+                <p className="layer-legend" aria-live="polite">
+                  {gibsOffline ? (
+                    "NASA GIBS imagery unavailable offline"
+                  ) : gibsOverlay === "ndvi" ? (
+                    <>
+                      <span>Dry</span>
+                      <span className="layer-swatch is-ndvi" aria-hidden />
+                      <span>Lush · MODIS 8-Day NDVI</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Light</span>
+                      <span className="layer-swatch is-rain" aria-hidden />
+                      <span>Heavy · NASA IMERG Rain</span>
+                    </>
+                  )}
+                </p>
+              )}
+              <div className="map-layers">
+                <div className="layer-group" role="group" aria-label="Base map">
+                  <button type="button" aria-pressed={!satellite} onClick={() => setBaseChoice("map")} className={`layer-pill ${satellite ? "" : "is-on"}`}>
+                    Map
+                  </button>
+                  <button type="button" aria-pressed={satellite} onClick={() => setBaseChoice("satellite")} className={`layer-pill ${satellite ? "is-on" : ""}`}>
+                    Satellite
+                  </button>
+                </div>
+                <div className="layer-group" role="group" aria-label="NASA GIBS overlay">
+                  {([
+                    ["none", "None"],
+                    ["ndvi", "NDVI"],
+                    ["rain", "Rain"],
+                  ] as const).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={gibsOverlay === id}
+                      onClick={() => setGibsOverlay(id)}
+                      className={`layer-pill ${gibsOverlay === id ? "is-on" : ""}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {stage === "target" && <DataFeedsPanel farmSource={farmSource} focus={focus} pinVia={pinVia} altitudeFrom={altitude?.from} weather={weather} gibsOffline={gibsOffline} />}
         </div>
       )}
 

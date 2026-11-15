@@ -38,15 +38,28 @@ export interface LatLon {
 
 export type GibsOverlay = "none" | "ndvi" | "rain";
 
-const GIBS_LAYERS: Record<Exclude<GibsOverlay, "none">, string> = {
-  ndvi: "MODIS_Terra_NDVI_8Day",
-  rain: "IMERG_Precipitation_Rate",
+const GIBS_LAYERS: Record<
+  Exclude<GibsOverlay, "none">,
+  { layer: string; time: string; matrixSet: string; maxNativeZoom: number }
+> = {
+  ndvi: {
+    layer: "MODIS_Terra_NDVI_8Day",
+    time: "default",
+    matrixSet: "GoogleMapsCompatible_Level9",
+    maxNativeZoom: 9,
+  },
+  rain: {
+    layer: "IMERG_Precipitation_Rate",
+    time: "default",
+    matrixSet: "GoogleMapsCompatible_Level6",
+    maxNativeZoom: 6,
+  },
 };
 
 const OSM_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const ESRI_SAT_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-const gibsUrl = (layer: string) =>
-  `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`;
+const gibsUrl = (cfg: (typeof GIBS_LAYERS)[keyof typeof GIBS_LAYERS]) =>
+  `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${cfg.layer}/default/${cfg.time}/${cfg.matrixSet}/{z}/{y}/{x}.png`;
 
 // On phones the HUD panels cover the lower half, so sit the islands higher.
 const phone = () => window.innerWidth < 640;
@@ -140,6 +153,8 @@ export function TargetMap({
     const decodeTile = (e: L.TileEvent) => void (e.tile as HTMLImageElement).decode?.().catch(() => {});
     const osm = L.tileLayer(OSM_URL, {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxNativeZoom: 19,
+      maxZoom: 19,
     })
       .on("tileload", decodeTile)
       .once("load", () => handlers.current.onTilesReady?.());
@@ -203,9 +218,11 @@ export function TargetMap({
     if (!m || !osm || !sat) return;
     if (satellite) {
       if (m.hasLayer(osm)) m.removeLayer(osm);
+      sat.setOpacity(1);
       if (!m.hasLayer(sat)) sat.addTo(m);
     } else {
       if (m.hasLayer(sat)) m.removeLayer(sat);
+      osm.setOpacity(1);
       if (!m.hasLayer(osm)) osm.addTo(m);
     }
   }, [satellite]);
@@ -216,22 +233,30 @@ export function TargetMap({
     if (!m) return;
     gibsLayer.current?.remove();
     gibsLayer.current = null;
-    handlers.current.onOverlayError?.(false);
+    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    handlers.current.onOverlayError?.(offline);
     if (gibsOverlay === "none") return;
 
+    const cfg = GIBS_LAYERS[gibsOverlay];
+    let loaded = false;
     let failed = 0;
-    const layer = L.tileLayer(gibsUrl(GIBS_LAYERS[gibsOverlay]), {
+    const layer = L.tileLayer(gibsUrl(cfg), {
       pane: "gibsOverlay",
       opacity: 0.45,
-      maxNativeZoom: 9,
+      maxNativeZoom: cfg.maxNativeZoom,
       maxZoom: 19,
     })
       .on("tileload", () => {
+        loaded = true;
         failed = 0;
         handlers.current.onOverlayError?.(false);
       })
       .on("tileerror", () => {
-        if (++failed >= 3) handlers.current.onOverlayError?.(true);
+        if (typeof navigator !== "undefined" && navigator.onLine === false) {
+          handlers.current.onOverlayError?.(true);
+        } else if (!loaded && ++failed >= 3) {
+          handlers.current.onOverlayError?.(true);
+        }
       })
       .addTo(m);
     gibsLayer.current = layer;
@@ -332,10 +357,10 @@ export function TargetMap({
   }));
 
   return (
-    <div className="absolute inset-0">
+    <div className={`absolute inset-0${satellite ? " is-satellite" : ""}`}>
       <div
         ref={el}
-        className={`hud-map absolute inset-0${satellite ? " is-satellite" : ""}`}
+        className="hud-map absolute inset-0"
         aria-label={drawing ? "Map of the Philippines: tap each corner of your farm" : "Map of the Philippines: tap anywhere to choose a farm"}
       />
       {pt && (
