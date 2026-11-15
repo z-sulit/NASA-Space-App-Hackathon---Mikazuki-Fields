@@ -1391,8 +1391,18 @@
 
 /* Walkthrough (#30): a ring around one part of the screen, and the card that explains it */
 .guide-btn {
-  background: rgb(20 26 6 / 0.78);
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  z-index: 40;
+  border: 1.5px solid rgba(249, 168, 212, 0.55);
+  background: rgba(24, 34, 18, 0.92);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(8px);
+}
+.guide-btn:hover {
+  border-color: #f9a8d4;
+  background: rgb(251 207 232 / 0.15);
 }
 .tour-spot {
   position: fixed;
