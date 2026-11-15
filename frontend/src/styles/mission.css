@@ -827,13 +827,6 @@
 .leaflet-dragging .hud-map.leaflet-container {
   cursor: grabbing;
 }
-/* Olive "night-vision" tint on OSM map tiles; skipped in true-color Satellite mode (#57). */
-.hud-map .leaflet-tile-pane {
-  filter: grayscale(1) sepia(0.55) hue-rotate(35deg) saturate(1.5) brightness(0.62) contrast(1.15);
-}
-.is-satellite .hud-map .leaflet-tile-pane {
-  filter: none;
-}
 .hud-map .leaflet-control-attribution {
   background: rgb(29 36 10 / 0.7);
   color: rgb(246 239 235 / 0.7);
@@ -1599,27 +1592,8 @@
   font: inherit;
   outline: none;
 }
-.farm-save-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 26px;
-  padding: 0 9px;
-  border-radius: 999px;
-  border: 1px dashed rgb(246 239 235 / 0.32);
-  background: rgb(20 26 6 / 0.72);
-  font: 600 11px/1 var(--mf-font-display);
-  color: rgb(246 239 235 / 0.86);
-  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
-}
-.farm-save-pill:hover {
-  border-color: var(--sakura);
-  color: var(--ink);
-  background: rgb(20 26 6 / 0.9);
-}
 .farm-pill-name:focus-visible,
-.farm-pill-act:focus-visible,
-.farm-save-pill:focus-visible {
+.farm-pill-act:focus-visible {
   outline: 2px solid #f6efeb;
   outline-offset: 1px;
 }

@@ -18,7 +18,7 @@ import { firstVisitStep, stepOnScreen, Tour, type TourTarget } from "./Tour";
 import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
 import { reverseGeocode, type Place } from "../../api/geocode";
 import { inTargetName, lockTargetName, shortTargetName } from "../../utils/locationName";
-import { deleteSavedFarm, loadSavedFarms, renameSavedFarm, saveFarmPlot, type SavedFarm } from "../../utils/savedFarms";
+import { deleteSavedFarm, loadSavedFarms, renameSavedFarm, saveFarmPlot, updateSavedFarm, type SavedFarm } from "../../utils/savedFarms";
 import { telemetryStatus, type TelemetryBadge } from "../../utils/telemetryStatus";
 import { planSpan, planStartYear, seasonWindows } from "../../data/calendar";
 import type { FieldHandle } from "../../three/tileField";
@@ -324,8 +324,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const [rejected, setRejected] = useState<(LatLon & { key: number }) | null>(null);
   const tapSeq = useRef(0);
   const revGeoAbort = useRef<AbortController | null>(null);
-  // Map base layer (#57) & NASA GIBS overlay (#65): auto-switches to Satellite at field zoom unless toggled.
-  const [baseChoice, setBaseChoice] = useState<"map" | "satellite" | null>(null);
+  // NASA GIBS overlay (#65): NDVI / IMERG Rain over Esri satellite imagery.
   const [gibsOverlay, setGibsOverlay] = useState<GibsOverlay>("none");
   const [gibsOffline, setGibsOffline] = useState(false);
   // Farm outline (#31): its corners, and whether taps add corners or drop a pin.
@@ -365,6 +364,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const condTips = useHudTip();
   const [savedFarms, setSavedFarms] = useState<SavedFarm[]>(() => loadSavedFarms());
   const [activeFarmId, setActiveFarmId] = useState<string | null>(null);
+  const [farmNameInput, setFarmNameInput] = useState("");
   const [editingFarmId, setEditingFarmId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const skipBoundarySync = useRef(false);
@@ -489,6 +489,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     revGeoAbort.current?.abort();
     resetBoundary();
     setActiveFarmId(null);
+    setFarmNameInput("");
     setHasPickedLocation(true);
     setPin(null);
     setMapNote(null);
@@ -507,6 +508,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     revGeoAbort.current?.abort();
     // A new tap supersedes any check or fetch still running for an older one.
     setActiveFarmId(null);
+    setFarmNameInput("");
     setMapNote(null);
     setTryAgain(null);
     setChecking(false);
@@ -563,6 +565,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     setTryAgain(null);
     if (outside) refuse(outside, "That's outside the Philippines.");
     setActiveFarmId(null);
+    setFarmNameInput("");
     setBoundary(outside ? [...boundary] : ring); // a fresh array redraws a corner dragged out of bounds where it was
   };
   const setDrawMode = (on: boolean) => {
@@ -590,9 +593,21 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   }, [boundary]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveCurrentFarm = () => {
-    const { farms, saved } = saveFarmPlot({ target, req, boundary, scenario });
+    const label = farmNameInput.trim() || undefined;
+    if (activeFarmId) {
+      const updated = updateSavedFarm(activeFarmId, { label, target, req, boundary, scenario });
+      if (updated.saved) {
+        setSavedFarms(updated.farms);
+        setFarmNameInput(updated.saved.label);
+        setEditingFarmId(null);
+        setMapNote(`Saved ${updated.saved.label}.`);
+        return;
+      }
+    }
+    const { farms, saved } = saveFarmPlot({ label, target, req, boundary, scenario });
     setSavedFarms(farms);
     setActiveFarmId(saved.id);
+    setFarmNameInput(saved.label);
     setEditingFarmId(null);
     setMapNote(`Saved ${saved.label}.`);
   };
@@ -606,6 +621,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     setHoverId(null);
     skipBoundarySync.current = farm.boundary.length >= 3;
     setActiveFarmId(farm.id);
+    setFarmNameInput(farm.label);
     setHasPickedLocation(true);
     setTarget(farm.target);
     setPin(farm.target.id.startsWith("pin-") ? { lat: farm.target.lat, lon: farm.target.lon } : null);
@@ -628,12 +644,16 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     if (!editingFarmId) return;
     const next = renameSavedFarm(editingFarmId, editLabel);
     setSavedFarms(next);
+    if (activeFarmId === editingFarmId && editLabel.trim()) setFarmNameInput(editLabel.trim());
     setEditingFarmId(null);
   };
   const removeSavedPlot = (id: string) => {
     const next = deleteSavedFarm(id);
     setSavedFarms(next);
-    if (activeFarmId === id) setActiveFarmId(null);
+    if (activeFarmId === id) {
+      setActiveFarmId(null);
+      setFarmNameInput("");
+    }
     if (editingFarmId === id) setEditingFarmId(null);
   };
   const drawStatus =
@@ -697,8 +717,8 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     if (stage === "intro" || stage === "leaving") return;
     const fromDeep = stage === "plants" || stage === "planting" || stage === "flying";
     setDrawing(false);
-    setBaseChoice(null);
     setActiveFarmId(null);
+    setFarmNameInput("");
     setEditingFarmId(null);
     resetBoundary();
     setHasPickedLocation(false);
@@ -846,9 +866,6 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     return false;
   };
 
-  const autoSatellite = mapZoom >= 13 || (drawing && mapZoom >= 12);
-  const satellite = baseChoice ? baseChoice === "satellite" : autoSatellite;
-
   return (
     <section
       aria-label="Mikazuki Fields"
@@ -866,7 +883,6 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             pin={pin}
             rejected={stage === "target" ? rejected : null}
             locked={stage !== "target" && stage !== "leaving"}
-            satellite={satellite}
             gibsOverlay={gibsOverlay}
             onHover={setHoverId}
             onPickPreset={pickPreset}
@@ -910,7 +926,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
           <Emblem size={30} />
           <span className="micro whitespace-nowrap">Mikazuki Fields</span>
         </button>
-        {stage === "target" && (
+        {stage === "target" && savedFarms.length > 0 && (
           <div className="saved-farms order-3 w-full sm:order-none sm:w-auto sm:flex-1" role="region" aria-label="My saved farms">
             {savedFarms.map((farm) => {
               const on = activeFarmId === farm.id;
@@ -971,9 +987,6 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                 </span>
               );
             })}
-            <button type="button" onClick={saveCurrentFarm} className="farm-save-pill">
-              <BookmarkPlus className="size-3" aria-hidden /> Save farm
-            </button>
           </div>
         )}
         {stage !== "intro" && stage !== "leaving" && (
@@ -1166,6 +1179,39 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               {stage === "locking" ? <Lock className="size-4" aria-hidden /> : <Crosshair className="size-4" aria-hidden />}
               {stage === "locking" ? "Locked" : `Lock ${lockTargetName(target)}`}
             </button>
+            {!rightPanel.collapsed && (
+              <div className="mt-2.5 space-y-1.5 border-t border-ink/12 pt-2.5">
+                <input
+                  type="text"
+                  value={farmNameInput}
+                  onChange={(e) => setFarmNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveCurrentFarm();
+                  }}
+                  placeholder="Farm name (e.g. North Paddy)"
+                  aria-label="Farm name"
+                  maxLength={32}
+                  className="w-full rounded-[8px] border border-ink/20 bg-ink/[0.04] px-2.5 py-1.5 text-xs text-ink placeholder:text-ink/50 focus:border-sakura focus:outline-none"
+                />
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={saveCurrentFarm}
+                    className="btn btn-secondary min-h-8 px-2 text-xs"
+                  >
+                    <BookmarkPlus className="size-3.5" aria-hidden /> Save farm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => activeFarmId && removeSavedPlot(activeFarmId)}
+                    disabled={activeFarmId === null}
+                    className="btn btn-secondary min-h-8 px-2 text-xs disabled:opacity-45"
+                  >
+                    <Trash2 className="size-3.5" aria-hidden /> Delete farm
+                  </button>
+                </div>
+              </div>
+            )}
             </div>
             <ResizeGrip panel={rightPanel} label="conditions" />
           </aside>
@@ -1192,14 +1238,6 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                 </p>
               )}
               <div className="map-layers">
-                <div className="layer-group" role="group" aria-label="Base map">
-                  <button type="button" aria-pressed={!satellite} onClick={() => setBaseChoice("map")} className={`layer-pill ${satellite ? "" : "is-on"}`}>
-                    Map
-                  </button>
-                  <button type="button" aria-pressed={satellite} onClick={() => setBaseChoice("satellite")} className={`layer-pill ${satellite ? "is-on" : ""}`}>
-                    Satellite
-                  </button>
-                </div>
                 <div className="layer-group" role="group" aria-label="NASA GIBS overlay">
                   {([
                     ["none", "None"],
@@ -1545,17 +1583,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
 
       {stage !== "intro" && (
         <p className="map-credit">
-          {satellite ? (
-            "Tiles © Esri"
-          ) : (
-            <>
-              ©{" "}
-              <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
-                OpenStreetMap
-              </a>
-            </>
-          )}{" "}
-          · NASA POWER{gibsOverlay !== "none" ? " · NASA GIBS" : ""}
+          Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics · NASA POWER{gibsOverlay !== "none" ? " · NASA GIBS" : ""}
         </p>
       )}
     </section>
