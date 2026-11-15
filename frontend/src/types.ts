@@ -21,6 +21,8 @@ export interface Crop {
   name: string;
   short: string;
   family: Family;
+  variety: string;
+  establishment: string;
   days: number;
   kc: number;
   ky: number;

@@ -363,21 +363,21 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
 
   y2 += 8;
   const cols = [
-    { title: "SEASON", w: 16, align: "left" as const },
-    { title: "CALENDAR", w: 24, align: "left" as const },
-    { title: "CROP", w: 30, align: "left" as const },
-    { title: "YIELD", w: 17, align: "right" as const },
-    { title: req.irrigation === "irrigated" ? "PUMPED" : "SHORTFALL", w: 19, align: "right" as const },
-    { title: "SOIL N", w: 17, align: "right" as const },
-    { title: "PEST / EROSION", w: 28, align: "left" as const },
-    { title: "PROFIT (PHP / USD)", w: 31, align: "right" as const },
+    { title: "SEASON", w: 13, align: "left" as const },
+    { title: "CALENDAR", w: 21, align: "left" as const },
+    { title: "CROP & VARIETY", w: 46, align: "left" as const },
+    { title: "YIELD", w: 16, align: "right" as const },
+    { title: req.irrigation === "irrigated" ? "PUMPED" : "SHORTFALL", w: 18, align: "right" as const },
+    { title: "SOIL N", w: 16, align: "right" as const },
+    { title: "PEST / EROSION", w: 24, align: "left" as const },
+    { title: "PROFIT (PHP / USD)", w: 28, align: "right" as const },
   ];
 
   // Table Header
   const thH = 10;
   doc.setFillColor(OLIVE[0], OLIVE[1], OLIVE[2]);
   doc.rect(M, y2, W, thH, "F");
-  setText(doc, 7.5, [246, 239, 235], "bold");
+  setText(doc, 7.2, [246, 239, 235], "bold");
   let cx = M;
   for (const col of cols) {
     const tx = col.align === "right" ? cx + col.w - 2.5 : cx + 2.5;
@@ -386,8 +386,8 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
   }
   y2 += thH;
 
-  // Season Rows (generous height for readable 2-line cells)
-  const rowH = 17;
+  // Season Rows (generous height for crop, Philippine variety, and establishment method)
+  const rowH = 24;
   plan.seasons.forEach((s, i) => {
     const w = windows[i];
     const crop = CROP[s.crop];
@@ -402,8 +402,8 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
     doc.line(M, y2 + rowH, M + W, y2 + rowH);
 
     let x = M;
-    const topY = y2 + 6.5;
-    const subY = y2 + 12;
+    const topY = y2 + 6;
+    const subY = y2 + 11.2;
 
     // 1. Season
     setText(doc, 8.5, INK, "bold");
@@ -422,11 +422,23 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
     }
     x += cols[1].w;
 
-    // 3. Crop
-    setText(doc, 8.5, INK, "bold");
-    doc.text(pdfText(crop.short), x + 2.5, topY);
-    setText(doc, 7.5, MUTED);
-    doc.text(pdfText(crop.family), x + 2.5, subY);
+    // 3. Crop, variety, and establishment
+    setText(doc, 8.2, INK, "bold");
+    doc.text(pdfText(`${crop.short} (${crop.family})`), x + 2.5, topY);
+    setText(doc, 7, INK);
+    const varLines = (doc.splitTextToSize(pdfText(crop.variety), cols[2].w - 4.5) as string[]).slice(0, 2);
+    let cy = y2 + 10.5;
+    for (const line of varLines) {
+      doc.text(line, x + 2.5, cy);
+      cy += 3.3;
+    }
+    setText(doc, 6.8, MUTED);
+    const estLines = (doc.splitTextToSize(pdfText(crop.establishment), cols[2].w - 4.5) as string[]).slice(0, 2);
+    for (const line of estLines) {
+      if (cy > y2 + rowH - 2) break;
+      doc.text(line, x + 2.5, cy);
+      cy += 3.2;
+    }
     x += cols[2].w;
 
     // 4. Yield
@@ -498,15 +510,15 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
   doc.text(profitPhp, M + W - 2.5, y2 + 5.8, { align: "right" });
   setText(doc, 7.5, MUTED);
   doc.text(profitUsd, M + W - 2.5, y2 + 10.6, { align: "right" });
-  y2 += totH + 10;
+  y2 += totH + 7;
 
   // Site / Ground-Truth Notes (if any)
-  if (notes.length > 0 && y2 < 232) {
+  if (notes.length > 0 && y2 < 228) {
     setText(doc, 9, OLIVE, "bold");
     doc.text("SITE & GROUND-TRUTH ADVISORIES", M, y2);
     y2 += 5;
     for (const note of notes.slice(0, 4)) {
-      if (y2 > 246) break;
+      if (y2 > 238) break;
       const lines = doc.splitTextToSize(pdfText(note), W - 7) as string[];
       setText(doc, 8.5, INK);
       doc.text("-", M + 1.5, y2);
