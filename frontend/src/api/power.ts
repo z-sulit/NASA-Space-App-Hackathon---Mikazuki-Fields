@@ -37,8 +37,9 @@ export async function fetchPointPreset(lat: number, lon: number, presets: Preset
     lat,
     lon,
     slope_pct: near.slope_pct,
+    elevation_m: near.elevation_m,
     ndvi_dry_min: near.ndvi_dry_min,
-    placeholders: ["slope_pct", "ndvi_dry_min"],
+    placeholders: ["slope_pct", "elevation_m", "ndvi_dry_min"],
   };
   if (cache.has(key)) return { preset: cache.get(key)!, live: true };
   try {

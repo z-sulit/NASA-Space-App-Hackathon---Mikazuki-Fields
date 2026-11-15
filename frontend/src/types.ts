@@ -60,6 +60,8 @@ export interface Preset {
   elnino_basis?: "observed_2015_2016" | "synthetic";
   elnino_2016_dry_rain_pct: number | null;
   slope_pct: number;
+  /** Metres above sea level (SRTM), when known. */
+  elevation_m?: number;
   ndvi_dry_min: number;
   placeholders: string[];
   source: string;

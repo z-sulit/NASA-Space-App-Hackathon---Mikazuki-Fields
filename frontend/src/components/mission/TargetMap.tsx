@@ -9,8 +9,8 @@ export interface TargetMapHandle {
   flyTo(lat: number, lon: number): Promise<void>;
   /** Climb back up to the whole-Philippines view. */
   reset(): Promise<void>;
-  /** Glide over to a searched place at a regional zoom (stays in the targeting view). */
-  glideTo(lat: number, lon: number): Promise<void>;
+  /** Glide over to a point at `zoom` or closer (a region for a searched place, field level for drawing). */
+  glideTo(lat: number, lon: number, zoom?: number): Promise<void>;
 }
 
 /** Leaflet flyTo that resolves on landing (or after `cap` ms if the map never reports it). */
@@ -53,6 +53,9 @@ export function TargetMap({
   onHover,
   onPickPreset,
   onPickPoint,
+  boundary,
+  drawing,
+  onBoundary,
   onTilesReady,
   ref,
 }: {
@@ -65,6 +68,11 @@ export function TargetMap({
   onHover: (id: string | null) => void;
   onPickPreset: (id: string) => void;
   onPickPoint: (p: LatLon) => void;
+  /** The farm outline's corners, in the order they were tapped. */
+  boundary: LatLon[];
+  /** Draw mode: a tap adds a corner instead of dropping a pin. */
+  drawing: boolean;
+  onBoundary: (ring: LatLon[]) => void;
   /** The first screenful of map tiles has loaded (used to leave the loading screen). */
   onTilesReady?: () => void;
   ref?: Ref<TargetMapHandle>;
@@ -73,11 +81,12 @@ export function TargetMap({
   const map = useRef<L.Map | null>(null);
   const pinMarker = useRef<L.Marker | null>(null);
   const rejectMarker = useRef<L.Marker | null>(null);
+  const outline = useRef<L.LayerGroup | null>(null);
   const [pt, setPt] = useState<{ x: number; y: number } | null>(null);
   const focusRef = useRef(focus);
   focusRef.current = focus;
-  const handlers = useRef({ onHover, onPickPreset, onPickPoint, locked, onTilesReady });
-  handlers.current = { onHover, onPickPreset, onPickPoint, locked, onTilesReady };
+  const handlers = useRef({ onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary });
+  handlers.current = { onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary };
 
   const place = () => {
     const m = map.current;
@@ -90,7 +99,7 @@ export function TargetMap({
   useEffect(() => {
     if (!el.current) return;
     const bounds = L.latLngBounds([PH_BOUNDS.south - 3, PH_BOUNDS.west - 4], [PH_BOUNDS.north + 3, PH_BOUNDS.east + 4]);
-    const m = L.map(el.current, { zoomControl: false, attributionControl: false, zoomSnap: 0, minZoom: 4.5, maxZoom: 14, maxBounds: bounds, maxBoundsViscosity: 0.8 });
+    const m = L.map(el.current, { zoomControl: false, attributionControl: false, zoomSnap: 0, minZoom: 4.5, maxZoom: 18, maxBounds: bounds, maxBoundsViscosity: 0.8 });
     map.current = m;
     // Attribution is drawn by Mission above the cockpit glass (the canopy would cover Leaflet's).
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -118,7 +127,11 @@ export function TargetMap({
         .addTo(m);
     });
     m.on("click", (e: L.LeafletMouseEvent) => {
-      if (!handlers.current.locked) handlers.current.onPickPoint({ lat: e.latlng.lat, lon: e.latlng.lng });
+      const h = handlers.current;
+      if (h.locked) return;
+      const p = { lat: e.latlng.lat, lon: e.latlng.lng };
+      if (h.drawing) h.onBoundary([...h.boundary, p]);
+      else h.onPickPoint(p);
     });
     m.on("move zoom resize", place);
     place();
@@ -142,6 +155,32 @@ export function TargetMap({
     pinMarker.current = L.marker([pin.lat, pin.lon], { icon, interactive: false }).addTo(m);
   }, [pin?.lat, pin?.lon]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The farm outline: a line until it has 3 corners, then a filled shape. Corners drag while drawing.
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    outline.current?.remove();
+    outline.current = null;
+    if (!boundary.length) return;
+    const group = L.layerGroup().addTo(m);
+    outline.current = group;
+    const ring = boundary.map((p) => [p.lat, p.lon] as L.LatLngTuple);
+    const style = { color: "#c9e86a", weight: 3, fillColor: "#c9e86a", fillOpacity: 0.25, interactive: false };
+    const shape = (ring.length >= 3 ? L.polygon(ring, style) : L.polyline(ring, style)).addTo(group);
+    if (!drawing || locked) return;
+    boundary.forEach((_, i) => {
+      // 44 px icon around a 16 px dot, so a corner is easy to grab on a phone.
+      const icon = L.divIcon({ className: "", html: `<span class="vtx ${i === 0 ? "is-first" : ""}"></span>`, iconSize: [44, 44] });
+      const corner = L.marker(ring[i], { icon, draggable: true, keyboard: false, bubblingMouseEvents: false }).addTo(group);
+      corner.on("drag", () => {
+        const at = corner.getLatLng();
+        ring[i] = [at.lat, at.lng];
+        shape.setLatLngs(ring);
+      });
+      corner.on("dragend", () => handlers.current.onBoundary(ring.map(([lat, lon]) => ({ lat, lon }))));
+    });
+  }, [boundary, drawing, locked]);
+
   // Refused tap: a red cross with a ripple that fades out on its own (CSS), re-added per tap.
   useEffect(() => {
     const m = map.current;
@@ -162,15 +201,19 @@ export function TargetMap({
       const m = map.current;
       return m ? flight(m, home(), homeZoom(), 0.9, 1600) : Promise.resolve();
     },
-    glideTo(lat, lon) {
+    glideTo(lat, lon, zoom = 8.5) {
       const m = map.current;
-      return m ? flight(m, [lat, lon], Math.max(m.getZoom(), 8.5), 0.6, 1200) : Promise.resolve();
+      return m ? flight(m, [lat, lon], Math.max(m.getZoom(), zoom), 0.6, 1200) : Promise.resolve();
     },
   }));
 
   return (
     <div className="absolute inset-0">
-      <div ref={el} className="hud-map absolute inset-0" aria-label="Map of the Philippines: tap anywhere to choose a farm" />
+      <div
+        ref={el}
+        className="hud-map absolute inset-0"
+        aria-label={drawing ? "Map of the Philippines: tap each corner of your farm" : "Map of the Philippines: tap anywhere to choose a farm"}
+      />
       {pt && (
         <div aria-hidden className={`reticle ${locked ? "is-locked" : ""}`} style={{ transform: `translate(${pt.x}px, ${pt.y}px)` }}>
           <span className="reticle-ring" />
