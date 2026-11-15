@@ -1,5 +1,6 @@
-import { BugOff, CloudRain } from "lucide-react";
+import { AlertTriangle, BugOff, CloudRain } from "lucide-react";
 import type { PlanId, SeasonResult } from "../../types";
+import { seasonAlerts } from "../../utils/seasonAlerts";
 
 export type Choice = PlanId | "custom";
 
@@ -57,12 +58,20 @@ export function HaInput({ id, value, onChange }: { id: string; value: number; on
   );
 }
 
-/** Per-season flags: pest cycle broken (green bug), bare soil in heavy-rain months (blue cloud). */
+/** Per-season flags: crop wilt / net loss (red triangle), pest cycle broken (green bug), bare soil in heavy-rain months (blue cloud). */
 export function SeasonFlags({ season }: { season: SeasonResult }) {
   const bare = season.bareMonths.length > 0;
-  if (!season.pestBroken && !bare) return <span className="h-3.5" aria-hidden />;
+  const alert = seasonAlerts(season);
+  if (!alert.severe && !season.pestBroken && !bare) return <span className="h-3.5" aria-hidden />;
+  const alertTitle = [alert.wiltRisk && "Crop wilt / drought risk", alert.netLoss && "Net loss"].filter(Boolean).join(" · ");
   return (
     <span className="flex h-3.5 items-center gap-0.5">
+      {alert.severe && (
+        <span title={alertTitle} className="text-red-300">
+          <AlertTriangle className="size-3" aria-hidden />
+          <span className="sr-only">{alertTitle}</span>
+        </span>
+      )}
       {season.pestBroken && (
         <span title="Pest cycle broken" className="text-[#c9e86a]">
           <BugOff className="size-3" aria-hidden />
