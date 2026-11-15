@@ -18,7 +18,7 @@ import { ElNinoReport } from "./ElNinoReport";
 import { ElNinoAtmosphere } from "./ElNinoAtmosphere";
 import { SeasonTimeline } from "./SeasonTimeline";
 import { PlaceSearch } from "./PlaceSearch";
-import { firstVisitStep, stepOnScreen, Tour } from "./Tour";
+import { firstVisitStep, stepOnScreen, Tour, type TourTarget } from "./Tour";
 import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
 import type { Place } from "../../api/geocode";
 import { planSpan, planStartYear, seasonWindows } from "../../data/calendar";
@@ -600,6 +600,22 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     });
   };
 
+  const advanceTour = (nextTarget: TourTarget): boolean => {
+    if (nextTarget === "settings" && stage === "target" && !acquiring && !checking) {
+      void lockOn();
+      return true;
+    }
+    if (nextTarget === "routes" && stage === "plants" && !busy) {
+      plant();
+      return true;
+    }
+    if (nextTarget === "report" && stage === "planting" && statsPanel.collapsed) {
+      statsPanel.toggle();
+      return true;
+    }
+    return false;
+  };
+
   return (
     <section
       aria-label="Mikazuki Fields"
@@ -641,13 +657,17 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       <div className="hud-frame" aria-hidden />
 
       {/* Top bar */}
-      <div className="relative z-40 mx-auto flex max-w-[1400px] items-center justify-between gap-2 px-4 pt-4">
-        <div className="flex shrink-0 items-center gap-2">
+      <div className="pointer-events-none relative z-40 mx-auto flex max-w-[1400px] items-center justify-between gap-2 px-4 pt-3 sm:pt-4">
+        <div className="pointer-events-auto flex shrink-0 items-center gap-2">
           <Emblem size={30} />
           <span className="micro whitespace-nowrap">Mikazuki Fields</span>
         </div>
         {stage !== "intro" && stage !== "leaving" && (
-          <button type="button" className="btn btn-secondary guide-btn" onClick={() => setTour(stepOnScreen())}>
+          <button
+            type="button"
+            className="btn btn-secondary guide-btn pointer-events-auto shrink-0 whitespace-nowrap"
+            onClick={() => setTour(stepOnScreen())}
+          >
             <CircleHelp className="size-4" aria-hidden /> Guide
           </button>
         )}
@@ -690,7 +710,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
           happen while the tiles still cover the screen; revealed at the handover. */}
       {(stage === "leaving" || stage === "target" || stage === "locking") && (
         <div className={`cockpit-hud ${stage === "leaving" ? "is-pre" : ""}`} aria-hidden={stage === "leaving" || undefined}>
-          <div className="hud-title" data-tour="locate">
+          <div className="hud-title">
             <h2 className="font-display text-[clamp(26px,3.4vw,44px)] leading-tight font-normal tracking-[-0.02em]">Where is your farm?</h2>
             <p className={`mt-1 text-sm tabular ${stage === "locking" ? "blink-3 text-sakura" : "text-ink/80"}`} aria-live="polite">
               {stage === "locking"
@@ -705,27 +725,29 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                         ? drawStatus
                         : (mapNote ?? "Search a place, tap anywhere on land, or choose a sample reference site")}
             </p>
-            {stage !== "locking" && <PlaceSearch onPick={(pl) => void pickPlace(pl)} />}
             {stage !== "locking" && (
-              <div className="draw-bar">
-                <div className="route-tabs draw-mode" role="radiogroup" aria-label="How to mark your farm">
-                  <button type="button" role="radio" aria-checked={!drawing} onClick={() => setDrawMode(false)} className={`route-tab ${drawing ? "" : "is-on"}`}>
-                    <MapPin className="size-4" aria-hidden /> Drop a pin
-                  </button>
-                  <button type="button" role="radio" aria-checked={drawing} onClick={() => setDrawMode(true)} className={`route-tab ${drawing ? "is-on" : ""}`}>
-                    <PenLine className="size-4" aria-hidden /> Draw boundary
-                  </button>
-                </div>
-                {drawing && (
-                  <div className="flex gap-2">
-                    <button type="button" className="btn btn-secondary flex-1" disabled={!boundary.length} onClick={() => drawBoundary(boundary.slice(0, -1))}>
-                      <Undo2 className="size-4" aria-hidden /> Undo last point
+              <div className="mx-auto w-fit" data-tour="locate">
+                <PlaceSearch onPick={(pl) => void pickPlace(pl)} />
+                <div className="draw-bar">
+                  <div className="route-tabs draw-mode" role="radiogroup" aria-label="How to mark your farm">
+                    <button type="button" role="radio" aria-checked={!drawing} onClick={() => setDrawMode(false)} className={`route-tab ${drawing ? "" : "is-on"}`}>
+                      <MapPin className="size-4" aria-hidden /> Drop a pin
                     </button>
-                    <button type="button" className="btn btn-secondary flex-1" disabled={!boundary.length} onClick={resetBoundary}>
-                      <Trash2 className="size-4" aria-hidden /> Clear boundary
+                    <button type="button" role="radio" aria-checked={drawing} onClick={() => setDrawMode(true)} className={`route-tab ${drawing ? "is-on" : ""}`}>
+                      <PenLine className="size-4" aria-hidden /> Draw boundary
                     </button>
                   </div>
-                )}
+                  {drawing && (
+                    <div className="flex gap-2">
+                      <button type="button" className="btn btn-secondary flex-1" disabled={!boundary.length} onClick={() => drawBoundary(boundary.slice(0, -1))}>
+                        <Undo2 className="size-4" aria-hidden /> Undo last point
+                      </button>
+                      <button type="button" className="btn btn-secondary flex-1" disabled={!boundary.length} onClick={resetBoundary}>
+                        <Trash2 className="size-4" aria-hidden /> Clear boundary
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             {tryAgain && stage === "target" && (
@@ -820,6 +842,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             <button
               ref={lockBtn}
               type="button"
+              data-tour="lock"
               onClick={() => void lockOn()}
               disabled={stage !== "target" || acquiring || checking}
               className={`btn btn-primary btn-lg w-full ${rightPanel.collapsed ? "" : "mt-4"}`}
@@ -1063,7 +1086,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                 Agriculturist before switching crops.
               </p>
             </details>
-            <div className="mt-auto flex flex-wrap gap-2 pt-5">
+            <div className="mt-auto flex flex-wrap gap-2 pt-5" data-tour="report">
               <button type="button" onClick={() => setStage("plants")} className="btn btn-primary flex-1">
                 <Sprout className="size-4" aria-hidden /> Change plants
               </button>
@@ -1092,7 +1115,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       </ol>
 
       {/* The cockpit HUD is in the DOM, invisible, while the tiles leave: no coach marks until it shows. */}
-      <Tour step={stage === "intro" || stage === "leaving" ? null : tour} onStep={setTour} />
+      <Tour step={stage === "intro" || stage === "leaving" ? null : tour} onStep={setTour} onAdvance={advanceTour} />
 
       {stage !== "intro" && (
         <p className="map-credit">
