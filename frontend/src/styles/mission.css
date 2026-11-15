@@ -1392,6 +1392,50 @@
   outline-offset: 2px;
 }
 
+/* Walkthrough (#30): a ring around one part of the screen, and the card that explains it */
+.guide-btn {
+  background: rgb(20 26 6 / 0.72);
+}
+.tour-spot {
+  position: fixed;
+  z-index: 60;
+  border: 2px solid var(--sakura);
+  border-radius: var(--r-panel);
+  /* The huge shadow dims everything else without a layer that could swallow taps on the map. */
+  box-shadow: 0 0 0 200vmax rgb(10 14 3 / 0.55);
+  pointer-events: none;
+  transition:
+    left 0.3s var(--mf-ease),
+    top 0.3s var(--mf-ease),
+    width 0.3s var(--mf-ease),
+    height 0.3s var(--mf-ease);
+}
+.tour-card {
+  position: fixed;
+  z-index: 61;
+  padding: 14px 16px 16px;
+  border: 1px solid rgb(246 239 235 / 0.4);
+  border-radius: var(--r-panel);
+  background: #1d240a;
+  color: var(--ink);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.5);
+  animation: fade-up 0.25s var(--mf-ease) both;
+  transition:
+    left 0.3s var(--mf-ease),
+    top 0.3s var(--mf-ease);
+}
+.tour-skip {
+  min-height: 44px;
+  padding: 0 8px;
+  font: 600 13px/1.2 var(--mf-font-display);
+  color: rgb(246 239 235 / 0.8);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.tour-skip:hover {
+  color: var(--ink);
+}
+
 /* Farm outline in step 02 (#31): mode switch, undo and clear, corner handles */
 .draw-bar {
   display: grid;
