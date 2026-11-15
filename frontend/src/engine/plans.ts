@@ -142,6 +142,8 @@ export function summarizePlans(
   normal: PlanResult[],
   elnino: PlanResult[],
   irrigation: Irrigation,
+  calibratedYieldTHa: number | null = null,
+  yieldScale = 1,
 ): [string[], string[], string[]] {
   const drop = (i: number) => {
     const n = normal[i].kpis.totalProfit;
@@ -150,9 +152,11 @@ export function summarizePlans(
   const [A, B, C] = normal;
   const waterWord = irrigation === "irrigated" ? "pumped" : "water shortfall";
   const whyA = [
-    A.kpis.nFinal < A.kpis.nStart
-      ? `Same crop 6 times: soil nitrogen falls from ${A.kpis.nStart} to ${Math.round(A.kpis.nFinal)}.`
-      : `Soil nitrogen ends at ${Math.round(A.kpis.nFinal)}.`,
+    calibratedYieldTHa != null && calibratedYieldTHa > 0
+      ? `Calibrated to your last harvest (${calibratedYieldTHa.toFixed(2)} t/ha, ${yieldScale.toFixed(2)}× baseline): 3-year profit ${formatPhpUsd(A.kpis.totalProfit)}.`
+      : A.kpis.nFinal < A.kpis.nStart
+        ? `Same crop 6 times: soil nitrogen falls from ${A.kpis.nStart} to ${Math.round(A.kpis.nFinal)}.`
+        : `Soil nitrogen ends at ${Math.round(A.kpis.nFinal)}.`,
     A.kpis.pestBreaks === 0 ? `Pests build up every season, reaching ${pct(A.seasons[5].pest)} pressure.` : `${A.kpis.pestBreaks} pest-cycle breaks.`,
     A.kpis.ureaTotal > 0 ? `Fertilizer top-ups cost ${formatPhpUsd(A.kpis.ureaTotal)} over 3 years.` : `In El Niño, 3-year profit falls ${drop(0)}%.`,
   ];
@@ -296,16 +300,23 @@ export function planRoutes(req: PlanRequest, preset: Preset): PlansResponse {
   const statusQuo = run(rotations.A.map((id) => CROP[id]), envN);
   if (!statusQuo.feasible) notes.push(`Status Quo breaks a hard rule for this farm (for example paddy rice on a slope or in a dry rainfed season); shown for comparison only.`);
 
+  const calYield = req.overrides.lastHarvestYieldTHa ?? null;
+  const yieldScaleA =
+    calYield != null && calYield > 0 ? Math.min(2.5, Math.max(0.25, calYield / CROP[req.baselineCrop].base_yield_t_ha)) : 1;
+  if (calYield != null && calYield > 0) {
+    notes.push(`Baseline calibrated to ${calYield.toFixed(2)} t/ha (${Math.round(calYield / 0.05)} cavans/ha)`);
+  }
+
   const build = (env: Env) =>
     (["A", "B", "C"] as PlanId[]).map((id) => {
       const seasons: SeasonResult[] = [];
-      run(rotations[id].map((c) => CROP[c]), env, seasons);
+      run(rotations[id].map((c) => CROP[c]), env, seasons, id === "A" ? yieldScaleA : 1);
       return { id, ...META[id], rotation: rotations[id], seasons, kpis: kpis(seasons), why: [] as string[] } satisfies PlanResult;
     });
   const normal = build(envN);
   const elnino = build(envE);
 
-  summarizePlans(normal, elnino, req.irrigation).forEach((w, i) => {
+  summarizePlans(normal, elnino, req.irrigation, calYield, yieldScaleA).forEach((w, i) => {
     normal[i].why = w;
     elnino[i].why = w;
   });

@@ -139,15 +139,23 @@ def _why_bullets_for_plan(
     plan_a_kpis: PlanKPIs,
     seasons: list[SeasonStep],
     el_nino_delta_pct: float,
+    calibrated_yield_t_ha: float | None = None,
+    yield_scale: float = 1.0,
 ) -> list[str]:
     legume_count = sum(1 for s in seasons if s.family == "Fabaceae")
     urea_total = sum(s.urea_cost_php for s in seasons)
     if plan_id == "plan_a":
-        return [
+        bullets = [
             f"Repeats {seasons[0].crop_name} for all 6 seasons, ending with Soil N at {kpis.final_soil_n:.0f} kg/ha ({kpis.soil_n_delta:+.1f}).",
             f"Requires PHP {urea_total:,.0f} in extra urea top-up to offset nitrogen depletion.",
             f"Zero botanical family breaks: pest pressure compounds across seasons ({el_nino_delta_pct:+.1f}% profit change under El Niño).",
         ]
+        if calibrated_yield_t_ha is not None:
+            bullets[0] = (
+                f"Calibrated to your last harvest ({calibrated_yield_t_ha:.2f} t/ha, {yield_scale:.2f}x baseline): "
+                f"3-year profit PHP {kpis.total_profit_php:,.0f}."
+            )
+        return bullets
 
     profit_diff = kpis.total_profit_php - plan_a_kpis.total_profit_php
     bullets = [
@@ -186,6 +194,10 @@ def _ground_truth_summary(req: PlanRequest) -> tuple[list[str], bool]:
         applied.append(f"Excluded crops: {', '.join(ov.excluded_crops)}")
     if ov.must_include_staple:
         applied.append("Food-security staple (rice/corn) required")
+    if ov.last_harvest_yield_t_ha is not None:
+        applied.append(
+            f"Baseline calibrated to {ov.last_harvest_yield_t_ha:.2f} t/ha ({round(ov.last_harvest_yield_t_ha / 0.05)} cavans/ha)"
+        )
     liming = ov.soil_ph is not None and ov.soil_ph < 5.5
     return applied, liming
 
@@ -247,8 +259,15 @@ def optimize_plans(req: PlanRequest, farm: FarmContext) -> PlanResponse:
     idx_c = int(np.argmax(np.where(mask_c, worst_case_c, -1e9)))
     seq_c = ALL_SEQS[idx_c]
 
-    def _eval_seq(seq: np.ndarray, idx_in_all: int, scenario: Literal["normal", "elnino"]):
-        seasons, kpis = simulate_single_detailed(seq, farm, req, scenario)
+    cal_yield = req.overrides.last_harvest_yield_t_ha
+    yield_scale_a = (
+        float(np.clip(cal_yield / float(ca.base_yield[base_idx]), 0.25, 2.5))
+        if cal_yield is not None
+        else 1.0
+    )
+
+    def _eval_seq(seq: np.ndarray, idx_in_all: int, scenario: Literal["normal", "elnino"], yield_scale: float = 1.0):
+        seasons, kpis = simulate_single_detailed(seq, farm, req, scenario, yield_scale=yield_scale)
         if scenario == "normal":
             ws_v, ss_v, es_v = float(w_norm[idx_in_all]), float(s_norm[idx_in_all]), float(e_norm[idx_in_all])
         else:
@@ -258,8 +277,8 @@ def optimize_plans(req: PlanRequest, farm: FarmContext) -> PlanResponse:
         kpis.economy_score = round(es_v, 1)
         return seasons, kpis
 
-    a_norm_s, a_norm_k = _eval_seq(seq_a, idx_a, "normal")
-    a_eln_s, a_eln_k = _eval_seq(seq_a, idx_a, "elnino")
+    a_norm_s, a_norm_k = _eval_seq(seq_a, idx_a, "normal", yield_scale=yield_scale_a)
+    a_eln_s, a_eln_k = _eval_seq(seq_a, idx_a, "elnino", yield_scale=yield_scale_a)
     b_norm_s, b_norm_k = _eval_seq(seq_b, idx_b, "normal")
     b_eln_s, b_eln_k = _eval_seq(seq_b, idx_b, "elnino")
     c_norm_s, c_norm_k = _eval_seq(seq_c, idx_c, "normal")
@@ -287,7 +306,7 @@ def optimize_plans(req: PlanRequest, farm: FarmContext) -> PlanResponse:
                     subtitle="Continuous Monoculture",
                     kpis=a_norm_k,
                     seasons=a_norm_s,
-                    why_bullets=_why_bullets_for_plan("plan_a", a_norm_k, a_norm_k, a_norm_s, a_norm_k.profit_elnino_delta_pct),
+                    why_bullets=_why_bullets_for_plan("plan_a", a_norm_k, a_norm_k, a_norm_s, a_norm_k.profit_elnino_delta_pct, cal_yield, yield_scale_a),
                 ),
                 plan_b=PlanCard(
                     id="plan_b",
@@ -313,7 +332,7 @@ def optimize_plans(req: PlanRequest, farm: FarmContext) -> PlanResponse:
                     subtitle="Continuous Monoculture (El Niño)",
                     kpis=a_eln_k,
                     seasons=a_eln_s,
-                    why_bullets=_why_bullets_for_plan("plan_a", a_eln_k, a_eln_k, a_eln_s, a_eln_k.profit_elnino_delta_pct),
+                    why_bullets=_why_bullets_for_plan("plan_a", a_eln_k, a_eln_k, a_eln_s, a_eln_k.profit_elnino_delta_pct, cal_yield, yield_scale_a),
                 ),
                 plan_b=PlanCard(
                     id="plan_b",

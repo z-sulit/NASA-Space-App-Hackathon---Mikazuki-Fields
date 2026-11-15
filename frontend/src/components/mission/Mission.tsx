@@ -53,7 +53,7 @@ const DEFAULT_REQ: PlanRequest = {
   goal: "cash",
   landSizeHa: 1,
   weights: { water: 40, soil: 35, econ: 25 }, // backend PlanSliders defaults
-  overrides: { soilTestN: "untested", soilPh: null, pestLastSeason: false, floods: "never" },
+  overrides: { soilTestN: "untested", soilPh: null, pestLastSeason: false, floods: "never", lastHarvestYieldTHa: null },
 };
 
 function supportsWebGL() {

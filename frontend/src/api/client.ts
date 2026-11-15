@@ -72,7 +72,8 @@ function matchesBundle(req: PlanRequest) {
     o.floods === "never" &&
     (o.maxBudgetPhp ?? null) === null &&
     (o.excludedCrops?.length ?? 0) === 0 &&
-    !o.mustIncludeStaple
+    !o.mustIncludeStaple &&
+    (o.lastHarvestYieldTHa ?? null) === null
   );
 }
 
