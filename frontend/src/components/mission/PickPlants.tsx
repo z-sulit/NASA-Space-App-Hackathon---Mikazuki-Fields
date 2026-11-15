@@ -239,7 +239,7 @@ export function PickPlants({
           </div>
         )}
 
-        <div className="mt-4 rounded-[10px] border border-ink/12 p-3">
+        <div className="mt-4 rounded-[10px] border border-ink/12 p-3" data-tour="settings">
           <div className="flex flex-wrap items-baseline justify-between gap-2 pb-2.5">
             <p className="text-sm font-semibold">Farm settings</p>
             <p className="text-xs text-ink/70 tabular">
