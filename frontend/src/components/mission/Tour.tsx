@@ -1,9 +1,16 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { placeCard } from "../../utils/tour";
+import { MapPin } from "lucide-react";
+import { placeCard, visibleRefsRect, type RectBox } from "../../utils/tour";
 
 const DONE_KEY = "mf-tour-done";
 
-export type TourTarget = "locate" | "telemetry" | "lock" | "settings" | "routes" | "timeline" | "report";
+export type TourTarget = "locate" | "refs" | "telemetry" | "lock" | "settings" | "routes" | "timeline" | "report";
+
+const REF_PILLS = [
+  { id: "isabela", label: "Isabela" },
+  { id: "bukidnon", label: "Bukidnon" },
+  { id: "davao_del_sur", label: "Davao del Sur" },
+] as const;
 
 /** The walkthrough, in mission order. `target` matches a data-tour attribute; a step waits until its target is on screen. */
 const STEPS: { target: TourTarget; title: string; body: string; hint?: string }[] = [
@@ -11,6 +18,11 @@ const STEPS: { target: TourTarget; title: string; body: string; hint?: string }[
     target: "locate",
     title: "Find your farm",
     body: "Search a town, tap the map to drop a pin, or switch to Draw boundary and tap corners to auto-calculate hectares.",
+  },
+  {
+    target: "refs",
+    title: "Try a Pre-Made Reference Farm",
+    body: "Want to explore right away? Click any of our pre-verified reference farms — Isabela (Corn/Rice Valley), Bukidnon (Highland Plateau), or Davao del Sur (Mindanao Rainfed) — pre-loaded with 10-year NASA POWER climate, SRTM 30m terrain, and MODIS NDVI telemetry. Or search and trace your own farm boundary!",
   },
   {
     target: "telemetry",
@@ -48,7 +60,20 @@ const STEPS: { target: TourTarget; title: string; body: string; hint?: string }[
 ];
 
 const find = (step: number) => document.querySelector<HTMLElement>(`[data-tour="${STEPS[step].target}"]`);
-const rectOf = (step: number): DOMRect | null => {
+const rectOf = (step: number): RectBox | null => {
+  const target = STEPS[step].target;
+  if (target === "refs") {
+    const mission = document.querySelector<HTMLElement>('.mission[data-stage="target"]');
+    if (!mission) return null;
+    const rects = Array.from(mission.querySelectorAll<HTMLElement>('[data-tour="refs"]')).map((el) =>
+      el.getBoundingClientRect(),
+    );
+    return (
+      visibleRefsRect(rects, window.innerWidth, window.innerHeight) ??
+      mission.querySelector<HTMLElement>(".hud-map")?.getBoundingClientRect() ??
+      null
+    );
+  }
   const r = find(step)?.getBoundingClientRect();
   return r && r.width > 0 && r.height > 0 ? r : null;
 };
@@ -72,12 +97,16 @@ export function Tour({
   step,
   onStep,
   onAdvance,
+  activePresetId,
+  onPickPreset,
 }: {
   step: number | null;
   onStep: (step: number | null) => void;
   onAdvance?: (nextTarget: TourTarget) => boolean;
+  activePresetId?: string;
+  onPickPreset?: (id: string) => void;
 }) {
-  const [box, setBox] = useState<DOMRect | null>(null);
+  const [box, setBox] = useState<RectBox | null>(null);
   const [cardH, setCardH] = useState(0);
   const [hint, setHint] = useState<string | null>(null);
   const card = useRef<HTMLDivElement>(null);
@@ -90,14 +119,14 @@ export function Tour({
     if (step === null) return setBox(null);
     let scrolled = false;
     const measure = () => {
-      const el = find(step);
+      const el = STEPS[step].target === "refs" ? null : find(step);
       // Farm settings sit below the fold on a phone: bring the target into view once.
       if (el && !scrolled) {
         scrolled = true;
         el.scrollIntoView({ block: "center" });
       }
       const seen = rectOf(step);
-      setBox((old) => (old && seen && old.x === seen.x && old.y === seen.y && old.width === seen.width && old.height === seen.height ? old : seen));
+      setBox((old) => (old && seen && old.left === seen.left && old.top === seen.top && old.width === seen.width && old.height === seen.height ? old : seen));
     };
     measure();
     const id = setInterval(measure, 200);
@@ -137,14 +166,21 @@ export function Tour({
   if (!shown) return null;
   const s = STEPS[step];
   const last = step === STEPS.length - 1;
-  const cardW = Math.min(340, window.innerWidth - 24);
+  const nextTarget = !last ? STEPS[step + 1].target : null;
+  const needsExplore = Boolean(nextTarget && rectOf(step + 1) === null && nextTarget !== "report");
+  const cardW = Math.min(s.target === "refs" ? 390 : 340, window.innerWidth - 24);
   const at = placeCard(box, cardW, cardH, window.innerWidth, window.innerHeight);
 
   const handleNext = () => {
     if (last) return finish();
     const nextStep = step + 1;
-    const nextTarget = STEPS[nextStep].target;
-    if (rectOf(nextStep) || onAdvance?.(nextTarget)) {
+    const target = STEPS[nextStep].target;
+    if (needsExplore) {
+      setHint(null);
+      onStep(nextStep);
+      return;
+    }
+    if (rectOf(nextStep) || onAdvance?.(target)) {
       setHint(null);
       onStep(nextStep);
       return;
@@ -173,6 +209,29 @@ export function Tour({
           {s.title}
         </h2>
         <p className="mt-1.5 text-sm text-ink/80">{s.body}</p>
+        {s.target === "refs" && onPickPreset && (
+          <div className="mt-2.5 flex flex-wrap gap-1.5" role="group" aria-label="Quick-select reference farms">
+            {REF_PILLS.map((ref) => {
+              const active = activePresetId === ref.id;
+              return (
+                <button
+                  key={ref.id}
+                  type="button"
+                  onClick={() => onPickPreset(ref.id)}
+                  aria-pressed={active}
+                  className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    active
+                      ? "border-sakura bg-sakura text-[#141a06]"
+                      : "border-ink/25 bg-ink/[0.06] text-ink hover:border-sakura/70 hover:bg-sakura/15"
+                  }`}
+                >
+                  <MapPin className="size-3.5 shrink-0" aria-hidden />
+                  {ref.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {hint && (
           <p className="mt-2 rounded-[6px] border border-sakura/35 bg-sakura/10 px-2.5 py-1.5 text-xs text-sakura" role="status">
             {hint}
@@ -183,7 +242,7 @@ export function Tour({
             Back
           </button>
           <button ref={next} type="button" className="btn btn-primary flex-1" onClick={handleNext}>
-            {last ? "Finish" : "Next"}
+            {last ? "Finish" : needsExplore ? "Explore" : "Next"}
           </button>
           {!last && (
             <button type="button" className="tour-skip" onClick={finish}>

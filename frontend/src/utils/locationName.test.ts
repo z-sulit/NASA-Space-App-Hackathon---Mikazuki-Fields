@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  fieldReportFilename,
+  fieldReportHeader,
   formatReverseAddress,
   hasResolvedPinName,
   inTargetName,
@@ -53,4 +55,32 @@ test("target name helpers distinguish resolved pin names from placeholder pins a
   assert.equal(inTargetName(resolvedPin), "Brgy. San Isidro, Batangas City, Batangas");
   assert.equal(lockTargetName(resolvedPin), "Brgy. San Isidro");
   assert.equal(reportTargetSlug(resolvedPin), "Brgy. San Isidro, Batangas City, Batangas");
+});
+
+test("fieldReportFilename and fieldReportHeader distinguish custom saved farms", () => {
+  const pin = { id: "pin-15.50,120.90", name: "San Jose, Nueva Ecija", lat: 15.5, lon: 120.9 };
+  const otherPin = { id: "pin-15.52,120.92", name: "San Jose, Nueva Ecija", lat: 15.52, lon: 120.92 };
+
+  const northFile = fieldReportFilename(pin, { id: "B", custom: false }, "North Paddy");
+  const southFile = fieldReportFilename(otherPin, { id: "B", custom: false }, "South Terrace");
+  const unnamedFile = fieldReportFilename(pin, { id: "A", custom: true });
+
+  assert.equal(northFile, "Mikazuki-Report-North-Paddy-San-Jose-Nueva-Ecija-RouteB.pdf");
+  assert.equal(southFile, "Mikazuki-Report-South-Terrace-San-Jose-Nueva-Ecija-RouteB.pdf");
+  assert.notEqual(northFile, southFile);
+  assert.equal(unnamedFile, "Mikazuki-Report-San-Jose-Nueva-Ecija-Custom.pdf");
+
+  const header = fieldReportHeader({
+    farmName: "North Paddy",
+    target: pin,
+    landHa: 2.5,
+    planName: "Rice-Mungbean",
+    routeBadge: "Route B",
+    span: "2026-2029",
+  });
+  assert.equal(header.title, "North Paddy - Crop Rotation Report");
+  assert.match(header.subtitle, /15\.50° N, 120\.90° E/);
+  assert.match(header.subtitle, /2\.5 ha/);
+  assert.match(header.subtitle, /San Jose, Nueva Ecija/);
+  assert.equal(header.locationValue, "North Paddy · San Jose, Nueva Ecija");
 });

@@ -5,6 +5,7 @@ import {
   MAX_SAVED_FARMS,
   SAVED_FARMS_KEY,
   deleteSavedFarm,
+  isFarmDirty,
   loadSavedFarms,
   nextFarmLabel,
   renameSavedFarm,
@@ -127,4 +128,27 @@ test("savedFarms recovers cleanly from corrupt JSON and throwing storage", () =>
   );
   assert.equal(res.saved.label, "Farm 1");
   assert.equal(res.farms.length, 1);
+});
+
+test("multi-farm updates keep sibling plots intact and isFarmDirty detects divergence", () => {
+  const store = memoryStorage();
+  const plotA = saveFarmPlot(
+    { label: "North Paddy", target: SAMPLE_PRESET, req: SAMPLE_REQ, boundary: [], scenario: "normal" },
+    store,
+  );
+  const plotB = saveFarmPlot(
+    { label: "South Corn", target: { ...SAMPLE_PRESET, id: "pin-18.3,120.7", lat: 18.3, lon: 120.7 }, req: SAMPLE_REQ, boundary: [], scenario: "elnino" },
+    store,
+  );
+  const renamed = renameSavedFarm(plotA.saved.id, "East Paddy", store);
+  assert.equal(renamed.find((f) => f.id === plotB.saved.id)?.label, "South Corn");
+  assert.equal(renamed.find((f) => f.id === plotB.saved.id)?.scenario, "elnino");
+
+  const active = renamed.find((f) => f.id === plotA.saved.id)!;
+  assert.equal(isFarmDirty({ target: active.target, req: active.req, boundary: [], scenario: "normal", label: "East Paddy" }, active, false), false);
+  assert.equal(isFarmDirty({ target: active.target, req: active.req, boundary: [], scenario: "normal", label: "Renamed Draft" }, active, false), true);
+  assert.equal(isFarmDirty({ target: active.target, req: { ...active.req, landSizeHa: 4 }, boundary: [], scenario: "normal", label: "East Paddy" }, active, false), true);
+  assert.equal(isFarmDirty({ target: SAMPLE_PRESET, req: SAMPLE_REQ, boundary: [], scenario: "normal", label: "" }, null, false), false);
+  assert.equal(isFarmDirty({ target: SAMPLE_PRESET, req: SAMPLE_REQ, boundary: [], scenario: "normal", label: "" }, null, true), true);
+  assert.equal(isFarmDirty({ target: SAMPLE_PRESET, req: SAMPLE_REQ, boundary: [{ lat: 1, lon: 1 }, { lat: 1, lon: 2 }, { lat: 2, lon: 1 }], scenario: "normal", label: "" }, null, false), true);
 });
