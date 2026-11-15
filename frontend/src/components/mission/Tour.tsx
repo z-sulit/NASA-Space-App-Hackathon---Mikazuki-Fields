@@ -174,7 +174,7 @@ export function Tour({
   const nextTarget = !last ? STEPS[step + 1].target : null;
   const needsExplore = Boolean(nextTarget && rectOf(step + 1) === null && nextTarget !== "report");
   const cardW = Math.min(s.target === "refs" ? 390 : 340, window.innerWidth - 24);
-  const at = placeCard(box, cardW, cardH, window.innerWidth, window.innerHeight);
+  const at = placeCard(box, cardW, cardH, window.innerWidth, window.innerHeight, { preferSide: s.target === "refs" });
 
   const handleNext = () => {
     if (last) return finish();
