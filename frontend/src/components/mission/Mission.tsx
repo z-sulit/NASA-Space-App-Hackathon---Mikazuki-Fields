@@ -1018,12 +1018,12 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
         disabled={stage === "intro" || stage === "leaving"}
         title="Return to Philippine map"
         aria-label="Mikazuki Fields — Return to Philippine map"
-        className={`fixed top-4 left-5 z-40 flex items-center gap-2.5 text-ink transition-opacity ${
+        className={`fixed top-3 left-3 z-40 flex max-w-[calc(100vw-136px)] items-center gap-2 text-ink transition-opacity sm:top-4 sm:left-5 sm:max-w-none sm:gap-2.5 ${
           stage === "intro" || stage === "leaving" ? "cursor-default" : "cursor-pointer hover:opacity-80"
         }`}
       >
         <Emblem size={34} />
-        <span className="font-display text-base font-bold tracking-[0.14em] whitespace-nowrap uppercase sm:text-[17px]">
+        <span className="truncate font-display text-[13px] font-bold tracking-[0.08em] whitespace-nowrap uppercase sm:text-[17px] sm:tracking-[0.14em]">
           MIKAZUKI FIELDS
         </span>
       </button>
@@ -1258,7 +1258,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                     <p className="mb-1 text-[10.5px] font-medium tracking-[0.12em] uppercase text-ink/60">
                       Saved farms
                     </p>
-                    <div className="max-h-28 space-y-1 overflow-y-auto pr-0.5" role="list" aria-label="Saved farms">
+                    <div className="space-y-1 lg:max-h-28 lg:overflow-y-auto lg:pr-0.5" role="list" aria-label="Saved farms">
                       {savedFarms.map((farm) => {
                         const on = activeFarmId === farm.id;
                         return (
@@ -1267,7 +1267,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                             type="button"
                             onClick={() => void loadSavedPlot(farm)}
                             aria-pressed={on}
-                            className={`flex w-full items-center justify-between gap-2 rounded-[7px] border px-2 py-1 text-left text-xs transition-colors ${
+                            className={`saved-farm-btn flex w-full items-center justify-between gap-2 rounded-[7px] border px-2 py-1 text-left text-xs transition-colors ${
                               on
                                 ? "border-sakura bg-sakura/20 font-medium text-ink"
                                 : "border-ink/12 bg-ink/[0.03] text-ink/80 hover:border-ink/25 hover:bg-ink/[0.08] hover:text-ink"
