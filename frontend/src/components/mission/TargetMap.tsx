@@ -191,7 +191,7 @@ export function TargetMap({
       const h = handlers.current;
       if (h.locked || dragging.current || performance.now() - dragEndAt.current < 200) return;
       const p = { lat: e.latlng.lat, lon: e.latlng.lng };
-      if (h.drawing && m.getZoom() >= 12) h.onBoundary([...h.boundary, p]);
+      if (h.drawing && m.getZoom() >= 14) h.onBoundary([...h.boundary, p]);
       else h.onPickPoint(p);
     });
     m.on("move zoom resize", place);

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode, type Ref } from "react";
-import { ArrowLeft, BookmarkPlus, CircleHelp, Crosshair, FileDown, Info, Loader2, Lock, MapPin, PenLine, Pencil, RotateCcw, Sprout, Trash2, Undo2, Waves, X } from "lucide-react";
+import { ArrowLeft, BookmarkPlus, CircleHelp, Crosshair, FileDown, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
 import { customPlan, scalePlanResult, scalePlansResponse } from "../../engine/plans";
@@ -7,7 +7,7 @@ import { fetchPinFarm, fetchPlans, loadFarms, type DataSource } from "../../api/
 import { inPhilippines } from "../../api/power";
 import { checkLand } from "../../api/landcheck";
 import { fetchWeather, type Weather } from "../../api/weather";
-import { ringAreaHa, ringCentroid } from "../../utils/geo";
+import { distanceKm, ringAreaHa, ringCentroid } from "../../utils/geo";
 import { CROP } from "../../data/crops";
 import { Emblem } from "../Emblem";
 import { CountUp, formatPhpUsd, formatPhpUsdInText, prefersReducedMotion, Switch, useScramble } from "../ui";
@@ -18,7 +18,7 @@ import { firstVisitStep, stepOnScreen, Tour, type TourTarget } from "./Tour";
 import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
 import { reverseGeocode, type Place } from "../../api/geocode";
 import { inTargetName, lockTargetName, shortTargetName } from "../../utils/locationName";
-import { deleteSavedFarm, loadSavedFarms, renameSavedFarm, saveFarmPlot, updateSavedFarm, type SavedFarm } from "../../utils/savedFarms";
+import { deleteSavedFarm, loadSavedFarms, saveFarmPlot, updateSavedFarm, type SavedFarm } from "../../utils/savedFarms";
 import { telemetryStatus, type TelemetryBadge } from "../../utils/telemetryStatus";
 import { planSpan, planStartYear, seasonWindows } from "../../data/calendar";
 import type { FieldHandle } from "../../three/tileField";
@@ -365,8 +365,6 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const [savedFarms, setSavedFarms] = useState<SavedFarm[]>(() => loadSavedFarms());
   const [activeFarmId, setActiveFarmId] = useState<string | null>(null);
   const [farmNameInput, setFarmNameInput] = useState("");
-  const [editingFarmId, setEditingFarmId] = useState<string | null>(null);
-  const [editLabel, setEditLabel] = useState("");
   const skipBoundarySync = useRef(false);
 
   const planSeq = useRef(0);
@@ -502,13 +500,14 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     setRejected({ ...p, key });
     setTryAgain({ text, key });
   };
-  const pickPoint = async (tap: LatLon, place?: string) => {
+  const pickPoint = async (tap: LatLon, place?: string, keepBoundary = false) => {
     let p = tap;
     const seq = ++tapSeq.current;
     revGeoAbort.current?.abort();
     // A new tap supersedes any check or fetch still running for an older one.
     setActiveFarmId(null);
     setFarmNameInput("");
+    if (!keepBoundary) resetBoundary();
     setMapNote(null);
     setTryAgain(null);
     setChecking(false);
@@ -530,7 +529,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     if (ground.snapped) p = { lat: ground.snapped.lat, lon: ground.snapped.lon };
     setHasPickedLocation(true);
     const currentZoom = mapRef.current?.getZoom() ?? mapZoom;
-    if (drawing && currentZoom < 12) void mapRef.current?.glideTo(p.lat, p.lon, 16);
+    if (drawing && currentZoom < 14) void mapRef.current?.glideTo(p.lat, p.lon, 16);
     setPin(p);
     let resolvedName: string | null = place ?? null;
     if (!place) {
@@ -562,21 +561,30 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   };
   const drawBoundary = (ring: LatLon[]) => {
     const outside = ring.find((p) => !inPhilippines(p.lat, p.lon));
+    const far = !outside && ring.length >= 2 ? ring.slice(1).find((p) => distanceKm(ring[0], p) > 5) : undefined;
     setTryAgain(null);
-    if (outside) refuse(outside, "That's outside the Philippines.");
+    if (outside) {
+      refuse(outside, "That's outside the Philippines.");
+      setBoundary([...boundary]); // a fresh array redraws a corner dragged out of bounds where it was
+      return;
+    }
+    if (far) {
+      const moved = ring.find((p, i) => boundary[i] && (p.lat !== boundary[i].lat || p.lon !== boundary[i].lon)) ?? far;
+      refuse(moved, "Point is too far from your farm boundary (max 5 km).");
+      setBoundary([...boundary]);
+      return;
+    }
     setActiveFarmId(null);
     setFarmNameInput("");
-    setBoundary(outside ? [...boundary] : ring); // a fresh array redraws a corner dragged out of bounds where it was
+    setBoundary(ring);
   };
   const setDrawMode = (on: boolean) => {
     setDrawing(on);
-    if (!on) {
-      resetBoundary();
-      return;
-    }
+    resetBoundary();
+    if (!on) return;
     // Zoom to field level only if the user already picked a location or zoomed in manually.
     const zoom = mapRef.current?.getZoom() ?? mapZoom;
-    if (hasPickedLocation || zoom >= 12) void mapRef.current?.glideTo(target.lat, target.lon, 16);
+    if (hasPickedLocation || zoom >= 14) void mapRef.current?.glideTo(target.lat, target.lon, 16);
   };
   const areaHa = boundary.length >= 3 ? ringAreaHa(boundary) : null;
   const areaNote = areaHa === null ? null : areaHa < MIN_HA ? `Under ${MIN_HA} ha: check the corners. Planning uses ${MIN_HA} ha.` : areaHa > MAX_HA ? `Over ${MAX_HA.toLocaleString("en-PH")} ha: planning uses ${MAX_HA.toLocaleString("en-PH")} ha.` : null;
@@ -588,7 +596,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     }
     if (areaHa === null) return;
     setHectares(Math.round(Math.min(MAX_HA, Math.max(MIN_HA, areaHa)) * 100) / 100);
-    const t = setTimeout(() => void pickPoint(ringCentroid(boundary)), 600);
+    const t = setTimeout(() => void pickPoint(ringCentroid(boundary), undefined, true), 600);
     return () => clearTimeout(t);
   }, [boundary]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -599,7 +607,6 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       if (updated.saved) {
         setSavedFarms(updated.farms);
         setFarmNameInput(updated.saved.label);
-        setEditingFarmId(null);
         setMapNote(`Saved ${updated.saved.label}.`);
         return;
       }
@@ -608,7 +615,6 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     setSavedFarms(farms);
     setActiveFarmId(saved.id);
     setFarmNameInput(saved.label);
-    setEditingFarmId(null);
     setMapNote(`Saved ${saved.label}.`);
   };
   const loadSavedPlot = async (farm: SavedFarm) => {
@@ -636,17 +642,6 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       plan(farm.req, farm.target),
     ]);
   };
-  const startRenameFarm = (farm: SavedFarm) => {
-    setEditingFarmId(farm.id);
-    setEditLabel(farm.label);
-  };
-  const commitRenameFarm = () => {
-    if (!editingFarmId) return;
-    const next = renameSavedFarm(editingFarmId, editLabel);
-    setSavedFarms(next);
-    if (activeFarmId === editingFarmId && editLabel.trim()) setFarmNameInput(editLabel.trim());
-    setEditingFarmId(null);
-  };
   const removeSavedPlot = (id: string) => {
     const next = deleteSavedFarm(id);
     setSavedFarms(next);
@@ -654,10 +649,9 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       setActiveFarmId(null);
       setFarmNameInput("");
     }
-    if (editingFarmId === id) setEditingFarmId(null);
   };
   const drawStatus =
-    mapZoom < 12
+    mapZoom < 14
       ? "Step 1: Search or tap your farm's general location on the map to zoom in."
       : boundary.length === 0
         ? "Step 2: Tap at least 3 corners around your field to trace your boundary (drag map to pan)."
@@ -709,6 +703,11 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   };
   const backToMap = async () => {
     const seq = ++navSeq.current;
+    resetBoundary();
+    setDrawing(false);
+    setHasPickedLocation(false);
+    setActiveFarmId(null);
+    setFarmNameInput("");
     setStage("rising");
     await mapRef.current?.reset();
     if (navSeq.current === seq) setStage("target");
@@ -719,7 +718,6 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     setDrawing(false);
     setActiveFarmId(null);
     setFarmNameInput("");
-    setEditingFarmId(null);
     resetBoundary();
     setHasPickedLocation(false);
     setTryAgain(null);
@@ -911,94 +909,31 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
 
       <div className="hud-frame" aria-hidden />
 
-      {/* Top bar */}
-      <div className="pointer-events-none relative z-40 mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-2 px-4 pt-3 sm:pt-4">
+      {/* Top corners: pinned brand (left) and Guide (right) */}
+      <button
+        type="button"
+        onClick={() => void returnHome()}
+        disabled={stage === "intro" || stage === "leaving"}
+        title="Return to Philippine map"
+        aria-label="Mikazuki Fields — Return to Philippine map"
+        className={`fixed top-4 left-5 z-40 flex items-center gap-2.5 text-ink transition-opacity ${
+          stage === "intro" || stage === "leaving" ? "cursor-default" : "cursor-pointer hover:opacity-80"
+        }`}
+      >
+        <Emblem size={34} />
+        <span className="font-display text-base font-bold tracking-[0.14em] whitespace-nowrap uppercase sm:text-[17px]">
+          MIKAZUKI FIELDS
+        </span>
+      </button>
+      {stage !== "intro" && stage !== "leaving" && (
         <button
           type="button"
-          onClick={() => void returnHome()}
-          disabled={stage === "intro" || stage === "leaving"}
-          title="Return to Philippine map"
-          aria-label="Mikazuki Fields — Return to Philippine map"
-          className={`pointer-events-auto flex shrink-0 items-center gap-2 transition-opacity ${
-            stage === "intro" || stage === "leaving" ? "cursor-default" : "cursor-pointer hover:opacity-80"
-          }`}
+          className="btn btn-secondary guide-btn fixed top-4 right-5 z-40 px-4 py-2 text-[14px] font-medium whitespace-nowrap"
+          onClick={() => setTour(stepOnScreen())}
         >
-          <Emblem size={30} />
-          <span className="micro whitespace-nowrap">Mikazuki Fields</span>
+          <CircleHelp className="size-4" aria-hidden /> Guide
         </button>
-        {stage === "target" && savedFarms.length > 0 && (
-          <div className="saved-farms order-3 w-full sm:order-none sm:w-auto sm:flex-1" role="region" aria-label="My saved farms">
-            {savedFarms.map((farm) => {
-              const on = activeFarmId === farm.id;
-              if (editingFarmId === farm.id) {
-                return (
-                  <span key={farm.id} className={`farm-pill ${on ? "is-on" : ""}`}>
-                    <input
-                      type="text"
-                      value={editLabel}
-                      onChange={(e) => setEditLabel(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") commitRenameFarm();
-                        else if (e.key === "Escape") setEditingFarmId(null);
-                      }}
-                      onBlur={commitRenameFarm}
-                      aria-label="Rename farm"
-                      maxLength={32}
-                      autoFocus
-                      className="farm-pill-input"
-                    />
-                  </span>
-                );
-              }
-              return (
-                <span key={farm.id} className={`farm-pill ${on ? "is-on" : ""}`}>
-                  <button
-                    type="button"
-                    onClick={() => void loadSavedPlot(farm)}
-                    onDoubleClick={() => startRenameFarm(farm)}
-                    aria-pressed={on}
-                    title={`${farm.label} (${farm.req.landSizeHa} ha) · Click to load, double-click to rename`}
-                    className="farm-pill-name"
-                  >
-                    {farm.label}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startRenameFarm(farm);
-                    }}
-                    aria-label={`Rename ${farm.label}`}
-                    className="farm-pill-act"
-                  >
-                    <Pencil className="size-2.5" aria-hidden />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeSavedPlot(farm.id);
-                    }}
-                    aria-label={`Delete ${farm.label}`}
-                    className="farm-pill-act"
-                  >
-                    <X className="size-3" aria-hidden />
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-        )}
-        {stage !== "intro" && stage !== "leaving" && (
-          <button
-            type="button"
-            className="btn btn-secondary guide-btn pointer-events-auto shrink-0 whitespace-nowrap"
-            onClick={() => setTour(stepOnScreen())}
-          >
-            <CircleHelp className="size-4" aria-hidden /> Guide
-          </button>
-        )}
-      </div>
+      )}
 
       {/* Step 01 */}
       {(stage === "intro" || stage === "leaving") && (
@@ -1210,6 +1145,36 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                     <Trash2 className="size-3.5" aria-hidden /> Delete farm
                   </button>
                 </div>
+                {savedFarms.length > 0 && (
+                  <div className="pt-1">
+                    <p className="mb-1 text-[10.5px] font-medium tracking-[0.12em] uppercase text-ink/60">
+                      Saved farms
+                    </p>
+                    <div className="max-h-28 space-y-1 overflow-y-auto pr-0.5" role="list" aria-label="Saved farms">
+                      {savedFarms.map((farm) => {
+                        const on = activeFarmId === farm.id;
+                        return (
+                          <button
+                            key={farm.id}
+                            type="button"
+                            onClick={() => void loadSavedPlot(farm)}
+                            aria-pressed={on}
+                            className={`flex w-full items-center justify-between gap-2 rounded-[7px] border px-2 py-1 text-left text-xs transition-colors ${
+                              on
+                                ? "border-sakura bg-sakura/20 font-medium text-ink"
+                                : "border-ink/12 bg-ink/[0.03] text-ink/80 hover:border-ink/25 hover:bg-ink/[0.08] hover:text-ink"
+                            }`}
+                          >
+                            <span className="truncate">{farm.label}</span>
+                            <span className="shrink-0 tabular-nums text-[11px] text-ink/65">
+                              {farm.req.landSizeHa} ha
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             </div>
