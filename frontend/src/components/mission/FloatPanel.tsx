@@ -9,16 +9,9 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), M
 type Box = { x: number; y: number; w: number; h: number | null };
 
 /**
- * A HUD panel the farmer can move, resize and fold away, so it never sits on the part of the
- * map or 3D field they want to see.
- *
- * Until it is touched, the panel keeps its CSS layout (tilted on the canopy glass, docked on
- * phones). The first drag or resize "lifts" it: it becomes a flat absolutely-placed box at the
- * same spot, which then follows the pointer and is kept inside the viewport. Double-clicking
- * the bar puts it back.
- *
- * mode "sheet": a bottom sheet (field data on phones and tablets). The bar's handle changes the
- * sheet's height instead of moving it.
+ * A HUD panel the farmer can move, resize and fold away. It keeps its CSS layout until the first drag
+ * "lifts" it into an absolutely-placed box; double-clicking the bar puts it back.
+ * mode "sheet" is a bottom sheet: its handle changes the height instead of moving it.
  */
 export function usePanel({ minW = 240, minH = 150, collapsed: startCollapsed = false, mode = "float" }: { minW?: number; minH?: number; collapsed?: boolean; mode?: "float" | "sheet" } = {}) {
   const ref = useRef<HTMLElement | null>(null);

@@ -1,11 +1,7 @@
 /**
- * Find a Philippine place by name (province, city, municipality, barangay) with
- * OpenStreetMap Nominatim, then hand its point to the normal tap flow (land check,
- * live NASA POWER), since GET /api/farm only takes preset_id or lat/lon.
- *
- * Nominatim's public usage policy: at most 1 request a second, and no search-as-you-type
- * from the browser. So searches run on submit only, are spaced at least 1.1 s apart,
- * and repeat queries come from a cache.
+ * Find a Philippine place by name with OpenStreetMap Nominatim, then hand its point to the normal tap flow.
+ * Nominatim's policy: at most 1 request a second and no search-as-you-type, so searches run on submit only,
+ * 1.1 s apart, and repeat queries come from a cache.
  */
 import { inPhilippines } from "./power";
 

@@ -1,8 +1,6 @@
 /**
- * Demo season-step simulator: a TypeScript port of section 2 of
- * docs/agronomic_model_vectorized_optimizer_spec.md. It only exists so the UI
- * draft has realistic numbers before the FastAPI backend is up; the backend is
- * the source of truth.
+ * In-browser season simulator: a TypeScript port of section 2 of docs/agronomic_model_vectorized_optimizer_spec.md.
+ * The backend is the source of truth; this runs when it is not reachable.
  */
 import type {
   Crop,
@@ -64,12 +62,6 @@ export interface SeasonWater {
   months: NonNullable<SeasonResult["months"]>;
 }
 
-/**
- * Water for one crop in one season; mirrors season_water() in backend/app/simulator.py.
- * With monthly series it runs a soil bucket month by month while the crop is in the ground
- * (a crop of D days occupies D/30 months), so a dry spell inside the season counts even
- * when the 6-month total is plentiful. Otherwise it uses season totals.
- */
 /** Per-crop monthly numbers for one season climate, computed once and reused (WeakMap on the climate). */
 interface Prep {
   need: number[];
@@ -106,9 +98,7 @@ function prep(crop: Crop, clim: SeasonClimate): Prep {
 
 /**
  * Water for one crop in one season; mirrors season_water() in backend/app/simulator.py.
- * With monthly series it runs a soil bucket month by month while the crop is in the ground
- * (a crop of D days occupies D/30 months), so a dry spell inside the season counts even
- * when the 6-month total is plentiful. Otherwise it uses season totals.
+ * With monthly series it runs a soil bucket month by month, so a dry spell inside a wet season still counts.
  */
 export function seasonWater(crop: Crop, store: number, clim: SeasonClimate, whc: number, kind: SeasonKind, detail = false): SeasonWater {
   const r = clim.monthly_rain_mm;
