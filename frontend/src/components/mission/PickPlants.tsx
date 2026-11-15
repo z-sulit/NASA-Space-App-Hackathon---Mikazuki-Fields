@@ -48,7 +48,7 @@ export function HaInput({ id, value, onChange }: { id: string; value: number; on
           const raw = Number(e.target.value);
           if (Number.isFinite(raw)) onChange(Math.round(Math.min(500, Math.max(0.1, raw)) * 100) / 100);
         }}
-        className="w-16 rounded-[6px] border border-ink/25 bg-transparent px-1.5 py-0.5 text-right text-xs text-ink tabular"
+        className="ha-input w-16 rounded-[6px] border border-ink/25 bg-transparent px-1.5 py-0.5 text-right text-xs text-ink tabular"
         aria-label="Land size in hectares"
       />
       <span className="text-xs text-ink/70">ha</span>

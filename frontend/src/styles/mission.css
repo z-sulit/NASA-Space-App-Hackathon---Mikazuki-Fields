@@ -549,8 +549,14 @@
       animation: fade-up 0.25s var(--mf-ease) 0.05s both;
       max-height: 34svh;
     }
-    .hud-panel-right dl {
+    /* Stacked: the Conditions readouts are hidden, so their explainer has nothing to explain. */
+    .hud-panel-right dl,
+    .hud-panel-right .tip-slot {
       display: none;
+    }
+    /* Room for the scrollbar, which otherwise sits on the last letter of each value. */
+    .hud-panel .panel-body {
+      padding-right: 10px;
     }
   }
 
@@ -624,13 +630,13 @@
   /* Step 04: the only part that scrolls */
   .pick-wrap {
     position: absolute;
-    inset: 0;
+    inset: 60px 0 0;
     z-index: 20;
     overflow-y: auto;
     overscroll-behavior: contain;
     display: flex;
     justify-content: center;
-    padding: 76px 16px 72px;
+    padding: 16px 16px 72px;
     perspective: 1400px;
     scrollbar-color: var(--sakura) transparent;
   }
@@ -1621,6 +1627,28 @@
     width: 24px;
     height: 24px;
   }
+  .panel-resize::after {
+    content: "";
+    position: absolute;
+    inset: -20px 0 0 -20px;
+  }
+  .stats-panel [aria-pressed],
+  .stats-panel summary,
+  .hud-panel dt button {
+    min-height: 44px;
+  }
+  .mf-range {
+    height: 44px;
+  }
+  /* 16 px text keeps iOS from zooming the page when a field takes focus. */
+  .ha-input {
+    width: 76px;
+    height: 44px;
+    font-size: 16px;
+  }
+  .place-search-box input {
+    font-size: 16px;
+  }
 }
 @media (max-width: 639px) {
   /* Phones: tighter cockpit title so the map keeps the middle of the screen. */
@@ -1629,6 +1657,10 @@
     padding: 8px 12px 10px;
   }
   .heading-tape {
+    display: none;
+  }
+  /* Drawing needs the map: the question is already answered once the pen is out. */
+  .cockpit-hud.is-drawing .hud-title h2 {
     display: none;
   }
   .place-search {
