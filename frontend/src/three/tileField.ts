@@ -44,7 +44,7 @@ export function createTileField(host: HTMLElement): FieldHandle {
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.setClearColor("#232c0e");
   const canvas = renderer.domElement;
-  canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
+  canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none";
   host.appendChild(canvas);
 
   const scene = new Scene();
@@ -130,6 +130,7 @@ export function createTileField(host: HTMLElement): FieldHandle {
   };
 
   const onMove = (e: PointerEvent) => {
+    if (!e.isPrimary) return;
     const r = canvas.getBoundingClientRect();
     pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     hasPointer = true;
@@ -139,10 +140,12 @@ export function createTileField(host: HTMLElement): FieldHandle {
     hit.set(999, 0, 999);
   };
   const onDown = (e: PointerEvent) => {
+    if (!e.isPrimary) return;
     down = { x: e.clientX, y: e.clientY, t: performance.now() };
     onMove(e);
   };
   const onUp = (e: PointerEvent) => {
+    if (!e.isPrimary) return;
     if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) return;
     onMove(e);
     updateHit();
@@ -166,6 +169,7 @@ export function createTileField(host: HTMLElement): FieldHandle {
   };
   host.addEventListener("pointermove", onMove);
   host.addEventListener("pointerleave", onLeave);
+  host.addEventListener("pointercancel", onLeave);
   host.addEventListener("pointerdown", onDown);
   host.addEventListener("pointerup", onUp);
   const io = new IntersectionObserver(([en]) => (visible = en.isIntersecting));
@@ -268,6 +272,7 @@ export function createTileField(host: HTMLElement): FieldHandle {
       io.disconnect();
       host.removeEventListener("pointermove", onMove);
       host.removeEventListener("pointerleave", onLeave);
+      host.removeEventListener("pointercancel", onLeave);
       host.removeEventListener("pointerdown", onDown);
       host.removeEventListener("pointerup", onUp);
       geo.dispose();
