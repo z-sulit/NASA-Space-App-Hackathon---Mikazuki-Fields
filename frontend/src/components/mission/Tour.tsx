@@ -172,9 +172,16 @@ export function Tour({
   const s = STEPS[step];
   const last = step === STEPS.length - 1;
   const nextTarget = !last ? STEPS[step + 1].target : null;
-  const needsExplore = Boolean(nextTarget && rectOf(step + 1) === null && nextTarget !== "report");
+  const inTargetStage = Boolean(document.querySelector('.mission[data-stage="target"]'));
+  const sameScreen = nextTarget === "report" || ((nextTarget === "telemetry" || nextTarget === "lock") && inTargetStage);
+  const needsExplore = Boolean(nextTarget && rectOf(step + 1) === null && !sameScreen);
+  const prevTarget = step > 0 ? STEPS[step - 1].target : null;
+  const canBack =
+    step > 0 &&
+    (Boolean(rectOf(step - 1)) ||
+      ((prevTarget === "locate" || prevTarget === "refs" || prevTarget === "telemetry" || prevTarget === "layers") && inTargetStage));
   const cardW = Math.min(s.target === "refs" ? 390 : 340, window.innerWidth - 24);
-  const at = placeCard(box, cardW, cardH, window.innerWidth, window.innerHeight);
+  const at = placeCard(box, cardW, cardH, window.innerWidth, window.innerHeight, { preferSide: s.target === "refs" });
 
   const handleNext = () => {
     if (last) return finish();
@@ -243,7 +250,7 @@ export function Tour({
           </p>
         )}
         <div className="mt-3 flex items-center gap-2">
-          <button type="button" className="btn btn-secondary" disabled={step === 0 || !rectOf(step - 1)} onClick={() => onStep(step - 1)}>
+          <button type="button" className="btn btn-secondary" disabled={!canBack} onClick={() => onStep(step - 1)}>
             Back
           </button>
           <button ref={next} type="button" className="btn btn-primary flex-1" onClick={handleNext}>

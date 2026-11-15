@@ -61,10 +61,14 @@ const ESRI_LABELS_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/Re
 const gibsUrl = (cfg: (typeof GIBS_LAYERS)[keyof typeof GIBS_LAYERS]) =>
   `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${cfg.layer}/default/${cfg.time}/${cfg.matrixSet}/{z}/{y}/{x}.png`;
 
-// On phones the HUD panels cover the lower half, so sit the islands higher.
-const phone = () => window.innerWidth < 640;
-const home = (): L.LatLngTuple => (phone() ? [9.6, 122.2] : [12.2, 122.4]);
-const homeZoom = () => (phone() ? 5.0 : 5.9);
+// Below 900px, HUD panels dock at the bottom so islands sit higher; on desktop, shift north to clear top controls and keep all three REF sites inside the open center corridor.
+const stackedHud = () => window.innerWidth <= 900;
+const home = (): L.LatLngTuple => (window.innerWidth < 640 ? [9.8, 122.4] : stackedHud() ? [10.0, 122.3] : [14.1, 122.0]);
+const homeZoom = () => {
+  if (window.innerWidth < 640) return 4.75;
+  if (stackedHud()) return 4.95;
+  return Math.max(4.5, Math.min(5.2, 5.1 + (window.innerHeight - 760) * 0.001));
+};
 
 /**
  * Steps 02–03 backdrop: true-color Esri World Imagery satellite base map with place labels.

@@ -41,6 +41,7 @@ import type { CropId, Family } from "../types";
 import { cropModel } from "./cropModels";
 import { CROPS } from "../data/crops";
 import { fitPolygonToField, pointInPolygon, type Point, type XYPoint } from "../utils/geo";
+import { nextPlotCropAppearance } from "../utils/plantFocus";
 
 export interface PlotSpec {
   crop: CropId;
@@ -376,16 +377,13 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
     }
   }
 
-  // Instanced plants, one mesh per crop
-  const plantMat = new MeshStandardMaterial({ vertexColors: true, roughness: 0.7, side: DoubleSide });
-  disposables.push(plantMat);
-  const models = {} as Record<CropId, InstancedMesh>;
-  for (const { id } of CROPS) models[id] = new InstancedMesh(cropModel(id), plantMat, total);
-  Object.values(models).forEach((m) => {
-    for (let i = 0; i < total; i++) m.setColorAt(i, new Color("#ffffff"));
-    field.add(m);
-    disposables.push(m.geometry, m);
-  });
+  // Instanced plants: 8 distinct crop geometries from ./cropModels with per-plot materials & meshes for independent focus fading.
+  const geos = {} as Record<CropId, BufferGeometry>;
+  for (const { id } of CROPS) {
+    const g = cropModel(id);
+    geos[id] = g;
+    disposables.push(g);
+  }
   const slots: PlantSlot[] = polyData
     ? polyData.slots
     : Array.from({ length: total }, (_, i) => {
@@ -403,6 +401,23 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
           size: 0.85 + ((i * 29) % 10) / 40,
         };
       });
+  const plotSlots: PlantSlot[][] = Array.from({ length: 6 }, () => []);
+  slots.forEach((s) => plotSlots[s.plot]?.push(s));
+  const cropMats: MeshStandardMaterial[] = [];
+  const cropMeshes: InstancedMesh[] = [];
+  for (let p = 0; p < 6; p++) {
+    const mat = new MeshStandardMaterial({ vertexColors: true, roughness: 0.7, side: DoubleSide });
+    const count = plotSlots[p].length;
+    const mesh = new InstancedMesh(geos.corn, mat, Math.max(1, count));
+    mesh.count = count;
+    mesh.visible = false;
+    mesh.frustumCulled = false;
+    for (let i = 0; i < count; i++) mesh.setColorAt(i, new Color("#ffffff"));
+    field.add(mesh);
+    cropMats.push(mat);
+    cropMeshes.push(mesh);
+    disposables.push(mat, mesh);
+  }
   const plotCenter = (i: number) =>
     polyData ? polyData.plotCenters[i] : { x: plotX(i), z: 0, maxZ: PLOT_D / 2 };
 
@@ -451,6 +466,7 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
   let focus = -1;
   const lift = [0, 0, 0, 0, 0, 0];
   const bright = [1, 1, 1, 1, 1, 1];
+  const cropOpacity = [1, 1, 1, 1, 1, 1];
   const tint = new Color();
   let lastT = 0;
   const C = {
@@ -627,12 +643,41 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
       const on = focus < 0 || focus === p;
       lift[p] += ((focus === p ? 0.32 : 0) - lift[p]) * 0.25;
       bright[p] += ((on ? 1 : 0.32) - bright[p]) * 0.25;
+      const app = nextPlotCropAppearance(cropOpacity[p], p, focus);
+      cropOpacity[p] = app.opacity;
+      const cm = cropMats[p];
+      if (cm.transparent !== app.transparent) cm.needsUpdate = true;
+      cm.opacity = app.opacity;
+      cm.transparent = app.transparent;
+      cm.depthWrite = app.depthWrite;
       if (!polyData) {
         beds[p].position.y = lift[p];
         const spec = plots[p];
         const planted = pt >= 0 && (quickStart >= 0 || pt >= p * STEP);
         const target = (spec && planted ? new Color(FAMILY_TINT[spec.family]) : soilNow.clone()).lerp(soilNow, 0.55).multiplyScalar(bright[p]);
         plotMats[p].color.lerp(target, 0.3);
+      }
+      const mesh = cropMeshes[p];
+      const pSlots = plotSlots[p];
+      if (plots[p] && pSlots.length > 0) {
+        for (let i = 0; i < pSlots.length; i++) {
+          const s = pSlots[i];
+          let g = 0;
+          if (pt >= 0) {
+            const k = quickStart >= 0 ? (t - quickStart - s.delay * 0.5) / 0.3 : (pt - s.plot * STEP - s.delay) / GROW;
+            g = k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3) * Math.cos(k * 4); // grow with a little overshoot
+          }
+          const w = wilt[p];
+          dummy.position.set(s.x, 0.08 + lift[p], s.z);
+          dummy.rotation.set(w ? 0.45 : Math.sin(t * 1.6 + s.x * 2 + s.z) * 0.06, s.rot, w ? 0.25 : Math.sin(t * 1.3 + s.z * 3) * 0.05);
+          const sc = Math.max(0.0001, g * s.size * (w ? 0.78 : 1));
+          dummy.scale.set(sc, sc, sc);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(i, dummy.matrix);
+          if (g > 0) mesh.setColorAt(i, tint.copy(w ? WILT : WHITE).multiplyScalar(bright[p]));
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       }
     }
     if (polySoilMat) {
@@ -641,39 +686,6 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
       const target = (activeSpec && planted ? new Color(FAMILY_TINT[activeSpec.family]) : soilNow.clone()).lerp(soilNow, 0.65);
       polySoilMat.color.lerp(target, 0.2);
     }
-
-    (Object.keys(models) as CropId[]).forEach((crop) => {
-      const mesh = models[crop];
-      // A crop with no bed this route stays hidden, and costs nothing per frame.
-      mesh.visible = plots.some((p) => p.crop === crop);
-      if (!mesh.visible) return;
-      for (let i = 0; i < total; i++) {
-        const s = slots[i];
-        if (!s) {
-          dummy.position.set(0, -10, 0);
-          dummy.scale.set(0.0001, 0.0001, 0.0001);
-          dummy.updateMatrix();
-          mesh.setMatrixAt(i, dummy.matrix);
-          continue;
-        }
-        const spec = plots[s.plot];
-        let g = 0;
-        if (spec && spec.crop === crop && pt >= 0) {
-          const k = quickStart >= 0 ? (t - quickStart - s.delay * 0.5) / 0.3 : (pt - s.plot * STEP - s.delay) / GROW;
-          g = k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3) * Math.cos(k * 4) ; // grow with a little overshoot
-        }
-        const w = wilt[s.plot];
-        dummy.position.set(s.x, 0.08 + lift[s.plot], s.z);
-        dummy.rotation.set(w ? 0.45 : Math.sin(t * 1.6 + s.x * 2 + s.z) * 0.06, s.rot, w ? 0.25 : Math.sin(t * 1.3 + s.z * 3) * 0.05);
-        const sc = Math.max(0.0001, g * s.size * (w ? 0.78 : 1));
-        dummy.scale.set(sc, sc, sc);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(i, dummy.matrix);
-        if (g > 0) mesh.setColorAt(i, tint.copy(w ? WILT : WHITE).multiplyScalar(bright[s.plot]));
-      }
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.instanceColor!.needsUpdate = true;
-    });
     labels.forEach((l, i) => {
       const m = l.material as SpriteMaterial;
       const shown = quickStart >= 0 || pt >= i * STEP ? (focus < 0 || focus === i ? 1 : 0.35) : 0.25;
@@ -688,6 +700,16 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
     plant(next, onSeason, quick = false) {
       plots = next;
       wilt = next.map((p) => p.wilt);
+      for (let p = 0; p < 6; p++) {
+        const spec = next[p];
+        const mesh = cropMeshes[p];
+        if (spec && plotSlots[p].length > 0) {
+          mesh.geometry = geos[spec.crop];
+          mesh.visible = true;
+        } else {
+          mesh.visible = false;
+        }
+      }
       labels.forEach((l) => {
         field.remove(l);
         (l.material as SpriteMaterial).map?.dispose();
