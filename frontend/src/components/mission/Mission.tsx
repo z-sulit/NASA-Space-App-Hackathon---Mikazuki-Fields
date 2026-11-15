@@ -904,6 +904,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
 
   const plots = chosen
     ? chosen.now.seasons.map((s, i) => ({
+        crop: s.crop,
         family: CROP[s.crop].family,
         label: `S${i + 1} · ${windows[i].months} ${windows[i].years}\n${CROP[s.crop].short}`,
         // Wilt only where El Niño cut the harvest (irrigated crops that just cost more to pump stay green).
