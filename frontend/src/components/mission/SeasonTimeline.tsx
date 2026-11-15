@@ -13,6 +13,7 @@ export function SeasonTimeline({
   seasons,
   focus,
   onFocus,
+  onHover,
   playing,
   onPlaying,
   rainFor,
@@ -22,6 +23,7 @@ export function SeasonTimeline({
   seasons: SeasonResult[];
   focus: number | null;
   onFocus: (i: number | null) => void;
+  onHover?: (i: number | null) => void;
   playing: boolean;
   onPlaying: (on: boolean) => void;
   rainFor: (i: number) => number;
@@ -97,6 +99,7 @@ export function SeasonTimeline({
           aria-valuenow={value}
           aria-valuetext={w ? `Season ${w.index + 1}, ${w.long}, ${CROP[seasons[w.index].crop].short}` : "All 6 seasons"}
           onKeyDown={onKey}
+          onMouseLeave={() => onHover?.(null)}
           style={{ ["--fill" as string]: `${(value / 6) * 100}%` }}
         >
           <span className="season-rail" aria-hidden />
@@ -107,6 +110,7 @@ export function SeasonTimeline({
               tabIndex={-1}
               className={`season-stop ${value === i ? "is-on" : ""} ${i > 0 && i <= value ? "is-past" : ""}`}
               onClick={() => set(i)}
+              onMouseEnter={() => onHover?.(win ? win.index : null)}
             >
               <i aria-hidden />
               <span className="micro">{win ? `S${win.index + 1}` : "All"}</span>
