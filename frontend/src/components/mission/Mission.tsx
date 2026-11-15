@@ -979,9 +979,6 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             </p>
             <div className="mt-5">
               <p className="text-xs font-medium text-ink/70">3-year profit ({landHa} ha)</p>
-              <p className="font-display text-[34px] leading-10 tracking-[-0.02em]">
-                <CountUp value={chosen.now.kpis.totalProfit} format={peso} />
-              <p className="text-xs font-medium text-ink/70">3-year profit</p>
               <p className="font-display text-[22px] leading-8 tracking-[-0.02em] sm:text-[24px]">
                 <CountUp value={chosen.now.kpis.totalProfit} format={formatPhpUsd} />
               </p>
@@ -996,7 +993,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               {(
                 [
                   ["Total harvest", <CountUp value={chosen.now.seasons.reduce((acc, s) => acc + s.yieldT, 0)} format={(v) => `${v.toFixed(1)} t`} />],
-                  ["Fertilizer (urea)", <CountUp value={chosen.now.kpis.ureaTotal} format={peso} />],
+                  ["Fertilizer (urea)", <CountUp value={chosen.now.kpis.ureaTotal} format={formatPhpUsd} />],
                   ["Soil nitrogen", <><CountUp value={chosen.now.kpis.nStart} format={(v) => `${Math.round(v)}`} /> → <CountUp value={chosen.now.kpis.nFinal} format={(v) => `${Math.round(v)}`} /></>],
                   [
                     req.irrigation === "irrigated" ? "Water pumped" : "Water shortfall",
