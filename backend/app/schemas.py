@@ -34,6 +34,8 @@ class TerrainInfo(BaseModel):
     elevation_m: float
     slope_pct: float
     erosion_risk_label: str
+    # True when read live from SRTM for this exact point; False for a preset's cached value or one borrowed from the nearest preset.
+    live: bool = False
 
 
 class NDVIProfile(BaseModel):

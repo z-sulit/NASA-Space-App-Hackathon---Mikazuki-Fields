@@ -2,7 +2,7 @@ import { Fragment, useState, type CSSProperties } from "react";
 import { ArrowLeft, Loader2, Bean, BugOff, CloudRain, Sprout, TriangleAlert, Wheat } from "lucide-react";
 import type { CropId, Family, PlanId, PlanRequest, PlanResult, Scenario, SeasonResult } from "../../types";
 import { CROP, CROPS } from "../../data/crops";
-import { formatPhpUsd, Switch } from "../ui";
+import { Switch, formatPhpUsd } from "../ui";
 
 const FAMILY_VAR: Record<Family, string> = {
   Poaceae: "var(--family-poaceae)",
@@ -174,10 +174,10 @@ export function PickPlants({
                 <span className="mt-0.5 block font-display text-xl leading-6">{plan.name}</span>
                 <span className="block text-xs text-ink/70">{plan.promise}</span>
                 <Chips rotation={plan.rotation} seasons={plan.seasons} />
-                <span className="mt-3 flex justify-between gap-2 text-xs text-ink/80 tabular">
-                  <span>{formatPhpUsd(plan.kpis.totalProfit)}</span>
-                  <span>{plan.seasons.reduce((acc, s) => acc + s.yieldT, 0).toFixed(1)} t</span>
-                  <span>Soil N → {Math.round(plan.kpis.nFinal)}</span>
+                <span className="mt-3 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-xs text-ink/80 tabular">
+                  <span className="whitespace-nowrap">{formatPhpUsd(plan.kpis.totalProfit)}</span>
+                  <span className="whitespace-nowrap">{plan.seasons.reduce((acc, s) => acc + s.yieldT, 0).toFixed(1)} t</span>
+                  <span className="whitespace-nowrap">Soil N → {Math.round(plan.kpis.nFinal)}</span>
                 </span>
               </button>
             );

@@ -22,7 +22,7 @@ interface BSeasonClimate {
 }
 export interface BFarmContext {
   location: { preset_id: string | null; name: string; lat: number; lon: number; is_custom_pin: boolean };
-  terrain: { elevation_m: number; slope_pct: number; erosion_risk_label: string };
+  terrain: { elevation_m: number; slope_pct: number; erosion_risk_label: string; live?: boolean };
   ndvi_profile: { mean_ndvi: number; historical_bare_months: number[]; el_nino_ndvi_drop_pct: number };
   climate: Record<"normal" | "elnino", Record<SeasonKind, BSeasonClimate>> & { elnino_basis?: "observed_2015_2016" | "synthetic" };
 }
@@ -215,8 +215,8 @@ export function farmToPreset(ctx: BFarmContext, base?: Preset): Preset {
     elevation_m: ctx.terrain.elevation_m,
     slope_pct: ctx.terrain.slope_pct,
     ndvi_dry_min: ctx.ndvi_profile.mean_ndvi,
-    // Presets carry measured SRTM slope and MODIS NDVI; a pin borrows the nearest preset's.
-    placeholders: loc.is_custom_pin ? ["slope_pct", "ndvi_dry_min"] : [],
+    // Presets carry measured SRTM terrain and MODIS NDVI. A pin gets live SRTM when the backend reached it, and borrows the rest from the nearest preset.
+    placeholders: !loc.is_custom_pin ? [] : ctx.terrain.live ? ["ndvi_dry_min"] : ["slope_pct", "elevation_m", "ndvi_dry_min"],
     source: "Mikazuki API: NASA POWER 2015–2024, SRTM 30 m, MODIS MOD13Q1",
   };
 }
