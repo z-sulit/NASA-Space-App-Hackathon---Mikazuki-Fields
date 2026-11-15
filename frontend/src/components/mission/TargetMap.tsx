@@ -85,6 +85,8 @@ export function TargetMap({
   const [pt, setPt] = useState<{ x: number; y: number } | null>(null);
   const focusRef = useRef(focus);
   focusRef.current = focus;
+  const dragging = useRef(false);
+  const dragEndAt = useRef(0);
   const handlers = useRef({ onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary });
   handlers.current = { onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary };
 
@@ -126,9 +128,16 @@ export function TargetMap({
         })
         .addTo(m);
     });
+    m.on("dragstart", () => {
+      dragging.current = true;
+    });
+    m.on("dragend", () => {
+      dragging.current = false;
+      dragEndAt.current = performance.now();
+    });
     m.on("click", (e: L.LeafletMouseEvent) => {
       const h = handlers.current;
-      if (h.locked) return;
+      if (h.locked || dragging.current || performance.now() - dragEndAt.current < 200) return;
       const p = { lat: e.latlng.lat, lon: e.latlng.lng };
       if (h.drawing) h.onBoundary([...h.boundary, p]);
       else h.onPickPoint(p);
@@ -172,12 +181,19 @@ export function TargetMap({
       // 44 px icon around a 16 px dot, so a corner is easy to grab on a phone.
       const icon = L.divIcon({ className: "", html: `<span class="vtx ${i === 0 ? "is-first" : ""}"></span>`, iconSize: [44, 44] });
       const corner = L.marker(ring[i], { icon, draggable: true, keyboard: false, bubblingMouseEvents: false }).addTo(group);
+      corner.on("dragstart", () => {
+        dragging.current = true;
+      });
       corner.on("drag", () => {
         const at = corner.getLatLng();
         ring[i] = [at.lat, at.lng];
         shape.setLatLngs(ring);
       });
-      corner.on("dragend", () => handlers.current.onBoundary(ring.map(([lat, lon]) => ({ lat, lon }))));
+      corner.on("dragend", () => {
+        dragging.current = false;
+        dragEndAt.current = performance.now();
+        handlers.current.onBoundary(ring.map(([lat, lon]) => ({ lat, lon })));
+      });
     });
   }, [boundary, drawing, locked]);
 

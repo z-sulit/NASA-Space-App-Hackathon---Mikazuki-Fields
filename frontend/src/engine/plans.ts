@@ -187,7 +187,9 @@ export function planRoutes(req: PlanRequest, preset: Preset): PlansResponse {
   let bestScore = -Infinity;
   for (let r = 0; r < TOTAL; r++) {
     if (!a.ok[r] || a.guard3[r]) continue;
-    const sc = ww * W(r) + ws * S(r) + we * E(r);
+    const scNorm = ww * W(r) + ws * S(r) + we * E(r);
+    const scEln = ww * WE(r) + ws * SE(r) + we * EE(r);
+    const sc = 0.85 * scNorm + 0.15 * scEln;
     if (sc > bestScore) {
       bestScore = sc;
       best = r;
@@ -255,4 +257,55 @@ export function customPlan(req: PlanRequest, preset: Preset, rotation: CropId[])
     } satisfies PlanResult;
   };
   return { normal: one("normal"), elnino: one("elnino") };
+}
+
+export function scaleWhyCurrency(text: string, ha: number): string {
+  const regex = /PHP\s*(-?[\d,]+(?:\.\d+)?)\s*\/\s*USD\s*-?[\d,]+(?:\.\d+)?|(₱|PHP\s*)(-?[\d,]+(?:\.\d+)?)/g;
+  return text.replace(regex, (match, dualPhp?: string, singlePrefix?: string, singleNum?: string) => {
+    if (dualPhp !== undefined) {
+      const val = Number(dualPhp.replace(/,/g, ""));
+      return Number.isFinite(val) ? formatPhpUsd(val * ha) : match;
+    }
+    if (singleNum !== undefined) {
+      const val = Number(singleNum.replace(/,/g, ""));
+      if (!Number.isFinite(val)) return match;
+      const scaled = Math.round(val * ha).toLocaleString("en-PH");
+      return `${singlePrefix}${scaled}`;
+    }
+    return match;
+  });
+}
+
+/** Scale a 1-hectare PlanResult proportionally to `landSizeHa` hectares. */
+export function scalePlanResult(plan: PlanResult, landSizeHa: number): PlanResult {
+  const ha = Number.isFinite(landSizeHa) && landSizeHa > 0 ? landSizeHa : 1;
+  if (ha === 1) return plan;
+  return {
+    ...plan,
+    seasons: plan.seasons.map((s) => ({
+      ...s,
+      yieldT: s.yieldT * ha,
+      ureaCost: s.ureaCost * ha,
+      pumpCost: s.pumpCost * ha,
+      profit: s.profit * ha,
+    })),
+    kpis: {
+      ...plan.kpis,
+      totalProfit: plan.kpis.totalProfit * ha,
+      worstSeasonProfit: plan.kpis.worstSeasonProfit * ha,
+      ureaTotal: plan.kpis.ureaTotal * ha,
+    },
+    why: plan.why.map((line) => scaleWhyCurrency(line, ha)),
+  };
+}
+
+/** Scale all routes in a PlansResponse proportionally to `landSizeHa` hectares. */
+export function scalePlansResponse(res: PlansResponse, landSizeHa: number): PlansResponse {
+  const ha = Number.isFinite(landSizeHa) && landSizeHa > 0 ? landSizeHa : 1;
+  if (ha === 1) return res;
+  return {
+    ...res,
+    normal: res.normal.map((p) => scalePlanResult(p, ha)),
+    elnino: res.elnino.map((p) => scalePlanResult(p, ha)),
+  };
 }

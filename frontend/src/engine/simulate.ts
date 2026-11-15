@@ -59,6 +59,7 @@ export interface SeasonWater {
   gap: number;
   endStore: number;
   cropTmax: number;
+  effectiveTmax: number;
   months: NonNullable<SeasonResult["months"]>;
 }
 
@@ -69,6 +70,7 @@ interface Prep {
   demand: number;
   supplyRain: number;
   cropTmax: number;
+  effectiveTmax: number;
   planted: boolean[];
 }
 const prepCache = new WeakMap<SeasonClimate, Map<string, Prep>>();
@@ -84,12 +86,16 @@ function prep(crop: Crop, clim: SeasonClimate): Prep {
   const frac = [0, 1, 2, 3, 4, 5].map((k) => Math.min(1, Math.max(0, crop.days / 30 - k)));
   const cropMonths = frac.reduce((a, b) => a + b, 0);
   const need = frac.map((f, k) => crop.kc * e[k] * 30 * f + (extra * f) / cropMonths);
+  const cropTmax = frac.reduce((a, f, k) => a + f * t[k], 0) / cropMonths;
+  let peakTmax = -Infinity;
+  for (let k = 0; k < 6; k++) if (frac[k] > 0 && t[k] > peakTmax) peakTmax = t[k];
   const out: Prep = {
     need,
     bare: frac.map((f, k) => BARE_EVAP * e[k] * 30 * (1 - f)),
     demand: need.reduce((a, b) => a + b, 0),
     supplyRain: frac.reduce((a, f, k) => a + (f > 0 ? RAIN_EFFECTIVE * r[k] : 0), 0),
-    cropTmax: frac.reduce((a, f, k) => a + f * t[k], 0) / cropMonths,
+    cropTmax,
+    effectiveTmax: 0.7 * cropTmax + 0.3 * (peakTmax > -Infinity ? peakTmax : cropTmax),
     planted: frac.map((f) => f > 0),
   };
   byCrop.set(crop.id, out);
@@ -105,7 +111,7 @@ export function seasonWater(crop: Crop, store: number, clim: SeasonClimate, whc:
   if (!(r?.length === 6 && clim.monthly_et0_mm_day?.length === 6 && clim.monthly_tmax_c?.length === 6)) {
     const demand = crop.kc * clim.et0_mm_day * crop.days + (crop.id === "paddy_rice" ? PADDY_EXTRA : 0);
     const supply = RAIN_EFFECTIVE * clim.rain_mm + store;
-    return { demand, supply, gap: Math.max(0, demand - supply), endStore: Math.max(0, supply - demand), cropTmax: clim.tmax_c, months: [] };
+    return { demand, supply, gap: Math.max(0, demand - supply), endStore: Math.max(0, supply - demand), cropTmax: clim.tmax_c, effectiveTmax: clim.tmax_c, months: [] };
   }
   // Hot path for the optimizer (1.5 million calls): cached per-crop numbers, no allocations unless `detail`.
   const p = prep(crop, clim);
@@ -121,7 +127,7 @@ export function seasonWater(crop: Crop, store: number, clim: SeasonClimate, whc:
     const next = avail - need - p.bare[k];
     bucket = next < 0 ? 0 : next > whc ? whc : next;
   }
-  return { demand: p.demand, supply: p.supplyRain + store, gap, endStore: bucket, cropTmax: p.cropTmax, months };
+  return { demand: p.demand, supply: p.supplyRain + store, gap, endStore: bucket, cropTmax: p.cropTmax, effectiveTmax: p.effectiveTmax, months };
 }
 
 export interface Env {
@@ -129,6 +135,7 @@ export interface Env {
   soil: Soil;
   irrigation: Irrigation;
   slopePct: number;
+  ndviDryMin: number;
   overrides: Overrides;
   baselineFamily: Crop["family"];
   relaxFlood: boolean;
@@ -148,6 +155,7 @@ export function makeEnv(
     soil,
     irrigation,
     slopePct: preset.slope_pct,
+    ndviDryMin: preset.ndvi_dry_min,
     overrides,
     baselineFamily: CROP[baselineCrop].family,
     relaxFlood,
@@ -168,7 +176,14 @@ export interface Summary {
 export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
   const whc = WHC[env.soil];
   const kSoil = K_SOIL[env.soil];
-  let n: number = N0[env.overrides.soilTestN];
+  let n: number =
+    env.overrides.soilTestN === "untested"
+      ? env.ndviDryMin < 0.3
+        ? 55
+        : env.ndviDryMin >= 0.45
+          ? 70
+          : 65
+      : N0[env.overrides.soilTestN];
   let store = env.climates[0].gwetroot * whc;
   let pest = env.overrides.pestLastSeason ? 0.45 : 0.15;
   let prevFamily = env.baselineFamily;
@@ -178,6 +193,7 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
   let pestSum = 0;
   let total = 0;
   let worst = Infinity;
+  const acidSoil = env.overrides.soilPh !== null && env.overrides.soilPh < 5.5;
 
   for (let t = 0; t < 6; t++) {
     const crop = seq[t];
@@ -185,7 +201,7 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
     const kind = seasonKind(t);
     const isPaddy = crop.id === "paddy_rice";
 
-    // 1. Water balance (monthly when the climate has monthly series)
+    // 1. Water balance (monthly when the climate has monthly series) + NASA GWETROOT waterlogging
     const w = seasonWater(crop, store, clim, whc, kind, record !== undefined);
     const { demand, supply, gap } = w;
     let pumped = 0;
@@ -198,17 +214,25 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
       waterLoss = Math.min(0.85, (crop.ky * gap) / demand);
       if (isPaddy && supply < 0.8 * demand) feasible = false;
     }
+    const waterlogLoss =
+      !crop.flood_tolerant && clim.gwetroot > 0.85
+        ? Math.min(0.25, 1.2 * (clim.gwetroot - 0.85)) * (env.soil === "sandy" ? 0.5 : 1)
+        : 0;
     if (isPaddy && env.slopePct > 8) feasible = false;
     if (!env.relaxFlood && env.overrides.floods === kind && !crop.flood_tolerant) feasible = false;
     store = 0.5 * Math.min(whc, w.endStore) + 0.5 * (env.climates[t + 1].gwetroot * whc);
 
-    // 2. Heat: mean afternoon heat over the months the crop is in the ground
-    const heatLoss = Math.min(0.7, 0.1 * Math.max(0, w.cropTmax - crop.heat_limit_c));
+    // 2. Heat (mean + peak monthly NASA T2M_MAX) and Solar Radiation (NASA ALLSKY_SFC_SW_DWN)
+    const heatLoss = Math.min(0.7, 0.1 * Math.max(0, w.effectiveTmax - crop.heat_limit_c));
+    const solarFactor = Math.min(1.06, Math.max(0.88, 1 + 0.015 * (clim.allsky_mj - 18.5)));
 
-    // 3. Nitrogen and urea top-up
+    // 3. Nitrogen, rain-driven leaching (NASA PRECTOTCORR), and urea top-up
     const sameFamily = crop.family === prevFamily;
-    let dN = crop.soil_n_delta - (env.soil === "sandy" && kind === "wet" ? 3 : 0) - (sameFamily ? 3 : 0);
-    if (env.overrides.soilPh !== null && env.overrides.soilPh < 5.5 && crop.family === "Fabaceae") dN *= 0.5;
+    let rainLeach = 0;
+    if (env.soil === "sandy") rainLeach = 2 + 3 * Math.min(1, Math.max(0, (clim.rain_mm - 600) / 800));
+    else if (env.soil === "loam" && clim.rain_mm > 1000) rainLeach = 1.5 * Math.min(1, (clim.rain_mm - 1000) / 600);
+    let dN = crop.soil_n_delta - rainLeach - (sameFamily ? 3 : 0);
+    if (acidSoil && crop.family === "Fabaceae") dN *= 0.5;
     let ureaCost = 0;
     let nFactor = 1;
     if (crop.family !== "Fabaceae" && n < 60) {
@@ -218,18 +242,28 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
     const nStart = n;
     n = Math.min(100, Math.max(10, n + dN));
 
-    // 4. Pests
+    // 4. Pests & Rotation Vigor (legume break bonus vs monoculture drag)
     pest = sameFamily ? Math.min(1, pest + 0.25) : pest * 0.3;
     const pestLoss = 0.15 * pest;
+    const rotationFactor =
+      crop.family !== "Fabaceae" && prevFamily === "Fabaceae"
+        ? 1.06
+        : sameFamily && (t > 0 || env.overrides.pestLastSeason)
+          ? 0.97
+          : 1;
+    const phFactor = acidSoil && crop.family !== "Fabaceae" ? 0.95 : 1;
 
-    // 5. Erosion over a 180-day season
+    // 5. Erosion over a 180-day season (adjusted for MODIS dry-season bare cover)
     const covered = crop.days / 180;
     const cEff = covered * crop.cover_c + (1 - covered);
-    const erosion = Math.min(100, Math.max(0, (clim.rain_mm / 1200) * kSoil * (1 + env.slopePct / 10) * cEff * 50));
+    const ndviErosionMult = kind === "dry" && env.ndviDryMin < 0.3 ? 1.15 : 1;
+    const erosion = Math.min(100, Math.max(0, (clim.rain_mm / 1200) * kSoil * (1 + env.slopePct / 10) * cEff * 50 * ndviErosionMult));
 
-    // 6. Profit
-    const yieldT = crop.base_yield_t_ha * (1 - waterLoss) * (1 - heatLoss) * (1 - pestLoss) * nFactor;
-    const profit = yieldT * crop.price_php_per_t - crop.base_cost_php - ureaCost - pumpCost;
+    // 6. Yield & Profit (88% fixed planting/input cost + 12% harvest/hauling cost scaled by yield)
+    const yieldRatio = (1 - waterLoss) * (1 - waterlogLoss) * (1 - heatLoss) * (1 - pestLoss) * nFactor * solarFactor * rotationFactor * phFactor;
+    const yieldT = crop.base_yield_t_ha * yieldRatio;
+    const cropCost = crop.base_cost_php * (0.88 + 0.12 * Math.min(1.1, yieldRatio));
+    const profit = yieldT * crop.price_php_per_t - cropCost - ureaCost - pumpCost;
 
     water += gap;
     erosionSum += erosion;

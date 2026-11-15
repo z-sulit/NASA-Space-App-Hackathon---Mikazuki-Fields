@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
-import { ArrowLeft, CircleHelp, Crosshair, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
+import { ArrowLeft, CircleHelp, Crosshair, FileDown, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
-import { customPlan } from "../../engine/plans";
+import { customPlan, scalePlanResult, scalePlansResponse } from "../../engine/plans";
 import { fetchPinFarm, fetchPlans, loadFarms, type DataSource } from "../../api/client";
 import { inPhilippines } from "../../api/power";
 import { checkLand } from "../../api/landcheck";
@@ -485,8 +485,9 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     setStage("target");
   };
 
-  // Farm-settings changes re-plan (debounced) while picking plants.
+  // Farm-settings changes re-plan (debounced) while picking plants; landSizeHa scales instantaneously.
   const firstReq = useRef(true);
+  const planSig = JSON.stringify({ ...req, landSizeHa: 1 });
   useEffect(() => {
     if (firstReq.current) {
       firstReq.current = false;
@@ -496,7 +497,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     setBusy(true); // instant feedback; the plan itself follows the debounce
     const t = setTimeout(() => void plan(req, target), 350);
     return () => clearTimeout(t);
-  }, [req]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [planSig]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const plant = () => {
     setSeason(-1);
@@ -537,13 +538,19 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const custom = useMemo(() => customPlan(req, target, customRotation), [req, target, customRotation]);
+  const landHa = Number.isFinite(req.landSizeHa) && req.landSizeHa > 0 ? req.landSizeHa : 1;
+  const scaledResult = useMemo(() => (result ? scalePlansResponse(result, landHa) : null), [result, landHa]);
+  const customRaw = useMemo(() => customPlan(req, target, customRotation), [req, target, customRotation]);
+  const custom = useMemo(
+    () => ({ normal: scalePlanResult(customRaw.normal, landHa), elnino: scalePlanResult(customRaw.elnino, landHa) }),
+    [customRaw, landHa],
+  );
   const chosen = useMemo(() => {
-    if (!result) return null;
+    if (!scaledResult) return null;
     if (choice === "custom") return { now: custom[scenario], normal: custom.normal };
     const i = ["A", "B", "C"].indexOf(choice);
-    return { now: result[scenario][i], normal: result.normal[i] };
-  }, [result, choice, custom, scenario]);
+    return { now: scaledResult[scenario][i], normal: scaledResult.normal[i] };
+  }, [scaledResult, choice, custom, scenario]);
 
   const plots = chosen
     ? chosen.now.seasons.map((s, i) => ({
@@ -572,6 +579,26 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     if (chosen.now.custom) return chosen.now.why;
     return chosen.now.why.map(formatPhpUsdInText);
   }, [chosen]);
+
+  const downloadPdfReport = async () => {
+    if (!chosen) return;
+    const { downloadFieldReportPdf } = await import("../../utils/pdfReport");
+    downloadFieldReportPdf({
+      target,
+      req,
+      scenario,
+      plan: chosen.now,
+      normalPlan: chosen.normal,
+      why: chosenWhy,
+      notes: planNotes,
+      windows,
+      startYear,
+      farmSource,
+      pinVia,
+      planSource: result?.source ?? "demo",
+      altitude,
+    });
+  };
 
   return (
     <section
@@ -820,10 +847,10 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       )}
 
       {/* Step 04 */}
-      {stage === "plants" && result && (
+      {stage === "plants" && scaledResult && (
         <PickPlants
           farmName={inName(target)}
-          plans={result[scenario]}
+          plans={scaledResult[scenario]}
           custom={custom[scenario]}
           choice={choice}
           onChoice={setChoice}
@@ -831,6 +858,8 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
           onCustomRotation={setCustomRotation}
           req={req}
           onReq={(patch) => setReq((r) => ({ ...r, ...patch }))}
+          scenario={scenario}
+          onScenario={setScenario}
           notes={planNotes}
           busy={busy}
           onPlant={plant}
@@ -848,6 +877,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               onSeason={onSeason}
               drought={scenario === "elnino"}
               focus={season >= 6 ? focusSeason : null}
+              polygon={boundary.length >= 3 ? boundary : undefined}
             />
             <div className="pointer-events-none absolute top-20 left-4 z-10 sm:left-8">
               <h2 className="font-display text-[clamp(24px,3.2vw,40px)] leading-tight font-normal tracking-[-0.02em]">
@@ -977,7 +1007,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               </span>
             </p>
             <div className="mt-5">
-              <p className="text-xs font-medium text-ink/70">3-year profit</p>
+              <p className="text-xs font-medium text-ink/70">3-year profit ({landHa} ha)</p>
               <p className="font-display text-[22px] leading-8 tracking-[-0.02em] sm:text-[24px]">
                 <CountUp value={chosen.now.kpis.totalProfit} format={formatPhpUsd} />
               </p>
@@ -991,8 +1021,13 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             <dl className="mt-3 grid grid-cols-2 gap-2">
               {(
                 [
+                  ["Total harvest", <CountUp value={chosen.now.seasons.reduce((acc, s) => acc + s.yieldT, 0)} format={(v) => `${v.toFixed(1)} t`} />],
+                  ["Fertilizer (urea)", <CountUp value={chosen.now.kpis.ureaTotal} format={formatPhpUsd} />],
                   ["Soil nitrogen", <><CountUp value={chosen.now.kpis.nStart} format={(v) => `${Math.round(v)}`} /> → <CountUp value={chosen.now.kpis.nFinal} format={(v) => `${Math.round(v)}`} /></>],
-                  ["Water shortfall", <CountUp value={chosen.now.kpis.waterMm} format={(v) => `${Math.round(v)} mm`} />],
+                  [
+                    req.irrigation === "irrigated" ? "Water pumped" : "Water shortfall",
+                    <CountUp value={chosen.now.kpis.waterMm} format={(v) => `${Math.round(v)} mm · ${Math.round(v * 10 * landHa).toLocaleString("en-PH")} m³`} />,
+                  ],
                   ["Erosion risk", chosen.now.kpis.erosionLevel],
                   ["Pest cycles broken", <CountUp value={chosen.now.kpis.pestBreaks} format={(v) => `${Math.round(v)}`} />],
                   ["Bare months in rain", <CountUp value={chosen.now.kpis.bareMonthCount} format={(v) => `${Math.round(v)}`} />],
@@ -1031,6 +1066,9 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             <div className="mt-auto flex flex-wrap gap-2 pt-5">
               <button type="button" onClick={() => setStage("plants")} className="btn btn-primary flex-1">
                 <Sprout className="size-4" aria-hidden /> Change plants
+              </button>
+              <button type="button" onClick={() => void downloadPdfReport()} className="btn btn-secondary">
+                <FileDown className="size-4" aria-hidden /> Download PDF Report
               </button>
               <button type="button" onClick={() => void backToMap()} className="btn btn-secondary">
                 <ArrowLeft className="size-4" aria-hidden /> New farm
