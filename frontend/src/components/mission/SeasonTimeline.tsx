@@ -62,7 +62,7 @@ export function SeasonTimeline({
   const w = focus === null ? null : windows[focus];
 
   return (
-    <div className="season-timeline">
+    <div className="season-timeline" data-tour="timeline">
       {s && w && (
         <p className="season-readout" aria-live="polite">
           <span className="font-semibold">
