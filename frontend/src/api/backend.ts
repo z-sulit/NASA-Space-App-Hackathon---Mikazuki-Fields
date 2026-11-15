@@ -91,6 +91,9 @@ export function toBackendRequest(req: PlanRequest, preset: Preset) {
       soil_ph: o.soilPh,
       last_outcome_pests: o.pestLastSeason,
       flooded_months: o.floods === "wet" ? WET_MONTHS : o.floods === "dry" ? DRY_MONTHS : [],
+      max_budget_php: o.maxBudgetPhp ?? null,
+      excluded_crops: o.excludedCrops ?? [],
+      must_include_staple: o.mustIncludeStaple ?? false,
     },
   };
 }

@@ -69,7 +69,10 @@ function matchesBundle(req: PlanRequest) {
     o.soilTestN === "untested" &&
     o.soilPh === null &&
     !o.pestLastSeason &&
-    o.floods === "never"
+    o.floods === "never" &&
+    (o.maxBudgetPhp ?? null) === null &&
+    (o.excludedCrops?.length ?? 0) === 0 &&
+    !o.mustIncludeStaple
   );
 }
 

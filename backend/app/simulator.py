@@ -51,6 +51,9 @@ class CropArrays:
     flood_tolerant: np.ndarray
     high_water: np.ndarray
     is_forage: np.ndarray
+    is_root_or_tuber: np.ndarray
+    is_staple: np.ndarray
+    is_short_cycle: np.ndarray
 
 
 def load_crop_arrays() -> CropArrays:
@@ -74,6 +77,9 @@ def load_crop_arrays() -> CropArrays:
         flood_tolerant=np.array([c["flood_tolerant"] for c in crops], dtype=bool),
         high_water=np.array([c["high_water"] for c in crops], dtype=bool),
         is_forage=np.array(["forage" in c["fits_goal"] for c in crops], dtype=bool),
+        is_root_or_tuber=np.array([c["id"] in ("sweet_potato", "peanut") for c in crops], dtype=bool),
+        is_staple=np.array([c["id"] in ("corn", "paddy_rice", "upland_rice") for c in crops], dtype=bool),
+        is_short_cycle=np.array([c["days"] <= 75 for c in crops], dtype=bool),
     )
 
 
@@ -176,6 +182,7 @@ class BatchSimResult:
     total_water_deficit: np.ndarray
     total_pumped: np.ndarray
     paddy_rainfed_infeasible: np.ndarray
+    loss_seasons: np.ndarray
 
 
 def resolve_initial_n(req: PlanRequest, mean_ndvi: float = 0.40) -> float:
@@ -230,6 +237,7 @@ def simulate_batch_vectorized(
     deficit_sum = np.zeros(m, dtype=np.float32)
     pumped_sum = np.zeros(m, dtype=np.float32)
     paddy_rainfed_infeasible = np.zeros(m, dtype=bool)
+    loss_seasons = np.zeros(m, dtype=np.int8)
 
     f_bare_8 = (180.0 - ca.days) / 180.0
     c_eff_8 = (ca.days / 180.0) * ca.cover_c + f_bare_8
@@ -284,7 +292,12 @@ def simulate_batch_vectorized(
 
         if s_clim.gwetroot > 0.85:
             wl_base = min(0.25, 1.2 * (s_clim.gwetroot - 0.85)) * (0.5 if req.soil_texture == "sandy" else 1.0)
-            waterlog_mult_8 = np.where(~ca.flood_tolerant, np.float32(1.0 - wl_base), np.float32(1.0)).astype(np.float32)
+            wl_per_crop = np.where(
+                ca.flood_tolerant,
+                0.0,
+                np.where(ca.is_root_or_tuber & (req.soil_texture != "sandy"), min(0.35, wl_base * 1.5), wl_base),
+            )
+            waterlog_mult_8 = (1.0 - wl_per_crop).astype(np.float32)
         else:
             waterlog_mult_8 = np.ones(len(ca.days), dtype=np.float32)
 
@@ -343,6 +356,7 @@ def simulate_batch_vectorized(
         )
         total_profit += profit_t
         worst_profit = np.minimum(worst_profit, profit_t)
+        loss_seasons += (profit_t < np.float32(0.0))
         prev_fam = fam
 
     return BatchSimResult(
@@ -354,6 +368,7 @@ def simulate_batch_vectorized(
         total_water_deficit=deficit_sum.astype(np.float64),
         total_pumped=pumped_sum.astype(np.float64),
         paddy_rainfed_infeasible=paddy_rainfed_infeasible,
+        loss_seasons=loss_seasons,
     )
 
 
@@ -427,7 +442,11 @@ def simulate_single_detailed(
             pumped_sum += pumped
 
         if (not bool(crop["flood_tolerant"])) and s_clim.gwetroot > 0.85:
-            waterlog_loss = min(0.25, 1.2 * (s_clim.gwetroot - 0.85)) * (0.5 if req.soil_texture == "sandy" else 1.0)
+            wl_base = min(0.25, 1.2 * (s_clim.gwetroot - 0.85)) * (0.5 if req.soil_texture == "sandy" else 1.0)
+            if bool(ca.is_root_or_tuber[c_idx]) and req.soil_texture != "sandy":
+                waterlog_loss = min(0.35, wl_base * 1.5)
+            else:
+                waterlog_loss = wl_base
         else:
             waterlog_loss = 0.0
 
