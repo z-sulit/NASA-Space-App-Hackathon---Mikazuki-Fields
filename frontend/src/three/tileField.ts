@@ -1,10 +1,6 @@
 /**
- * Frame 1, "Green tiles": a field of rounded olive tiles (one instanced mesh) seen
- * from above at an angle. Tiles ripple gently, rise around the pointer like a
- * crop pushed by wind, and flip to a crop color when tapped. exit() dives the
- * camera into the field while the tiles drop away in a wave from the center; the
- * page fades the canvas out over the map underneath, so it reads as one move.
- * onExited fires at EXIT_MS, and the scene stops rendering after that.
+ * Step 01: a field of olive tiles (one instanced mesh) that ripple, rise around the pointer and flip when tapped.
+ * exit() dives the camera in while the page fades the canvas out over the map; onExited fires at EXIT_MS.
  */
 import {
   ACESFilmicToneMapping,

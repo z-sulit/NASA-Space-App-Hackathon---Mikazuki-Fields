@@ -1,12 +1,8 @@
 import type { Preset, SeasonClimate } from "../types";
 
 /**
- * Live NASA POWER climate for any point (the API allows browser requests), used when
- * the Mikazuki API is not reachable. Same math as backend/app/power_client.py: monthly
- * 2015–2024 averages folded into a wet season (Jun–Nov) and a dry season (Dec–May),
- * with month-by-month series, and El Niño = this point's real Jun 2015–May 2016 months.
- * Slope and green cover are borrowed from the nearest preset until the SRTM / MODIS
- * pulls exist, and are marked as placeholders.
+ * Live NASA POWER climate for any point, used when the Mikazuki API is not reachable.
+ * Same math as backend/app/power_client.py. Slope and green cover come from the nearest preset, marked as placeholders.
  */
 const PARAMS = "T2M,T2M_MAX,PRECTOTCORR,GWETROOT,ALLSKY_SFC_SW_DWN";
 const WET = [6, 7, 8, 9, 10, 11];

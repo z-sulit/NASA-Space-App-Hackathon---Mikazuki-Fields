@@ -1,20 +1,12 @@
 /**
- * Adapter for the Mikazuki Fields FastAPI backend (backend/app/schemas.py on main).
- *
- * The UI keeps its own camelCase shapes (src/types.ts); this file is the only place
- * that knows the backend's JSON. Endpoints used:
- *   GET  /api/farm?preset_id=… | ?lat=…&lon=…   FarmContext (live NASA POWER for pins)
- *   POST /api/plans                             PlanResponse (Plans A/B/C, normal + El Niño)
- *
- * API_BASE is empty by default, so calls go to the same origin: Vite proxies /api to
- * :8000 in dev, and on Vercel /api/* is rewritten to api/index.py. Set VITE_API_BASE
- * (for example https://mikazuki-fields-api.onrender.com) when the API lives elsewhere.
+ * The only file that knows the backend's JSON (backend/app/schemas.py); the UI keeps its own shapes in src/types.ts.
+ * API_BASE is empty by default (same origin: Vite proxies /api in dev, Vercel rewrites it). Set VITE_API_BASE when the API lives elsewhere.
  */
 import type { CropId, PlanId, PlanKpis, PlanRequest, PlanResult, PlansResponse, Preset, SeasonClimate, SeasonKind, SeasonResult } from "../types";
 
 export const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, "") ?? "";
 
-// ---------- Backend JSON (subset of backend/app/schemas.py) ----------
+// Backend JSON (subset of backend/app/schemas.py)
 
 interface BSeasonClimate {
   rain_mm: number;
@@ -77,7 +69,7 @@ export interface BPlanResponse {
   scenarios: Record<"normal" | "elnino", Record<"plan_a" | "plan_b" | "plan_c", BPlanCard>>;
 }
 
-// ---------- Requests ----------
+// Requests
 
 const WET_MONTHS = [6, 7, 8, 9, 10, 11];
 const DRY_MONTHS = [12, 1, 2, 3, 4, 5];
@@ -103,7 +95,7 @@ export function toBackendRequest(req: PlanRequest, preset: Preset) {
   };
 }
 
-// ---------- Responses ----------
+// Responses
 
 const MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const PLAN_ID: Record<BPlanCard["id"], PlanId> = { plan_a: "A", plan_b: "B", plan_c: "C" };
@@ -228,7 +220,7 @@ export function farmToPreset(ctx: BFarmContext, base?: Preset): Preset {
   };
 }
 
-// ---------- Calls ----------
+// Calls
 
 async function getJson<T>(url: string, init?: RequestInit, timeoutMs = 8000): Promise<T> {
   const ctl = new AbortController();

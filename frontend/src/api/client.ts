@@ -4,18 +4,14 @@ import { apiFarm, apiPlans, fallbackBundle, farmToPreset, fromBackendPlans, toBa
 import { fetchPointPreset } from "./power";
 
 /**
- * Where the numbers come from, in order:
- *  1. The Mikazuki FastAPI backend (POST /api/plans, GET /api/farm). See ./backend.ts.
- *  2. Its offline bundle, frontend/public/fallback_plans.json, for a preset farm with
- *     the default settings it was exported with.
- *  3. The in-browser planner (src/engine, same engine spec) in a Web Worker, so the
- *     app still works on a static host such as GitHub Pages.
+ * Where the numbers come from, in order: the Mikazuki API (./backend.ts), its offline bundle
+ * (public/fallback_plans.json, preset farms with default settings only), then the in-browser planner.
  * Every call tries the API first; a failure only falls back for that one call.
  */
 
 export type DataSource = PlansResponse["source"];
 
-// ---------- In-browser planner (Web Worker) ----------
+// In-browser planner (Web Worker)
 
 let worker: Worker | null = null;
 let workerBroken = false;
@@ -57,7 +53,7 @@ function demoPlan(req: PlanRequest, preset: Preset): Promise<PlansResponse> {
   }).catch(() => planRoutes(req, preset));
 }
 
-// ---------- Offline bundle ----------
+// Offline bundle
 
 /** The settings data-prep/export_fallback.py used, so bundled plans only answer the same question. */
 function matchesBundle(req: PlanRequest) {
@@ -77,7 +73,7 @@ function matchesBundle(req: PlanRequest) {
   );
 }
 
-// ---------- Public ----------
+// Public
 
 export async function fetchPlans(req: PlanRequest, preset: Preset): Promise<PlansResponse> {
   try {
