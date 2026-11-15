@@ -228,7 +228,7 @@ export function PickPlants({
           </div>
         )}
 
-        <div className="mt-4 rounded-[10px] border border-ink/12">
+        <div className="mt-4 rounded-[10px] border border-ink/12" data-tour="settings">
           <button type="button" onClick={() => setSettings((s) => !s)} aria-expanded={settings} className="flex min-h-11 w-full items-center justify-between px-3 text-sm">
             <span>
               <span className="font-semibold">Farm settings</span>
