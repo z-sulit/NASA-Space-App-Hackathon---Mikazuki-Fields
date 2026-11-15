@@ -869,6 +869,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const plant = () => {
     setSeason(-1);
     setFocusSeason(null);
+    setHoverSeason(null);
     setPlaying(false);
     setStage("planting");
     setTour((t) => advanceTourForStage(t, "planting"));
@@ -1553,7 +1554,12 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                 plantKey={`${choice}-${chosen.now.rotation.join("-")}`}
                 onSeason={onSeason}
                 drought={scenario === "elnino"}
-                focus={season >= 6 ? focusSeason : null}
+                focus={season >= 6 ? (hoverSeason ?? focusSeason) : null}
+                onPlotClick={(i) => {
+                  if (season < 6) return;
+                  setPlaying(false);
+                  setFocusSeason((prev) => (prev === i ? null : i));
+                }}
                 polygon={boundary.length >= 3 ? boundary : undefined}
               />
             </Suspense>
@@ -1578,6 +1584,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                   seasons={chosen.now.seasons}
                   focus={focusSeason}
                   onFocus={setFocusSeason}
+                  onHover={setHoverSeason}
                   playing={playing}
                   onPlaying={setPlaying}
                   rainFor={(i) => climate(target, windows[i].kind, scenario).rain_mm}
