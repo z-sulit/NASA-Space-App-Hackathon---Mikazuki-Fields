@@ -144,7 +144,7 @@ function useHudTip() {
 function TipSlot({ tip }: { tip: string | null }) {
   return (
     <p
-      className={`mt-2 min-h-[4.25rem] rounded-[6px] px-2.5 py-2 text-xs leading-snug transition-colors ${
+      className={`tip-slot mt-2 min-h-[4.25rem] rounded-[6px] px-2.5 py-2 text-xs leading-snug transition-colors ${
         tip ? "bg-ink/[0.08] text-ink" : "bg-ink/[0.03] text-ink/60"
       }`}
       aria-live="polite"
@@ -329,9 +329,9 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const lockBtn = useRef<HTMLButtonElement>(null);
   const reduced = prefersReducedMotion();
   // Floating HUD panels (#17). Phones start with the target data folded so the map shows.
-  const phone = typeof window !== "undefined" && window.innerWidth < 640;
+  const stacked = typeof window !== "undefined" && window.innerWidth <= 900;
   const wide = useMedia("(min-width: 1024px)");
-  const leftPanel = usePanel({ minW: 240, minH: 150, collapsed: phone });
+  const leftPanel = usePanel({ minW: 240, minH: 150, collapsed: stacked });
   const rightPanel = usePanel({ minW: 240, minH: 150 });
   const statsPanel = usePanel({ minW: 320, minH: wide ? 240 : 120, mode: wide ? "float" : "sheet" });
   const targetTips = useHudTip();
@@ -505,6 +505,11 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     if (!on) {
       resetBoundary();
       return;
+    }
+    // Stacked panels sit on the map: fold them so there is room to tap corners (Lock stays visible).
+    if (window.innerWidth <= 900) {
+      leftPanel.setCollapsed(true);
+      rightPanel.setCollapsed(true);
     }
     // Zoom to field level only if the user already picked a location or zoomed in manually.
     const zoom = mapRef.current?.getZoom() ?? mapZoom;
@@ -775,7 +780,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
           disabled={stage === "intro" || stage === "leaving"}
           title="Return to Philippine map"
           aria-label="Mikazuki Fields — Return to Philippine map"
-          className={`pointer-events-auto flex shrink-0 items-center gap-2 transition-opacity ${
+          className={`pointer-events-auto flex min-h-11 shrink-0 items-center gap-2 transition-opacity ${
             stage === "intro" || stage === "leaving" ? "cursor-default" : "cursor-pointer hover:opacity-80"
           }`}
         >
@@ -829,7 +834,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       {/* Step 02: cockpit targeting. Mounted (hidden) from START so its layout and paint
           happen while the tiles still cover the screen; revealed at the handover. */}
       {(stage === "leaving" || stage === "target" || stage === "locking") && (
-        <div className={`cockpit-hud ${stage === "leaving" ? "is-pre" : ""}`} aria-hidden={stage === "leaving" || undefined}>
+        <div className={`cockpit-hud ${stage === "leaving" ? "is-pre" : ""} ${drawing ? "is-drawing" : ""}`} aria-hidden={stage === "leaving" || undefined}>
           <div className="hud-title">
             <h2 className="font-display text-[clamp(26px,3.4vw,44px)] leading-tight font-normal tracking-[-0.02em]">Where is your farm?</h2>
             <p className={`mt-1 text-sm tabular ${stage === "locking" ? "blink-3 text-sakura" : "text-ink/80"}`} aria-live="polite">
@@ -1034,8 +1039,10 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                   : season >= 6
                     ? scenario === "elnino"
                       ? `El Niño replay (2015–16 weather) · ${planSpan(startYear)} · drag to look around`
-                      : `Planted · ${planSpan(startYear)} (6 seasons) · drag to turn, pinch or scroll to zoom`
+                      : `Planted · ${planSpan(startYear)} (6 seasons)`
                     : "Landing · preparing soil"}
+                {/* The gesture hint wraps over the field on a phone, where the gestures are the obvious ones. */}
+                {!current && season >= 6 && scenario !== "elnino" && <span className="hidden sm:inline"> · drag to turn, pinch or scroll to zoom</span>}
               </p>
             </div>
             {season >= 6 && (
