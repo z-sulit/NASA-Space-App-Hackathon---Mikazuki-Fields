@@ -1392,6 +1392,51 @@
   outline-offset: 2px;
 }
 
+/* Farm outline in step 02 (#31): mode switch, undo and clear, corner handles */
+.draw-bar {
+  display: grid;
+  gap: 8px;
+  width: min(420px, calc(100vw - 56px));
+  margin: 8px auto 0;
+  pointer-events: auto;
+}
+.route-tabs.draw-mode {
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: 0;
+}
+.draw-mode .route-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.vtx {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  cursor: grab;
+}
+.vtx::after {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f6efeb;
+  border-radius: 50%;
+  background: #c9e86a;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+  transition: transform 0.12s var(--mf-ease);
+}
+/* The starting corner and the one being dragged take the accent. */
+.vtx.is-first::after,
+.leaflet-drag-target .vtx::after {
+  background: var(--sakura);
+}
+.vtx:hover::after,
+.leaflet-drag-target .vtx::after {
+  transform: scale(1.25);
+}
+
 /* Place search in step 02 (#23) */
 .place-search {
   position: relative;
