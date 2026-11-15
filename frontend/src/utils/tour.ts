@@ -43,11 +43,41 @@ export function visibleRefsRect(rects: readonly RectBox[], vw: number, vh: numbe
   return { left, top, right, bottom, width: right - left, height: bottom - top };
 }
 
-/** Where the coach-mark card goes: under its target, else above it, else pinned to the bottom of the screen. Always on screen. */
-export function placeCard(target: Box, cardW: number, cardH: number, vw: number, vh: number): { left: number; top: number } {
-  const left = Math.min(Math.max(GAP, target.left + target.width / 2 - cardW / 2), Math.max(GAP, vw - cardW - GAP));
+/** Where the coach-mark card goes: beside a tall/side-preferred target, else under, above, or pinned to the bottom. Always on screen. */
+export function placeCard(
+  target: Box,
+  cardW: number,
+  cardH: number,
+  vw: number,
+  vh: number,
+  options?: { preferSide?: boolean },
+): { left: number; top: number } {
+  const leftCentered = Math.min(Math.max(GAP, target.left + target.width / 2 - cardW / 2), Math.max(GAP, vw - cardW - GAP));
   const lowest = Math.max(GAP, vh - cardH - GAP);
-  if (vh - target.bottom >= cardH + 2 * GAP) return { left, top: Math.max(GAP, target.bottom + GAP) };
-  if (target.top >= cardH + 2 * GAP) return { left, top: Math.min(lowest, target.top - GAP - cardH) };
-  return { left, top: lowest };
+  const targetH = Math.max(0, target.bottom - target.top);
+  const topCentered = Math.min(Math.max(GAP, target.top + targetH / 2 - cardH / 2), lowest);
+
+  const trySide = (): { left: number; top: number } | null => {
+    const rightLeft = target.right + GAP;
+    const rightFits = rightLeft + cardW <= vw - GAP;
+    const leftLeft = target.left - GAP - cardW;
+    const leftFits = leftLeft >= GAP;
+    if (!rightFits && !leftFits) return null;
+    if (rightFits && leftFits) {
+      return { left: vw - target.right >= target.left ? rightLeft : leftLeft, top: topCentered };
+    }
+    return { left: rightFits ? rightLeft : leftLeft, top: topCentered };
+  };
+
+  if (options?.preferSide) {
+    const side = trySide();
+    if (side) return side;
+  }
+  if (vh - target.bottom >= cardH + 2 * GAP) return { left: leftCentered, top: Math.max(GAP, target.bottom + GAP) };
+  if (target.top >= cardH + 2 * GAP) return { left: leftCentered, top: Math.min(lowest, target.top - GAP - cardH) };
+  if (!options?.preferSide) {
+    const side = trySide();
+    if (side) return side;
+  }
+  return { left: leftCentered, top: lowest };
 }
