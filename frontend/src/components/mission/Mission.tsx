@@ -1,5 +1,26 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode, type Ref } from "react";
-import { AlertTriangle, ArrowLeft, BookmarkPlus, CircleHelp, Crosshair, FileDown, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  BookmarkPlus,
+  CircleHelp,
+  CloudRain,
+  Crosshair,
+  FileDown,
+  Info,
+  Layers,
+  Loader2,
+  Lock,
+  MapPin,
+  PenLine,
+  RotateCcw,
+  SlidersHorizontal,
+  Sprout,
+  Trash2,
+  Undo2,
+  Waves,
+  X,
+} from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
 import { customPlan, scalePlanResult, scalePlansResponse } from "../../engine/plans";
@@ -15,7 +36,7 @@ import { TargetMap, type GibsOverlay, type LatLon, type TargetMapHandle } from "
 import { HaInput, SeasonFlags, Seg, type Choice } from "./FieldControls";
 import { PlaceSearch } from "./PlaceSearch";
 import { firstVisitStep, stepOnScreen, Tour, type TourTarget } from "./Tour";
-import { advanceTourForStage } from "../../utils/tour";
+import { advanceTourForStage, TOUR_ORDER } from "../../utils/tour";
 import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
 import { reverseGeocode, type Place } from "../../api/geocode";
 import { hasResolvedPinName, inTargetName, lockTargetName, shortTargetName } from "../../utils/locationName";
@@ -152,7 +173,7 @@ function useHudTip() {
 function TipSlot({ tip }: { tip: string | null }) {
   return (
     <p
-      className={`mt-2 min-h-[3.5rem] rounded-[6px] px-2.5 py-1.5 text-xs leading-snug transition-colors ${
+      className={`mt-1.5 min-h-[2.6rem] rounded-[6px] px-2 py-1 text-[11.5px] leading-snug transition-colors ${
         tip ? "bg-ink/[0.08] text-ink" : "bg-ink/[0.03] text-ink/60"
       }`}
       aria-live="polite"
@@ -184,7 +205,7 @@ function Readout({
   ) : null;
   if (!tip || !tips) {
     return (
-      <div className="border-b border-ink/10 py-1.5">
+      <div className="border-b border-ink/10 py-1">
         <div className="flex items-baseline justify-between gap-2">
           <dt className="micro min-w-0 text-[10.5px] text-ink/70">{label}</dt>
           <dd className="flex shrink-0 items-center gap-1.5" aria-label={status ? `${value}, ${status.level}` : value}>
@@ -199,7 +220,7 @@ function Readout({
   const { active, onMouseEnter, onMouseLeave, onClick, onFocus, onBlur } = tips.bind(tip);
   return (
     <div
-      className={`cursor-pointer border-b border-ink/10 py-1.5 transition-colors ${
+      className={`cursor-pointer border-b border-ink/10 py-1 transition-colors ${
         active ? "-mx-1.5 rounded-[4px] bg-ink/[0.06] px-1.5" : ""
       }`}
       onMouseEnter={onMouseEnter}
@@ -356,12 +377,14 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const [mapReady, setMapReady] = useState(false);
   const lockBtn = useRef<HTMLButtonElement>(null);
   const reduced = prefersReducedMotion();
-  // Floating HUD panels (#17). Phones start with the target data folded so the map shows.
-  const phone = typeof window !== "undefined" && window.innerWidth < 640;
+  // Floating HUD panels (#17). On < 768px phones, floating pills expand one bottom sheet at a time.
+  const mobile = useMedia("(max-width: 767px)");
   const wide = useMedia("(min-width: 1024px)");
-  const leftPanel = usePanel({ minW: 240, minH: 150, collapsed: phone });
+  const leftPanel = usePanel({ minW: 240, minH: 150 });
   const rightPanel = usePanel({ minW: 240, minH: 150 });
   const statsPanel = usePanel({ minW: 320, minH: wide ? 240 : 120, mode: wide ? "float" : "sheet" });
+  const [mobileSheet, setMobileSheet] = useState<"target" | "conditions" | null>(null);
+  const toggleMobileSheet = (sheet: "target" | "conditions") => setMobileSheet((cur) => (cur === sheet ? null : sheet));
   const targetTips = useHudTip();
   const condTips = useHudTip();
   const [savedFarms, setSavedFarms] = useState<SavedFarm[]>(() => loadSavedFarms());
@@ -853,7 +876,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
 
   // Keyboard: Esc goes back a step, Enter does the screen's main action, 1–4 pick a route,
   // E toggles El Niño. Ignored while typing in a field.
-  const keys = useRef({ stage, lockOn: () => {}, backToMap: () => {}, plant: () => {}, busy, modalOpen: false });
+  const keys = useRef({ stage, lockOn: () => {}, backToMap: () => {}, plant: () => {}, busy, modalOpen: false, mobileSheetOpen: false });
   keys.current = {
     stage,
     lockOn: () => void lockOn(),
@@ -861,6 +884,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     plant,
     busy,
     modalOpen: unsavedModal !== null,
+    mobileSheetOpen: mobileSheet !== null,
   };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -873,7 +897,8 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       if (e.metaKey || e.ctrlKey || e.altKey || el.closest("input, textarea, select, [contenteditable=true]")) return;
       const onControl = !!el.closest("button, a, summary, [role=radio], [role=switch]");
       if (e.key === "Escape") {
-        if (k.stage === "plants") k.backToMap();
+        if (k.stage === "target" && k.mobileSheetOpen) setMobileSheet(null);
+        else if (k.stage === "plants") k.backToMap();
         else if (k.stage === "planting") setStage("plants");
       } else if (e.key === "Enter" && !onControl) {
         if (k.stage === "target") k.lockOn();
@@ -953,7 +978,33 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     });
   };
 
+  useEffect(() => {
+    if (!mobile || stage !== "target") {
+      setMobileSheet(null);
+      return;
+    }
+    if (tour === null) return;
+    const cur = TOUR_ORDER[tour];
+    if (cur === "telemetry") setMobileSheet("target");
+    else if (cur === "lock") setMobileSheet("conditions");
+    else if (cur === "locate" || cur === "refs" || cur === "layers") setMobileSheet(null);
+  }, [mobile, stage, tour]);
+
   const advanceTour = (nextTarget: TourTarget): boolean => {
+    if (mobile && stage === "target") {
+      if (nextTarget === "telemetry") {
+        setMobileSheet("target");
+        return true;
+      }
+      if (nextTarget === "lock") {
+        setMobileSheet("conditions");
+        return true;
+      }
+      if (nextTarget === "locate" || nextTarget === "refs" || nextTarget === "layers") {
+        setMobileSheet(null);
+        return true;
+      }
+    }
     if (nextTarget === "report" && stage === "planting" && statsPanel.collapsed) {
       statsPanel.toggle();
       return true;
@@ -1030,10 +1081,13 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       {stage !== "intro" && stage !== "leaving" && (
         <button
           type="button"
-          className="btn guide-btn min-h-[42px] gap-2 px-4 py-2.5 font-display text-[15px] font-semibold whitespace-nowrap text-ink"
+          className="btn guide-btn font-display font-semibold whitespace-nowrap text-ink"
+          aria-label="Guide"
+          title="Guide"
           onClick={() => setTour(stepOnScreen())}
         >
-          <CircleHelp className="size-[18px]" aria-hidden /> Guide
+          <CircleHelp className="size-[18px] shrink-0" aria-hidden />
+          <span className="hidden md:inline">Guide</span>
         </button>
       )}
 
@@ -1073,10 +1127,13 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       {/* Step 02: cockpit targeting. Mounted (hidden) from START so its layout and paint
           happen while the tiles still cover the screen; revealed at the handover. */}
       {(stage === "leaving" || stage === "target" || stage === "locking") && (
-        <div className={`cockpit-hud ${stage === "leaving" ? "is-pre" : ""}`} aria-hidden={stage === "leaving" || undefined}>
+        <div
+          className={`cockpit-hud ${stage === "leaving" ? "is-pre" : ""} ${gibsOverlay !== "none" ? "has-overlay" : ""}`}
+          aria-hidden={stage === "leaving" || undefined}
+        >
           <div className="hud-title">
-            <h2 className="font-display text-[clamp(26px,3.4vw,44px)] leading-tight font-normal tracking-[-0.02em]">Where is your farm?</h2>
-            <p className={`mt-1 text-sm tabular ${stage === "locking" ? "blink-3 text-sakura" : "text-ink/80"}`} aria-live="polite">
+            <h2 className="font-display text-[clamp(18px,2.1vw,28px)] leading-[1.15] font-normal tracking-[-0.02em]">Where is your farm?</h2>
+            <p className={`mt-0.5 text-xs md:text-[13px] leading-snug tabular ${stage === "locking" ? "blink-3 text-sakura" : "text-ink/80"}`} aria-live="polite">
               {stage === "locking"
                 ? "Target locked · descending"
                 : checking
@@ -1090,24 +1147,54 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                         : (mapNote ?? "Search a town, tap anywhere on the map, or pick a reference site.")}
             </p>
             {stage !== "locking" && (
-              <div className="mx-auto w-fit" data-tour="locate">
+              <div className="locate-bar" data-tour="locate">
                 <PlaceSearch onPick={(pl) => void pickPlace(pl)} />
                 <div className="draw-bar">
                   <div className="route-tabs draw-mode" role="radiogroup" aria-label="How to mark your farm">
-                    <button type="button" role="radio" aria-checked={!drawing} onClick={() => setDrawMode(false)} className={`route-tab ${drawing ? "" : "is-on"}`}>
-                      <MapPin className="size-4" aria-hidden /> Drop a pin
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={!drawing}
+                      aria-label="Drop a pin"
+                      title="Drop a pin (1 ha center)"
+                      onClick={() => setDrawMode(false)}
+                      className={`route-tab ${drawing ? "" : "is-on"}`}
+                    >
+                      <MapPin className="size-3.5 shrink-0" aria-hidden /> <span>Pin</span>
                     </button>
-                    <button type="button" role="radio" aria-checked={drawing} onClick={() => setDrawMode(true)} className={`route-tab ${drawing ? "is-on" : ""}`}>
-                      <PenLine className="size-4" aria-hidden /> Draw boundary
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={drawing}
+                      aria-label="Draw boundary"
+                      title="Draw field boundary"
+                      onClick={() => setDrawMode(true)}
+                      className={`route-tab ${drawing ? "is-on" : ""}`}
+                    >
+                      <PenLine className="size-3.5 shrink-0" aria-hidden /> <span>Boundary</span>
                     </button>
                   </div>
                   {drawing && (
-                    <div className="flex gap-2">
-                      <button type="button" className="btn btn-secondary flex-1" disabled={!boundary.length} onClick={() => drawBoundary(boundary.slice(0, -1))}>
-                        <Undo2 className="size-4" aria-hidden /> Undo last point
+                    <div className="draw-actions" role="group" aria-label="Boundary actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary draw-icon-btn"
+                        title="Undo last point"
+                        aria-label="Undo last boundary point"
+                        disabled={!boundary.length}
+                        onClick={() => drawBoundary(boundary.slice(0, -1))}
+                      >
+                        <Undo2 className="size-4" aria-hidden />
                       </button>
-                      <button type="button" className="btn btn-secondary flex-1" disabled={!boundary.length} onClick={resetBoundary}>
-                        <Trash2 className="size-4" aria-hidden /> Clear boundary
+                      <button
+                        type="button"
+                        className="btn btn-secondary draw-icon-btn"
+                        title="Clear boundary"
+                        aria-label="Clear boundary"
+                        disabled={!boundary.length}
+                        onClick={resetBoundary}
+                      >
+                        <Trash2 className="size-4" aria-hidden />
                       </button>
                     </div>
                   )}
@@ -1127,22 +1214,40 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
 
           <div className="hud-panels">
           <aside
+            id="hud-panel-target"
             ref={leftPanel.ref}
             style={leftPanel.style}
-            className={`hud-panel hud-panel-left ${leftPanel.lifted ? "is-lifted" : ""} ${leftPanel.active ? "is-active" : ""}`}
+            className={`hud-panel hud-panel-left ${leftPanel.lifted ? "is-lifted" : ""} ${leftPanel.active ? "is-active" : ""} ${
+              mobile ? (mobileSheet === "target" ? "is-mobile-open" : "is-mobile-hidden") : ""
+            }`}
             aria-label="Target data"
             data-tour="telemetry"
           >
             <PanelBar panel={leftPanel} label="target data">
-              <p className="flex items-center gap-1.5 text-xs font-semibold text-sakura">
-                <MapPin className="size-3.5" aria-hidden /> Target
-                {acquiring && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
-              </p>
-              <p className="truncate font-display text-xl leading-6" title={shortTargetName(focus)}>{shortTargetName(focus)}</p>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold text-sakura">
+                    <MapPin className="size-3.5" aria-hidden /> Target
+                    {acquiring && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
+                  </p>
+                  <p className="truncate font-display text-lg leading-5 md:text-xl md:leading-6" title={shortTargetName(focus)}>{shortTargetName(focus)}</p>
+                </div>
+                {mobile && (
+                  <button
+                    type="button"
+                    onClick={() => setMobileSheet(null)}
+                    aria-label="Close target panel"
+                    title="Close"
+                    className="mobile-drawer-close"
+                  >
+                    <X className="size-4" aria-hidden />
+                  </button>
+                )}
+              </div>
             </PanelBar>
-            {!leftPanel.collapsed && (
+            {(!leftPanel.collapsed || mobile) && (
             <div className="panel-body">
-            <p className="text-[11px] text-ink/70">
+            <p className="text-[11px] leading-snug text-ink/70">
               {focus.id.startsWith("pin-")
                 ? pinVia === "api" || pinVia === "browser" || (pinVia === null && /live|Mikazuki API/i.test(focus.source))
                   ? focus.placeholders.includes("slope_pct")
@@ -1151,7 +1256,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                   : "Using nearest reference site climate & terrain"
                 : FARM_SOURCE[farmSource]}
             </p>
-            <dl className="mt-2">
+            <dl className="mt-1.5">
               <Readout live={hudLive} label="Lat / Lon" value={`${lat} / ${lon}`} />
               <Readout live={hudLive} label={`Farm area (${areaHa === null ? "pin" : "outline"})`} value={`${req.landSizeHa} HA`} />
               <Readout live={hudLive} label="Dry-season rain" value={`${Math.round(dry.rain_mm)} MM`} tip={TIP.rain} tips={targetTips} status={telemetryStatus("rain", dry.rain_mm)} />
@@ -1160,7 +1265,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               <Readout live={hudLive} label="Daily water use" value={`${dry.et0_mm_day.toFixed(1)} MM/DAY`} tip={TIP.et0} tips={targetTips} />
             </dl>
             <TipSlot tip={targetTips.active} />
-            <p className="mt-2 text-xs text-ink/80 tabular" aria-live="polite">
+            <p className="mt-1.5 text-[11.5px] leading-snug text-ink/80 tabular" aria-live="polite">
               {weather
                 ? `Right now: ${weather.tempC.toFixed(1)} °C, ${weather.rainMm.toFixed(1)} mm rain, wind ${Math.round(weather.windKmh)} km/h (Open-Meteo). The plan uses the 10-year climate above.`
                 : weather === null
@@ -1173,21 +1278,37 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
           </aside>
 
           <aside
+            id="hud-panel-conditions"
             ref={rightPanel.ref}
             style={rightPanel.style}
-            className={`hud-panel hud-panel-right ${rightPanel.lifted ? "is-lifted" : ""} ${rightPanel.active ? "is-active" : ""}`}
+            className={`hud-panel hud-panel-right ${rightPanel.lifted ? "is-lifted" : ""} ${rightPanel.active ? "is-active" : ""} ${
+              mobile ? (mobileSheet === "conditions" ? "is-mobile-open" : "is-mobile-hidden") : ""
+            }`}
             aria-label="Conditions"
           >
             <PanelBar panel={rightPanel} label="conditions">
-              <p className="text-xs font-semibold text-sakura">Conditions</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-sakura">Conditions</p>
+                {mobile && (
+                  <button
+                    type="button"
+                    onClick={() => setMobileSheet(null)}
+                    aria-label="Close conditions panel"
+                    title="Close"
+                    className="mobile-drawer-close"
+                  >
+                    <X className="size-4" aria-hidden />
+                  </button>
+                )}
+              </div>
             </PanelBar>
             <div className="panel-body">
-            {!rightPanel.collapsed && (
+            {(!rightPanel.collapsed || mobile) && (
             <>
             <label className="flex items-center justify-between gap-3">
               <span>
                 <span className="block text-sm font-semibold">El Niño</span>
-                <span className="block text-xs text-ink/70">
+                <span className="block text-[11.5px] leading-snug text-ink/70">
                   {focus.elnino_basis === "observed_2015_2016" && focus.elnino_2016_dry_rain_pct !== null
                     ? `Replays 2015–16 here: dry-season rain ${focus.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(focus.elnino_2016_dry_rain_pct)}%`
                     : "Dry spell: −25% rain, +1.5 °C"}
@@ -1195,7 +1316,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               </span>
               <Switch checked={scenario === "elnino"} onChange={(on) => changeScenario(on ? "elnino" : "normal")} label="Simulate El Niño or dry spell" />
             </label>
-            <dl className="mt-2">
+            <dl className="mt-1.5">
               <Readout live={hudLive} label={`Altitude (${altitude?.from ?? "SRTM"})`} value={altitude ? `${Math.round(altitude.m)} M` : "No record"} tip={TIP.altitude} tips={condTips} />
               <Readout live={hudLive} label={`Slope (${sampleTag(focus, "slope_pct", "SRTM")})`} value={`${focus.slope_pct}%`} tip={TIP.slope} tips={condTips} status={telemetryStatus("slope", focus.slope_pct)} />
               <Readout live={hudLive} label={`Green cover (${sampleTag(focus, "ndvi_dry_min", "MODIS")})`} value={`NDVI ${focus.ndvi_dry_min.toFixed(2)}`} tip={TIP.ndvi} tips={condTips} />
@@ -1211,54 +1332,62 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               data-tour="lock"
               onClick={() => void lockOn()}
               disabled={stage !== "target" || acquiring || checking}
-              className={`btn btn-primary btn-lg w-full ${rightPanel.collapsed ? "" : "mt-4"}`}
+              className={`btn btn-primary btn-lg w-full ${rightPanel.collapsed && !mobile ? "" : "mt-2.5"}`}
             >
               {stage === "locking" ? <Lock className="size-4" aria-hidden /> : <Crosshair className="size-4" aria-hidden />}
               {stage === "locking" ? "Locked" : `Lock ${lockTargetName(target)}`}
             </button>
-            {!rightPanel.collapsed && (
-              <div className="mt-3 space-y-2.5 border-t border-ink/15 pt-3 pb-1">
+            {(!rightPanel.collapsed || mobile) && (
+              <div className="mt-2.5 space-y-1.5 border-t border-ink/15 pt-2 pb-0.5">
                 <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-ink/75">
                   Save &amp; manage farm
                 </p>
-                <input
-                  type="text"
-                  value={farmNameInput}
-                  onChange={(e) => {
-                    setDirtyFarm(true);
-                    setFarmNameInput(e.target.value);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") saveCurrentFarm();
-                  }}
-                  placeholder="Farm name (e.g. North Paddy)"
-                  aria-label="Farm name"
-                  maxLength={32}
-                  className="min-h-[42px] w-full rounded-[8px] border border-ink/30 bg-ink/[0.08] px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/65 focus:border-sakura focus:ring-2 focus:ring-sakura/30 focus:outline-none"
-                />
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={saveCurrentFarm}
-                    className="btn min-h-[42px] gap-1.5 border border-[#8fb35a]/60 bg-[#3a4b19]/85 px-2.5 py-2 text-sm font-medium whitespace-nowrap text-[#f6efeb] hover:bg-[#495f20]"
-                  >
-                    <BookmarkPlus className="size-4 shrink-0" aria-hidden /> Save farm
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => activeFarmId && removeSavedPlot(activeFarmId)}
-                    disabled={activeFarmId === null}
-                    className="btn min-h-[42px] gap-1.5 border border-[#f39a82]/45 bg-[#4a1e16]/60 px-2.5 py-2 text-sm font-medium whitespace-nowrap text-[#ffd8ce] hover:border-[#f39a82]/80 hover:bg-[#64271d]/80 disabled:cursor-not-allowed disabled:border-ink/15 disabled:bg-ink/[0.04] disabled:text-ink/40 disabled:opacity-100"
-                  >
-                    <Trash2 className="size-4 shrink-0" aria-hidden /> Delete farm
-                  </button>
+                <div className="flex items-center gap-1.5 md:grid md:grid-cols-1 md:gap-2">
+                  <input
+                    type="text"
+                    value={farmNameInput}
+                    onChange={(e) => {
+                      setDirtyFarm(true);
+                      setFarmNameInput(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveCurrentFarm();
+                    }}
+                    placeholder="Farm name (e.g. North Paddy)"
+                    aria-label="Farm name"
+                    maxLength={32}
+                    className="min-h-[44px] min-w-0 flex-1 rounded-[8px] border border-ink/30 bg-ink/[0.08] px-3 py-1.5 text-sm text-ink placeholder:text-ink/65 focus:border-sakura focus:ring-2 focus:ring-sakura/30 focus:outline-none md:min-h-[38px] md:w-full"
+                  />
+                  <div className="flex shrink-0 gap-1.5 md:grid md:grid-cols-2 md:gap-2">
+                    <button
+                      type="button"
+                      onClick={saveCurrentFarm}
+                      title="Save farm"
+                      aria-label="Save farm"
+                      className="btn min-h-[44px] min-w-[44px] gap-1.5 border border-[#8fb35a]/60 bg-[#3a4b19]/85 px-2.5 py-1.5 text-sm font-medium whitespace-nowrap text-[#f6efeb] hover:bg-[#495f20] md:min-h-[38px]"
+                    >
+                      <BookmarkPlus className="size-4 shrink-0" aria-hidden />
+                      <span className="sr-only md:not-sr-only">Save farm</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => activeFarmId && removeSavedPlot(activeFarmId)}
+                      disabled={activeFarmId === null}
+                      title="Delete saved farm"
+                      aria-label="Delete saved farm"
+                      className="btn min-h-[44px] min-w-[44px] gap-1.5 border border-[#f39a82]/45 bg-[#4a1e16]/60 px-2.5 py-1.5 text-sm font-medium whitespace-nowrap text-[#ffd8ce] hover:border-[#f39a82]/80 hover:bg-[#64271d]/80 disabled:cursor-not-allowed disabled:border-ink/15 disabled:bg-ink/[0.04] disabled:text-ink/40 disabled:opacity-100 md:min-h-[38px]"
+                    >
+                      <Trash2 className="size-4 shrink-0" aria-hidden />
+                      <span className="sr-only md:not-sr-only">Delete farm</span>
+                    </button>
+                  </div>
                 </div>
                 {savedFarms.length > 0 && (
-                  <div className="pt-1">
+                  <div className="pt-0.5">
                     <p className="mb-1 text-[10.5px] font-medium tracking-[0.12em] uppercase text-ink/60">
                       Saved farms
                     </p>
-                    <div className="space-y-1 lg:max-h-28 lg:overflow-y-auto lg:pr-0.5" role="list" aria-label="Saved farms">
+                    <div className="space-y-1 lg:max-h-24 lg:overflow-y-auto lg:pr-0.5" role="list" aria-label="Saved farms">
                       {savedFarms.map((farm) => {
                         const on = activeFarmId === farm.id;
                         return (
@@ -1288,6 +1417,32 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             </div>
             <ResizeGrip panel={rightPanel} label="conditions" />
           </aside>
+
+          {stage === "target" && (
+            <div className="mobile-hud-pills" role="group" aria-label="Farm panels">
+              <button
+                type="button"
+                aria-expanded={mobileSheet === "target"}
+                aria-controls="hud-panel-target"
+                onClick={() => toggleMobileSheet("target")}
+                className={`mobile-hud-pill ${mobileSheet === "target" ? "is-on" : ""}`}
+              >
+                <MapPin className="size-3.5 shrink-0" aria-hidden />
+                <span>Target</span>
+                {acquiring && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
+              </button>
+              <button
+                type="button"
+                aria-expanded={mobileSheet === "conditions"}
+                aria-controls="hud-panel-conditions"
+                onClick={() => toggleMobileSheet("conditions")}
+                className={`mobile-hud-pill ${mobileSheet === "conditions" ? "is-on" : ""}`}
+              >
+                <SlidersHorizontal className="size-3.5 shrink-0" aria-hidden />
+                <span>Conditions</span>
+              </button>
+            </div>
+          )}
           </div>
           {stage === "target" && (
             <div className="map-dock">
@@ -1313,10 +1468,10 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               <div className="map-layers">
                 <div className="layer-group" role="group" aria-label="NASA GIBS overlay" data-tour="layers">
                   {([
-                    ["none", "None"],
-                    ["ndvi", "NDVI"],
-                    ["rain", "Rain"],
-                  ] as const).map(([id, label]) => (
+                    ["none", "None", Layers],
+                    ["ndvi", "NDVI", Sprout],
+                    ["rain", "Rain", CloudRain],
+                  ] as const).map(([id, label, Icon]) => (
                     <button
                       key={id}
                       type="button"
@@ -1324,7 +1479,8 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                       onClick={() => setGibsOverlay(id)}
                       className={`layer-pill ${gibsOverlay === id ? "is-on" : ""}`}
                     >
-                      {label}
+                      <Icon className="size-3.5 shrink-0" aria-hidden />
+                      <span>{label}</span>
                     </button>
                   ))}
                 </div>
@@ -1685,7 +1841,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
         {STEPS.map((s, i) => (
           <li key={s.n} className={i < stepIndex ? "is-done" : i === stepIndex ? "is-now" : ""} aria-current={i === stepIndex ? "step" : undefined}>
             <span className="micro">{s.n}</span>
-            <span className="micro hidden sm:inline">{s.label}</span>
+            <span className="micro hidden md:inline">{s.label}</span>
           </li>
         ))}
       </ol>
