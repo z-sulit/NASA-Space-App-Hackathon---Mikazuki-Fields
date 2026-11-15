@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type
 import { ArrowLeft, ArrowRight, Crosshair, Info, Loader2, Lock, MapPin, RotateCcw, Sprout, Waves } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
-import { customPlan } from "../../engine/plans";
+import { customPlan, scalePlanResult, scalePlansResponse } from "../../engine/plans";
 import { fetchPinFarm, fetchPlans, loadFarms, type DataSource } from "../../api/client";
 import { inPhilippines } from "../../api/power";
 import { checkLand } from "../../api/landcheck";
@@ -44,6 +44,7 @@ const DEFAULT_REQ: PlanRequest = {
   soil: "loam",
   irrigation: "rainfed",
   goal: "cash",
+  landSizeHa: 1,
   weights: { water: 40, soil: 35, econ: 25 }, // backend PlanSliders defaults
   overrides: { soilTestN: "untested", soilPh: null, pestLastSeason: false, floods: "never" },
 };
@@ -187,7 +188,8 @@ interface LastFarm {
 function readLastFarm(): LastFarm | null {
   try {
     const v = JSON.parse(localStorage.getItem("mf-last-farm") ?? "null") as LastFarm | null;
-    return v && typeof v.target?.id === "string" && v.target.seasons?.dry && v.req?.weights ? v : null;
+    if (!(v && typeof v.target?.id === "string" && v.target.seasons?.dry && v.req?.weights)) return null;
+    return { ...v, req: { ...v.req, landSizeHa: v.req.landSizeHa ?? 1 } };
   } catch {
     return null;
   }
@@ -388,8 +390,9 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     setStage("target");
   };
 
-  // Farm-settings changes re-plan (debounced) while picking plants.
+  // Farm-settings changes re-plan (debounced) while picking plants; landSizeHa scales instantaneously.
   const firstReq = useRef(true);
+  const planSig = JSON.stringify({ ...req, landSizeHa: 1 });
   useEffect(() => {
     if (firstReq.current) {
       firstReq.current = false;
@@ -399,7 +402,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     setBusy(true); // instant feedback; the plan itself follows the debounce
     const t = setTimeout(() => void plan(req, target), 350);
     return () => clearTimeout(t);
-  }, [req]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [planSig]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keyboard: Esc goes back a step, Enter does the screen's main action, 1–4 pick a route,
   // E toggles El Niño. Ignored while typing in a field.
@@ -436,13 +439,19 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const custom = useMemo(() => customPlan(req, target, customRotation), [req, target, customRotation]);
+  const landHa = Number.isFinite(req.landSizeHa) && req.landSizeHa > 0 ? req.landSizeHa : 1;
+  const scaledResult = useMemo(() => (result ? scalePlansResponse(result, landHa) : null), [result, landHa]);
+  const customRaw = useMemo(() => customPlan(req, target, customRotation), [req, target, customRotation]);
+  const custom = useMemo(
+    () => ({ normal: scalePlanResult(customRaw.normal, landHa), elnino: scalePlanResult(customRaw.elnino, landHa) }),
+    [customRaw, landHa],
+  );
   const chosen = useMemo(() => {
-    if (!result) return null;
+    if (!scaledResult) return null;
     if (choice === "custom") return { now: custom[scenario], normal: custom.normal };
     const i = ["A", "B", "C"].indexOf(choice);
-    return { now: result[scenario][i], normal: result.normal[i] };
-  }, [result, choice, custom, scenario]);
+    return { now: scaledResult[scenario][i], normal: scaledResult.normal[i] };
+  }, [scaledResult, choice, custom, scenario]);
 
   const plots = chosen
     ? chosen.now.seasons.map((s, i) => ({
@@ -649,10 +658,10 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       )}
 
       {/* Step 04 */}
-      {stage === "plants" && result && (
+      {stage === "plants" && scaledResult && (
         <PickPlants
           farmName={inName(target)}
-          plans={result[scenario]}
+          plans={scaledResult[scenario]}
           custom={custom[scenario]}
           choice={choice}
           onChoice={setChoice}
@@ -660,6 +669,8 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           onCustomRotation={setCustomRotation}
           req={req}
           onReq={(patch) => setReq((r) => ({ ...r, ...patch }))}
+          scenario={scenario}
+          onScenario={setScenario}
           notes={planNotes}
           busy={busy}
           onPlant={() => {
@@ -784,7 +795,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               </span>
             </p>
             <div className="mt-5">
-              <p className="text-xs font-medium text-ink/70">3-year profit</p>
+              <p className="text-xs font-medium text-ink/70">3-year profit ({landHa} ha)</p>
               <p className="font-display text-[34px] leading-10 tracking-[-0.02em]">
                 <CountUp value={chosen.now.kpis.totalProfit} format={peso} />
               </p>
@@ -798,14 +809,19 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             <dl className="mt-3 grid grid-cols-2 gap-2">
               {(
                 [
+                  ["Total harvest", <CountUp value={chosen.now.seasons.reduce((acc, s) => acc + s.yieldT, 0)} format={(v) => `${v.toFixed(1)} t`} />],
+                  ["Fertilizer (urea)", <CountUp value={chosen.now.kpis.ureaTotal} format={peso} />],
                   ["Soil nitrogen", <><CountUp value={chosen.now.kpis.nStart} format={(v) => `${Math.round(v)}`} /> → <CountUp value={chosen.now.kpis.nFinal} format={(v) => `${Math.round(v)}`} /></>],
-                  ["Water shortfall", <CountUp value={chosen.now.kpis.waterMm} format={(v) => `${Math.round(v)} mm`} />],
+                  [
+                    req.irrigation === "irrigated" ? "Water pumped" : "Water shortfall",
+                    <CountUp value={chosen.now.kpis.waterMm} format={(v) => `${Math.round(v)} mm · ${Math.round(v * 10 * landHa).toLocaleString("en-PH")} m³`} />,
+                  ],
                   ["Erosion risk", chosen.now.kpis.erosionLevel],
                   ["Pest cycles broken", <CountUp value={chosen.now.kpis.pestBreaks} format={(v) => `${Math.round(v)}`} />],
                   ["Bare months in rain", <CountUp value={chosen.now.kpis.bareMonthCount} format={(v) => `${Math.round(v)}`} />],
                 ] as [string, ReactNode][]
               ).map(([label, value], i) => (
-                <div key={label} className={`rounded-md bg-ink/[0.06] px-2.5 py-2 ${i === 4 ? "col-span-2" : ""}`}>
+                <div key={label} className={`rounded-md bg-ink/[0.06] px-2.5 py-2 ${i === 6 ? "col-span-2" : ""}`}>
                   <dt className="micro text-[10.5px] text-ink/70">{label}</dt>
                   <dd className="font-display text-lg leading-6 tabular">{value}</dd>
                 </div>
