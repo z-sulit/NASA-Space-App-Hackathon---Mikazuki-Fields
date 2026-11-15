@@ -194,8 +194,9 @@ $$\mathrm{Erosion\_Index}_t = \mathrm{clip}\left(\frac{\mathrm{rain\_mm}}{1200} 
 ---
 
 ## Team Tekkadan Roster
+*4th-Year BS Data Science Students*
 
-- **Lorenzo Sulit (Data Engineer & API Infrastructure):** NASA multi-dataset ingestion pipeline (`NASA POWER`, `SRTM 30m`, `MODIS MOD13Q1`), Philippine farm preset JSONs, FastAPI backend endpoints, live custom map-pin caching, historical 2015–16 El Niño anomaly validation, and cloud/serverless deployment infrastructure.
+- **Lorenzo Sulit (Data Engineer & API Infrastructure):** NASA multi-dataset ingestion pipeline (`NASA POWER`, `SRTM 30m`, `MODIS MOD13Q1`), Philippine farm preset JSONs, FastAPI backend endpoints, live custom map-pin & terrain caching, historical 2015–16 El Niño anomaly validation, and cloud/serverless deployment infrastructure.
 - **Micku Lamsin (Agronomic Modeler, Vectorized Optimizer, QA & Data Science):** 8-crop library calibration (`FAO-56`, `FAO-33`, `PSA OpenSTAT`), vectorized NumPy 6-season simulation engine ($8^6 = 262,144$ rotations), deterministic explanations, automated `pytest` verification suite, and end-to-end QA & data verification.
 - **Ezekiel Corpuz (Frontend Lead, UI/UX & Pitching):** Interactive cockpit HUD (`TargetMap`, `PickPlants`, `PlantField`, `Tour`), Leaflet satellite & NASA GIBS overlays, 8 custom Three.js 3D crop models, browser Web Worker fallback engine, per-farm PDF export, plain-English jargon translator UI, and project pitch & demo assets.
 
