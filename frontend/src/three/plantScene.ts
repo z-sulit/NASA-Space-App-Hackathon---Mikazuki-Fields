@@ -25,6 +25,7 @@ import {
   PointLight,
   Points,
   PointsMaterial,
+  Raycaster,
   Scene,
   Shape,
   ShapeGeometry,
@@ -32,6 +33,7 @@ import {
   Sprite,
   SpriteMaterial,
   SRGBColorSpace,
+  Vector2,
   Vector3,
   WebGLRenderer,
   AdditiveBlending,
@@ -41,7 +43,7 @@ import type { CropId, Family } from "../types";
 import { cropModel } from "./cropModels";
 import { CROPS } from "../data/crops";
 import { fitPolygonToField, pointInPolygon, type Point, type XYPoint } from "../utils/geo";
-import { nextPlotCropAppearance } from "../utils/plantFocus";
+import { nextPlotCropAppearance, nextPlotLabelAppearance, resolveActivePlot } from "../utils/plantFocus";
 
 export interface PlotSpec {
   crop: CropId;
@@ -102,7 +104,8 @@ function labelSprite(text: string) {
   }
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;
-  const s = new Sprite(new SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+  const s = new Sprite(new SpriteMaterial({ map: tex, depthTest: false, transparent: true, opacity: 0 }));
+  s.visible = false;
   s.scale.set(1.55, (1.55 * c.height) / 512, 1);
   return s;
 }
@@ -250,7 +253,7 @@ function buildPolygonLayout(poly: XYPoint[], maxTotal: number): PolygonLayout | 
   };
 }
 
-export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHandle {
+export function createPlantScene(host: HTMLElement, polygon?: Point[], onPlotClick?: (index: number) => void): PlantHandle {
   const renderer = new WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   renderer.outputColorSpace = SRGBColorSpace;
@@ -286,6 +289,8 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
   const plotX = (i: number) => -totalW / 2 + PLOT_W / 2 + i * (PLOT_W + GAP);
   const plotMats: MeshStandardMaterial[] = [];
   const beds: Group[] = [];
+  const soilTargets: Object3D[] = [];
+  let polySoil: Mesh | null = null;
   let polySoilMat: MeshStandardMaterial | null = null;
 
   if (polyData) {
@@ -305,6 +310,8 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
     const soilBed = new Mesh(soilGeo, polySoilMat);
     soilBed.position.y = -0.04;
     field.add(soilBed);
+    polySoil = soilBed;
+    soilTargets.push(soilBed);
 
     const crackGeo = new ShapeGeometry(shape);
     const uv = crackGeo.getAttribute("uv");
@@ -358,7 +365,9 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
       const mat = new MeshStandardMaterial({ color: "#5a4632", roughness: 0.9 });
       const plot = new Mesh(plotGeo, mat);
       plot.position.set(plotX(i), 0.02, 0);
+      plot.userData.plot = i;
       bed.add(plot);
+      soilTargets.push(plot);
       plotMats.push(mat);
       disposables.push(mat);
       const crack = new Mesh(crackGeo, crackMat);
@@ -412,6 +421,7 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
     mesh.count = count;
     mesh.visible = false;
     mesh.frustumCulled = false;
+    mesh.userData.plot = p;
     for (let i = 0; i < count; i++) mesh.setColorAt(i, new Color("#ffffff"));
     field.add(mesh);
     cropMats.push(mat);
@@ -464,6 +474,9 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
   let droughtTarget = 0;
   // Spotlight: focused bed index, or -1 for all. lift/bright ease per bed.
   let focus = -1;
+  let canvasHover = -1;
+  const raycaster = new Raycaster();
+  const ndc = new Vector2();
   const lift = [0, 0, 0, 0, 0, 0];
   const bright = [1, 1, 1, 1, 1, 1];
   const cropOpacity = [1, 1, 1, 1, 1, 1];
@@ -498,6 +511,7 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
   let zoom = 1;
   let zoomTarget = 1;
   let drag: { id: number; x: number; y: number; yaw: number; pitch: number } | null = null;
+  let tap: { id: number; x: number; y: number; ok: boolean } | null = null;
   let pinch: { d: number; zoom: number } | null = null;
   const pointers = new Map<number, { x: number; y: number }>();
   let visible = true;
@@ -532,18 +546,54 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
     return Math.hypot(a.x - b.x, a.y - b.y) || 1;
   };
   const startDrag = (id: number, p: { x: number; y: number }) => (drag = { id, x: p.x, y: p.y, yaw: yawTarget, pitch: pitchTarget });
+  const pickPlot = (e: PointerEvent): number => {
+    if (!visible) return -1;
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return -1;
+    ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+    raycaster.setFromCamera(ndc, camera);
+    const targets = plantStart >= 0 ? [...soilTargets, ...cropMeshes.filter((m) => m.visible)] : soilTargets;
+    for (const h of raycaster.intersectObjects(targets, false)) {
+      const p = h.object.userData.plot;
+      if (typeof p === "number") return p;
+      if (h.object === polySoil && polyData) {
+        let best = -1;
+        let bestD2 = Infinity;
+        for (const s of polyData.slots) {
+          const d2 = (s.x - h.point.x) ** 2 + (s.z - h.point.z) ** 2;
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            best = s.plot;
+          }
+        }
+        return best;
+      }
+    }
+    return -1;
+  };
   const onDown = (e: PointerEvent) => {
     canvas.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size === 2) {
       drag = null;
+      tap = null;
       pinch = { d: spread(), zoom: zoomTarget };
-    } else if (pointers.size === 1) startDrag(e.pointerId, { x: e.clientX, y: e.clientY });
+    } else if (pointers.size === 1) {
+      startDrag(e.pointerId, { x: e.clientX, y: e.clientY });
+      tap = { id: e.pointerId, x: e.clientX, y: e.clientY, ok: true };
+    }
     canvas.style.cursor = "grabbing";
   };
   const onMove = (e: PointerEvent) => {
-    if (!pointers.has(e.pointerId)) return;
+    if (!pointers.has(e.pointerId)) {
+      if (pointers.size === 0 && e.pointerType !== "touch") {
+        canvasHover = pickPlot(e);
+        canvas.style.cursor = canvasHover >= 0 && lastSeason >= 6 ? "pointer" : "grab";
+      }
+      return;
+    }
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (tap && tap.id === e.pointerId && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 6) tap.ok = false;
     if (pinch && pointers.size >= 2) zoomTarget = clamp((pinch.zoom * pinch.d) / spread(), 0.6, 1.7);
     else if (drag && drag.id === e.pointerId) {
       yawTarget = clamp(drag.yaw + (e.clientX - drag.x) * 0.006, -0.9, 0.9);
@@ -551,6 +601,8 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
     }
   };
   const onUp = (e: PointerEvent) => {
+    const clicked = e.type === "pointerup" && pointers.size === 1 && tap && tap.id === e.pointerId && tap.ok;
+    if (tap && tap.id === e.pointerId) tap = null;
     pointers.delete(e.pointerId);
     if (pointers.size === 2) pinch = { d: spread(), zoom: zoomTarget };
     else if (pointers.size < 2) pinch = null;
@@ -560,8 +612,16 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
     }
     if (pointers.size === 0) {
       drag = null;
-      canvas.style.cursor = "grab";
+      if (clicked && lastSeason >= 6 && onPlotClick) {
+        const hit = pickPlot(e);
+        if (hit >= 0) onPlotClick(hit);
+      }
+      canvas.style.cursor = canvasHover >= 0 && lastSeason >= 6 ? "pointer" : "grab";
     }
+  };
+  const onLeave = () => {
+    canvasHover = -1;
+    if (pointers.size === 0) canvas.style.cursor = "grab";
   };
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
@@ -577,6 +637,7 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
   canvas.addEventListener("pointerup", onUp);
   canvas.addEventListener("pointercancel", onUp);
   canvas.addEventListener("lostpointercapture", onUp);
+  canvas.addEventListener("pointerleave", onLeave);
   canvas.addEventListener("wheel", onWheel, { passive: false });
   canvas.addEventListener("dblclick", resetView);
 
@@ -601,11 +662,12 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
     // Planting progress
     const pt = plantStart < 0 ? -1 : t - plantStart;
     const season = pt < 0 ? -1 : quickStart >= 0 ? 6 : Math.min(6, Math.floor(pt / STEP));
-    if (season !== lastSeason && seasonCb && pt >= 0) {
+    if (season !== lastSeason && pt >= 0) {
       lastSeason = season;
-      seasonCb(season);
+      seasonCb?.(season);
     }
-    const active = focus >= 0 && season >= 6 ? focus : Math.min(5, Math.max(0, season));
+    const { focusPlot, labelPlot } = resolveActivePlot(season, focus, canvasHover);
+    const active = focusPlot >= 0 ? focusPlot : Math.min(5, Math.max(0, season));
     const activePos = plotCenter(active);
     drone.position.x += (activePos.x - drone.position.x) * 0.25;
     drone.position.z += (activePos.z - drone.position.z) * 0.25;
@@ -640,10 +702,10 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
     soilNow.lerpColors(C.soil, C.soilDry, drought);
 
     for (let p = 0; p < 6; p++) {
-      const on = focus < 0 || focus === p;
-      lift[p] += ((focus === p ? 0.32 : 0) - lift[p]) * 0.25;
+      const on = focusPlot < 0 || focusPlot === p;
+      lift[p] += ((focusPlot === p ? 0.32 : 0) - lift[p]) * 0.25;
       bright[p] += ((on ? 1 : 0.32) - bright[p]) * 0.25;
-      const app = nextPlotCropAppearance(cropOpacity[p], p, focus);
+      const app = nextPlotCropAppearance(cropOpacity[p], p, focusPlot);
       cropOpacity[p] = app.opacity;
       const cm = cropMats[p];
       if (cm.transparent !== app.transparent) cm.needsUpdate = true;
@@ -681,15 +743,16 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
       }
     }
     if (polySoilMat) {
-      const activeSpec = focus >= 0 ? plots[focus] : plots[Math.min(5, Math.max(0, season))];
-      const planted = pt >= 0 && (focus < 0 || quickStart >= 0 || pt >= focus * STEP);
+      const activeSpec = focusPlot >= 0 ? plots[focusPlot] : plots[Math.min(5, Math.max(0, season))];
+      const planted = pt >= 0 && (focusPlot < 0 || quickStart >= 0 || pt >= focusPlot * STEP);
       const target = (activeSpec && planted ? new Color(FAMILY_TINT[activeSpec.family]) : soilNow.clone()).lerp(soilNow, 0.65);
       polySoilMat.color.lerp(target, 0.2);
     }
     labels.forEach((l, i) => {
       const m = l.material as SpriteMaterial;
-      const shown = quickStart >= 0 || pt >= i * STEP ? (focus < 0 || focus === i ? 1 : 0.35) : 0.25;
-      m.opacity += (shown - m.opacity) * 0.25;
+      const { opacity, visible: showLabel } = nextPlotLabelAppearance(m.opacity, i, labelPlot);
+      m.opacity = opacity;
+      l.visible = showLabel;
       l.position.y = 0.36 + lift[i];
     });
     renderer.render(scene, camera);
@@ -748,6 +811,7 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
       canvas.removeEventListener("pointerup", onUp);
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("lostpointercapture", onUp);
+      canvas.removeEventListener("pointerleave", onLeave);
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("dblclick", resetView);
       labels.forEach((l) => {

@@ -10,6 +10,7 @@ export function PlantField({
   onSeason,
   drought = false,
   focus = null,
+  onPlotClick,
   polygon,
 }: {
   plots: PlotSpec[];
@@ -17,14 +18,15 @@ export function PlantField({
   onSeason: (i: number) => void;
   drought?: boolean;
   focus?: number | null;
+  onPlotClick?: (i: number) => void;
   polygon?: LatLon[];
 }) {
   const host = useRef<HTMLDivElement>(null);
   const handle = useRef<PlantHandle | null>(null);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
-  const latest = useRef({ plots, onSeason, drought, focus, polygon });
-  latest.current = { plots, onSeason, drought, focus, polygon };
+  const latest = useRef({ plots, onSeason, drought, focus, onPlotClick, polygon });
+  latest.current = { plots, onSeason, drought, focus, onPlotClick, polygon };
 
   useEffect(() => {
     let dead = false;
@@ -32,7 +34,7 @@ export function PlantField({
       .then(({ createPlantScene }) => {
         if (dead || !host.current) return;
         try {
-          handle.current = createPlantScene(host.current, latest.current.polygon);
+          handle.current = createPlantScene(host.current, latest.current.polygon, (i) => latest.current.onPlotClick?.(i));
           handle.current.plant(latest.current.plots, (i) => latest.current.onSeason(i));
           handle.current.setDrought(latest.current.drought);
           handle.current.setFocus(latest.current.focus);
