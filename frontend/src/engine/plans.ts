@@ -257,12 +257,20 @@ export function customPlan(req: PlanRequest, preset: Preset, rotation: CropId[])
   return { normal: one("normal"), elnino: one("elnino") };
 }
 
-function scaleWhyCurrency(text: string, ha: number): string {
-  return text.replace(/(₱|PHP\s*)([\d,]+(?:\.\d+)?)/g, (_m, prefix: string, num: string) => {
-    const val = Number(num.replace(/,/g, ""));
-    if (!Number.isFinite(val)) return `${prefix}${num}`;
-    const scaled = Math.round(val * ha).toLocaleString("en-PH");
-    return `${prefix}${scaled}`;
+export function scaleWhyCurrency(text: string, ha: number): string {
+  const regex = /PHP\s*(-?[\d,]+(?:\.\d+)?)\s*\/\s*USD\s*-?[\d,]+(?:\.\d+)?|(₱|PHP\s*)(-?[\d,]+(?:\.\d+)?)/g;
+  return text.replace(regex, (match, dualPhp?: string, singlePrefix?: string, singleNum?: string) => {
+    if (dualPhp !== undefined) {
+      const val = Number(dualPhp.replace(/,/g, ""));
+      return Number.isFinite(val) ? formatPhpUsd(val * ha) : match;
+    }
+    if (singleNum !== undefined) {
+      const val = Number(singleNum.replace(/,/g, ""));
+      if (!Number.isFinite(val)) return match;
+      const scaled = Math.round(val * ha).toLocaleString("en-PH");
+      return `${singlePrefix}${scaled}`;
+    }
+    return match;
   });
 }
 

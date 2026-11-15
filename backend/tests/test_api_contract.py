@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import pytest
 import requests
 from fastapi.testclient import TestClient
 
@@ -21,6 +22,16 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 PRESETS_DIR = REPO_ROOT / "data-prep" / "presets"
 FALLBACK_PATH = REPO_ROOT / "frontend" / "public" / "fallback_plans.json"
 EXPECTED_PRESETS = ("bukidnon", "davao_del_sur", "isabela")
+
+
+@pytest.fixture(autouse=True)
+def _no_live_srtm(monkeypatch: Any) -> None:
+    """Keep OpenTopoData off the network; tests that want live terrain patch this again."""
+
+    def _offline(*_args: Any, **_kwargs: Any) -> Any:
+        raise requests.ConnectionError("SRTM is offline in tests")
+
+    monkeypatch.setattr(main_mod, "fetch_live_terrain", _offline)
 
 
 def _make_mock_power_payload(wet_prectot: float = 12.0, dry_prectot: float = 3.0) -> dict[str, Any]:
@@ -342,3 +353,40 @@ def test_vercel_serverless_entry_and_readonly_cache_fallback(tmp_path: Path, mon
         ctx = FarmContext.model_validate(resp.json())
         assert ctx.location.is_custom_pin is True
         assert ctx.climate.normal.wet.rain_mm == 2013.0
+
+
+def test_slope_pct_from_cross_samples() -> None:
+    """9 m of rise across 180 m east-west is a 5 % slope; flat ground is 0 %."""
+    assert main_mod.slope_pct(north=100, south=100, east=109, west=100) == pytest.approx(5.0)
+    assert main_mod.slope_pct(north=50, south=50, east=50, west=50) == 0.0
+
+
+def test_custom_pin_uses_live_srtm_terrain(tmp_path: Path, monkeypatch: Any) -> None:
+    """A pin reports live SRTM terrain when OpenTopoData answers, and the nearest preset's when it does not."""
+    monkeypatch.setattr(main_mod, "CACHE_DIR", tmp_path)
+    payload = _make_mock_power_payload()
+
+    class _Power:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return payload
+
+    monkeypatch.setattr(power_client.requests, "get", lambda *_a, **_kw: _Power())
+    live = main_mod.TerrainInfo(elevation_m=412.0, slope_pct=2.1, erosion_risk_label="Low (Flat Plains)", live=True)
+    monkeypatch.setattr(main_mod, "fetch_live_terrain", lambda *_a, **_kw: live)
+    bukidnon = FarmContext.model_validate(json.loads((PRESETS_DIR / "bukidnon.json").read_text(encoding="utf-8")))
+
+    with TestClient(app) as client:
+        ctx = FarmContext.model_validate(client.get("/api/farm", params={"lat": 8.1, "lon": 125.1}).json())
+        assert (ctx.terrain.elevation_m, ctx.terrain.slope_pct, ctx.terrain.live) == (412.0, 2.1, True)
+
+        def _rate_limited(*_a: Any, **_kw: Any) -> Any:
+            raise requests.HTTPError("429 Too Many Requests")
+
+        monkeypatch.setattr(main_mod, "fetch_live_terrain", _rate_limited)
+        ctx = FarmContext.model_validate(client.get("/api/farm", params={"lat": 9.3, "lon": 125.6}).json())
+        assert ctx.terrain.slope_pct == bukidnon.terrain.slope_pct
+        assert ctx.terrain.live is False
+
