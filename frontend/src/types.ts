@@ -9,7 +9,7 @@ export type CropId =
   | "sweet_potato";
 
 export type Family = "Poaceae" | "Fabaceae" | "Convolvulaceae";
-export type Soil = "clay" | "loam" | "sandy";
+export type Soil = "clay" | "clay_loam" | "silty_loam" | "loam" | "sandy_loam" | "sandy";
 export type Irrigation = "rainfed" | "irrigated";
 export type Goal = "cash" | "forage";
 export type Scenario = "normal" | "elnino";
@@ -77,6 +77,7 @@ export interface Overrides {
   maxBudgetPhp?: number | null;
   excludedCrops?: CropId[];
   mustIncludeStaple?: boolean;
+  lastHarvestYieldTHa?: number | null;
 }
 
 export interface Weights {
