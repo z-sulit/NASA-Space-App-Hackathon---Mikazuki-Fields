@@ -74,10 +74,10 @@ export function DataFeedsPanel({ farmSource, focus, pinVia, altitudeFrom, weathe
   return (
     <aside
       aria-label="Data feeds status"
-      className="pointer-events-auto fixed bottom-3 left-3 z-30 max-w-[calc(100vw-24px)] sm:bottom-4 sm:left-4"
+      className="pointer-events-auto fixed bottom-[18px] left-3 z-30 max-w-[calc(100vw-24px)] sm:bottom-4 sm:left-4"
     >
       {open && (
-        <div className="mb-1.5 w-[232px] rounded-xl border border-ink/16 bg-[#141a06]/90 px-3 py-2 text-[11px] text-ink shadow-[0_12px_32px_rgb(0_0_0/0.45)] backdrop-blur-md">
+        <div className="mb-1.5 w-[min(232px,calc(100vw-24px))] rounded-xl border border-ink/16 bg-[#141a06]/90 px-3 py-2 text-[11px] text-ink shadow-[0_12px_32px_rgb(0_0_0/0.45)] backdrop-blur-md">
           <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] font-semibold tracking-wider text-ink/60 uppercase">
             <span>Data feeds</span>
             <button
@@ -105,11 +105,12 @@ export function DataFeedsPanel({ farmSource, focus, pinVia, altitudeFrom, weathe
       <button
         type="button"
         aria-expanded={open}
+        aria-label={`Data feeds: ${liveCount} of ${feeds.length} live`}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-ink/16 bg-[#141a06]/86 px-2.5 py-1 text-[11px] font-semibold text-ink/85 shadow-sm backdrop-blur-md transition-colors hover:border-ink/30 hover:text-ink focus-visible:outline-2 focus-visible:outline-ink"
+        className="inline-flex min-h-7 items-center gap-1 rounded-full border border-ink/16 bg-[#141a06]/86 px-2 py-1 text-[10.5px] font-semibold text-ink/85 shadow-sm backdrop-blur-md transition-colors hover:border-ink/30 hover:text-ink focus-visible:outline-2 focus-visible:outline-ink sm:gap-1.5 sm:px-2.5 sm:text-[11px]"
       >
         <Radio className="size-3 text-sakura" aria-hidden />
-        <span>Feeds</span>
+        <span className="hidden sm:inline">Feeds</span>
         <span className="text-ink/60 tabular">{liveCount}/{feeds.length}</span>
         {open ? <ChevronDown className="size-3 text-ink/60" aria-hidden /> : <ChevronUp className="size-3 text-ink/60" aria-hidden />}
       </button>
