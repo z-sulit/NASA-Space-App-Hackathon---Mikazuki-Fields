@@ -928,10 +928,10 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       {stage !== "intro" && stage !== "leaving" && (
         <button
           type="button"
-          className="btn btn-secondary guide-btn fixed top-4 right-5 z-40 px-4 py-2 text-[14px] font-medium whitespace-nowrap"
+          className="btn guide-btn min-h-[42px] gap-2 px-4 py-2.5 font-display text-[15px] font-semibold whitespace-nowrap text-ink"
           onClick={() => setTour(stepOnScreen())}
         >
-          <CircleHelp className="size-4" aria-hidden /> Guide
+          <CircleHelp className="size-[18px]" aria-hidden /> Guide
         </button>
       )}
 
@@ -1115,7 +1115,10 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               {stage === "locking" ? "Locked" : `Lock ${lockTargetName(target)}`}
             </button>
             {!rightPanel.collapsed && (
-              <div className="mt-2.5 space-y-1.5 border-t border-ink/12 pt-2.5">
+              <div className="mt-3 space-y-2.5 border-t border-ink/15 pt-3 pb-1">
+                <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-ink/75">
+                  Save &amp; manage farm
+                </p>
                 <input
                   type="text"
                   value={farmNameInput}
@@ -1126,23 +1129,23 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                   placeholder="Farm name (e.g. North Paddy)"
                   aria-label="Farm name"
                   maxLength={32}
-                  className="w-full rounded-[8px] border border-ink/20 bg-ink/[0.04] px-2.5 py-1.5 text-xs text-ink placeholder:text-ink/50 focus:border-sakura focus:outline-none"
+                  className="min-h-[42px] w-full rounded-[8px] border border-ink/30 bg-ink/[0.08] px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/65 focus:border-sakura focus:ring-2 focus:ring-sakura/30 focus:outline-none"
                 />
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 gap-2.5">
                   <button
                     type="button"
                     onClick={saveCurrentFarm}
-                    className="btn btn-secondary min-h-8 px-2 text-xs"
+                    className="btn min-h-[42px] gap-1.5 border border-[#8fb35a]/60 bg-[#3a4b19]/85 px-2.5 py-2 text-sm font-medium whitespace-nowrap text-[#f6efeb] hover:bg-[#495f20]"
                   >
-                    <BookmarkPlus className="size-3.5" aria-hidden /> Save farm
+                    <BookmarkPlus className="size-4 shrink-0" aria-hidden /> Save farm
                   </button>
                   <button
                     type="button"
                     onClick={() => activeFarmId && removeSavedPlot(activeFarmId)}
                     disabled={activeFarmId === null}
-                    className="btn btn-secondary min-h-8 px-2 text-xs disabled:opacity-45"
+                    className="btn min-h-[42px] gap-1.5 border border-[#f39a82]/45 bg-[#4a1e16]/60 px-2.5 py-2 text-sm font-medium whitespace-nowrap text-[#ffd8ce] hover:border-[#f39a82]/80 hover:bg-[#64271d]/80 disabled:cursor-not-allowed disabled:border-ink/15 disabled:bg-ink/[0.04] disabled:text-ink/40 disabled:opacity-100"
                   >
-                    <Trash2 className="size-3.5" aria-hidden /> Delete farm
+                    <Trash2 className="size-4 shrink-0" aria-hidden /> Delete farm
                   </button>
                 </div>
                 {savedFarms.length > 0 && (
