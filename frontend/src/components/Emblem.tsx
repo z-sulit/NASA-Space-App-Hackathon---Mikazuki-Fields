@@ -20,6 +20,21 @@ const PETAL = (() => {
   return `M0 0C${p(-7, -3)} ${p(-12, -12)} ${p(-8.5, -19)}C${p(-6.5, -22)} ${p(-2.5, -22)} ${p(0, -18.5)}C${p(2.5, -22)} ${p(6.5, -22)} ${p(8.5, -19)}C${p(12, -12)} ${p(7, -3)} 0 0Z`;
 })();
 
+/** Inline SVG markup of the emblem (used when rasterizing for the PDF report header). */
+export function emblemSvg({ size = 128, backdrop = false }: { size?: number; backdrop?: boolean } = {}): string {
+  const petals = [0, 1, 2, 3, 4]
+    .map((i) => `<path d="${PETAL}" transform="translate(${F.cx} ${F.cy}) rotate(${i * 72})" fill="url(#mf-petal)" stroke="#e58fa8" stroke-width="0.7" stroke-linejoin="round"/>`)
+    .join("");
+  const stamens = [0, 1, 2, 3, 4]
+    .map((i) => {
+      const a = ((i * 72 + 36 - 90) * Math.PI) / 180;
+      return `<circle cx="${F.cx + 5.2 * Math.cos(a)}" cy="${F.cy + 5.2 * Math.sin(a)}" r="0.9" fill="#c2477a"/>`;
+    })
+    .join("");
+  const tile = backdrop ? `<rect x="1" y="1" width="98" height="98" rx="22" fill="#1d240a" stroke="#404f1d" stroke-width="2"/>` : "";
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100"><defs><linearGradient id="mf-pearl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbf6f1"/><stop offset="1" stop-color="#dccfc2"/></linearGradient><radialGradient id="mf-petal" cx="0.5" cy="0.95" r="1"><stop offset="0" stop-color="#f7a8bd"/><stop offset="1" stop-color="#fde4ea"/></radialGradient></defs>${tile}<path d="${CRESCENT}" fill-rule="evenodd" fill="none" stroke="#efe6dc" stroke-width="0.8"/><path d="${CRESCENT}" fill-rule="evenodd" fill="url(#mf-pearl)"/>${petals}${stamens}<circle cx="${F.cx}" cy="${F.cy}" r="3.4" fill="#d94f7a"/></svg>`;
+}
+
 /** Pearl crescent and sakura, for the dark cockpit background. */
 export function Emblem({ size = 180 }: { size?: number }) {
   const id = useId().replace(/:/g, "");

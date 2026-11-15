@@ -556,21 +556,43 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     await pickPoint({ lat: pl.lat, lon: pl.lon }, pl.name);
   };
 
+  const navSeq = useRef(0);
   const lockOn = async () => {
     if (stage !== "target" || acquiring || checking) return;
+    const seq = ++navSeq.current;
     const p = target;
     saveLastFarm({ target: p, pin, req });
     setStage("locking");
     const planning = plan(req, p); // compute this farm's routes while we fly
     await new Promise((r) => setTimeout(r, reduced ? 0 : 200));
+    if (navSeq.current !== seq) return;
     setStage("flying");
     await Promise.all([mapRef.current?.flyTo(p.lat, p.lon), planning]);
-    setStage("plants");
+    if (navSeq.current === seq) setStage("plants");
   };
   const backToMap = async () => {
+    const seq = ++navSeq.current;
     setStage("rising");
     await mapRef.current?.reset();
-    setStage("target");
+    if (navSeq.current === seq) setStage("target");
+  };
+  const returnHome = async () => {
+    if (stage === "intro" || stage === "leaving") return;
+    const fromDeep = stage === "plants" || stage === "planting" || stage === "flying";
+    setDrawing(false);
+    resetBoundary();
+    setHasPickedLocation(false);
+    setTryAgain(null);
+    setRejected(null);
+    setMapNote(null);
+    if (fromDeep) {
+      await backToMap();
+    } else {
+      const seq = ++navSeq.current;
+      setStage("target");
+      await mapRef.current?.reset();
+      if (navSeq.current === seq) setStage("target");
+    }
   };
 
   // Farm-settings changes re-plan (debounced) while picking plants; landSizeHa scales instantaneously.
@@ -671,7 +693,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const downloadPdfReport = async () => {
     if (!chosen) return;
     const { downloadFieldReportPdf } = await import("../../utils/pdfReport");
-    downloadFieldReportPdf({
+    await downloadFieldReportPdf({
       target,
       req,
       scenario,
@@ -747,10 +769,19 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
 
       {/* Top bar */}
       <div className="pointer-events-none relative z-40 mx-auto flex max-w-[1400px] items-center justify-between gap-2 px-4 pt-3 sm:pt-4">
-        <div className="pointer-events-auto flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void returnHome()}
+          disabled={stage === "intro" || stage === "leaving"}
+          title="Return to Philippine map"
+          aria-label="Mikazuki Fields — Return to Philippine map"
+          className={`pointer-events-auto flex shrink-0 items-center gap-2 transition-opacity ${
+            stage === "intro" || stage === "leaving" ? "cursor-default" : "cursor-pointer hover:opacity-80"
+          }`}
+        >
           <Emblem size={30} />
           <span className="micro whitespace-nowrap">Mikazuki Fields</span>
-        </div>
+        </button>
         {stage !== "intro" && stage !== "leaving" && (
           <button
             type="button"
