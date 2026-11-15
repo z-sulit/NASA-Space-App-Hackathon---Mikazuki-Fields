@@ -390,3 +390,47 @@ def test_custom_pin_uses_live_srtm_terrain(tmp_path: Path, monkeypatch: Any) -> 
         assert ctx.terrain.slope_pct == bukidnon.terrain.slope_pct
         assert ctx.terrain.live is False
 
+
+def test_soil_textures_and_backward_compat() -> None:
+    """Verify clay_loam, silty_loam, sandy_loam, and legacy sandy soil textures validate and affect outputs."""
+    with TestClient(app) as client:
+        results: dict[str, PlanResponse] = {}
+        for texture in ("clay_loam", "silty_loam", "sandy_loam", "sandy"):
+            resp = client.post(
+                "/api/plans",
+                json={"preset_id": "isabela", "baseline_crop": "corn", "soil_texture": texture, "irrigation": "rainfed"},
+            )
+            assert resp.status_code == 200
+            results[texture] = PlanResponse.model_validate(resp.json())
+
+        assert results["silty_loam"].scenarios["normal"].plan_a.kpis.mean_erosion_index > results["clay_loam"].scenarios["normal"].plan_a.kpis.mean_erosion_index
+        assert results["sandy_loam"].scenarios["normal"].plan_a.kpis.total_water_gap_mm >= results["clay_loam"].scenarios["normal"].plan_a.kpis.total_water_gap_mm
+
+
+def test_last_harvest_yield_calibrates_plan_a_only() -> None:
+    """Providing last_harvest_yield_t_ha scales Plan A yield/profit/bullets without altering Plan B."""
+    with TestClient(app) as client:
+        base_resp = client.post("/api/plans", json={"preset_id": "bukidnon", "baseline_crop": "corn", "soil_texture": "loam"})
+        assert base_resp.status_code == 200
+        base = PlanResponse.model_validate(base_resp.json())
+
+        cal_resp = client.post(
+            "/api/plans",
+            json={
+                "preset_id": "bukidnon",
+                "baseline_crop": "corn",
+                "soil_texture": "loam",
+                "overrides": {"last_harvest_yield_t_ha": 2.4},
+            },
+        )
+        assert cal_resp.status_code == 200
+        cal = PlanResponse.model_validate(cal_resp.json())
+
+        assert any("Baseline calibrated to 2.40 t/ha" in item for item in cal.ground_truth_applied)
+        assert any("Calibrated to your last harvest" in b for b in cal.scenarios["normal"].plan_a.why_bullets)
+        assert cal.scenarios["normal"].plan_a.seasons[0].effective_yield_t_ha < base.scenarios["normal"].plan_a.seasons[0].effective_yield_t_ha
+        assert cal.scenarios["normal"].plan_a.kpis.total_profit_php < base.scenarios["normal"].plan_a.kpis.total_profit_php
+        assert cal.scenarios["normal"].plan_b.kpis.total_profit_php == base.scenarios["normal"].plan_b.kpis.total_profit_php
+        assert base.scenarios["normal"].plan_b.why_bullets[2] != cal.scenarios["normal"].plan_b.why_bullets[2]
+
+

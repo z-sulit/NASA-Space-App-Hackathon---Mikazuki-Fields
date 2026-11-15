@@ -2,6 +2,7 @@ import { Fragment, useState, type CSSProperties } from "react";
 import { ArrowLeft, Loader2, Bean, BugOff, CloudRain, Sprout, TriangleAlert, Wheat } from "lucide-react";
 import type { CropId, Family, PlanId, PlanRequest, PlanResult, Scenario, SeasonResult } from "../../types";
 import { CROP, CROPS } from "../../data/crops";
+import { SOIL_LABEL } from "../../engine/simulate";
 import { Switch, formatPhpUsd } from "../ui";
 
 const FAMILY_VAR: Record<Family, string> = {
@@ -16,14 +17,14 @@ export function Seg<T extends string>({ label, value, options, onChange }: { lab
   return (
     <div>
       <p className="text-xs font-medium text-ink/70">{label}</p>
-      <div className="mt-1 flex gap-1 rounded-[8px] border border-ink/20 p-0.5">
+      <div className="mt-1 flex flex-wrap gap-1 rounded-[8px] border border-ink/20 p-0.5">
         {options.map(([v, l]) => (
           <button
             key={v}
             type="button"
             aria-pressed={value === v}
             onClick={() => onChange(v)}
-            className={`min-h-9 flex-1 rounded-[6px] px-2 text-xs transition-colors duration-200 ${value === v ? "bg-ink text-foreground" : "text-ink/80 hover:bg-ink/10"}`}
+            className={`min-h-9 min-w-fit flex-1 rounded-[6px] px-2 text-xs whitespace-nowrap transition-colors duration-200 ${value === v ? "bg-ink text-foreground" : "text-ink/80 hover:bg-ink/10"}`}
           >
             {l}
           </button>
@@ -138,6 +139,12 @@ export function PickPlants({
   onBack: () => void;
 }) {
   const [slot, setSlot] = useState(0);
+  const [yieldUnit, setYieldUnit] = useState<"cavans" | "tha">("cavans");
+  const [yieldDraft, setYieldDraft] = useState<string | null>(null);
+  const savedYieldTHa = req.overrides.lastHarvestYieldTHa ?? null;
+  const displayYield =
+    yieldDraft ??
+    (savedYieldTHa == null ? "" : String(Math.round((yieldUnit === "cavans" ? savedYieldTHa / 0.05 : savedYieldTHa) * 100) / 100));
   const cards: { id: Choice; plan: PlanResult }[] = [...plans.map((p) => ({ id: p.id as Choice, plan: p })), { id: "custom", plan: custom }];
   const sum = req.weights.water + req.weights.soil + req.weights.econ || 1;
   const ha = Number.isFinite(req.landSizeHa) && req.landSizeHa > 0 ? req.landSizeHa : 1;
@@ -262,7 +269,7 @@ export function PickPlants({
           <div className="flex flex-wrap items-baseline justify-between gap-2 pb-2.5">
             <p className="text-sm font-semibold">Farm settings</p>
             <p className="text-xs text-ink/70 tabular">
-              {ha} ha · {req.soil} · {req.irrigation === "rainfed" ? "rain only" : "irrigated"} · {req.goal === "cash" ? "cash crop" : "animal feed"} ·{" "}
+              {ha} ha · {SOIL_LABEL[req.soil]} · {req.irrigation === "rainfed" ? "rain only" : "irrigated"} · {req.goal === "cash" ? "cash crop" : "animal feed"} ·{" "}
               {scenario === "elnino" ? "El Niño (2015–16)" : "Normal climate"}
             </p>
           </div>
@@ -297,8 +304,76 @@ export function PickPlants({
                 style={{ ["--fill" as string]: `${sliderFill}%` } as CSSProperties}
               />
             </div>
-            <Seg label="Soil" value={req.soil} options={[["clay", "Clay"], ["loam", "Loam"], ["sandy", "Sandy"]]} onChange={(soil) => onReq({ soil })} />
+            <div className="sm:col-span-2">
+              <Seg
+                label="Soil"
+                value={req.soil}
+                options={[
+                  ["clay", "Clay"],
+                  ["clay_loam", "Clay Loam"],
+                  ["silty_loam", "Silty Loam"],
+                  ["loam", "Loam"],
+                  ["sandy_loam", "Sandy Loam"],
+                ]}
+                onChange={(soil) => onReq({ soil })}
+              />
+            </div>
             <Seg label="Water" value={req.irrigation} options={[["rainfed", "Rain only"], ["irrigated", "Irrigated"]]} onChange={(irrigation) => onReq({ irrigation })} />
+            <div className="rounded-[8px] border border-ink/15 px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <label htmlFor="last-harvest-yield" className="text-xs font-semibold">
+                  Last harvest yield (opt.)
+                </label>
+                <div className="inline-flex gap-0.5 rounded-[6px] border border-ink/20 p-0.5" role="group" aria-label="Yield unit">
+                  {([
+                    ["cavans", "cavans/ha"],
+                    ["tha", "t/ha"],
+                  ] as const).map(([u, label]) => (
+                    <button
+                      key={u}
+                      type="button"
+                      aria-pressed={yieldUnit === u}
+                      onClick={() => {
+                        setYieldDraft(null);
+                        setYieldUnit(u);
+                      }}
+                      className={`rounded-[4px] px-1.5 py-0.5 text-[10.5px] font-medium transition-colors ${yieldUnit === u ? "bg-ink text-foreground" : "text-ink/75 hover:bg-ink/10"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-1.5 flex items-center justify-between gap-2">
+                <input
+                  id="last-harvest-yield"
+                  type="number"
+                  min={0.1}
+                  max={yieldUnit === "cavans" ? 1000 : 50}
+                  step={yieldUnit === "cavans" ? 1 : 0.1}
+                  placeholder={yieldUnit === "cavans" ? "e.g. 90" : "e.g. 4.5"}
+                  value={displayYield}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setYieldDraft(raw);
+                    if (raw.trim() === "") {
+                      onReq({ overrides: { ...req.overrides, lastHarvestYieldTHa: null } });
+                      return;
+                    }
+                    const num = Number(raw);
+                    if (Number.isFinite(num) && num > 0) {
+                      const tha = yieldUnit === "cavans" ? num * 0.05 : num;
+                      onReq({ overrides: { ...req.overrides, lastHarvestYieldTHa: Math.min(50, Math.round(tha * 1000) / 1000) } });
+                    }
+                  }}
+                  onBlur={() => setYieldDraft(null)}
+                  className="w-24 rounded-[6px] border border-ink/25 bg-transparent px-2 py-1 text-xs text-ink tabular placeholder:text-ink/40"
+                />
+                <span className="text-[11px] text-ink/65 tabular">
+                  {savedYieldTHa != null ? `= ${savedYieldTHa.toFixed(2)} t/ha · calibrates A` : "Blank = regional baseline"}
+                </span>
+              </div>
+            </div>
             <Seg label="Goal" value={req.goal} options={[["cash", "Cash crop"], ["forage", "Animal feed"]]} onChange={(goal) => onReq({ goal })} />
             <Seg
               label="Soil test: nitrogen"

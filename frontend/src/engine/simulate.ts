@@ -16,8 +16,31 @@ import type {
 } from "../types";
 import { CROP } from "../data/crops";
 
-export const WHC: Record<Soil, number> = { sandy: 60, loam: 120, clay: 150 };
-const K_SOIL: Record<Soil, number> = { sandy: 0.6, loam: 1.0, clay: 0.8 };
+export const SOIL_LABEL: Record<Soil, string> = {
+  clay: "Clay",
+  clay_loam: "Clay Loam",
+  silty_loam: "Silty Loam",
+  loam: "Loam",
+  sandy_loam: "Sandy Loam",
+  sandy: "Sandy",
+};
+
+export const WHC: Record<Soil, number> = {
+  sandy: 60,
+  sandy_loam: 85,
+  loam: 120,
+  silty_loam: 130,
+  clay_loam: 135,
+  clay: 150,
+};
+const K_SOIL: Record<Soil, number> = {
+  sandy: 0.6,
+  sandy_loam: 0.75,
+  loam: 1.0,
+  silty_loam: 1.15,
+  clay_loam: 0.9,
+  clay: 0.8,
+};
 const N0 = { untested: 65, low: 35, medium: 65, high: 85 } as const;
 export const SEASON_MONTHS: Record<SeasonKind, string[]> = {
   wet: ["Jun", "Jul", "Aug", "Sep", "Oct", "Nov"],
@@ -174,7 +197,7 @@ export interface Summary {
 }
 
 /** Runs 6 seasons. Pass `record` to collect per-season detail (slower); omit it in the optimizer loop. */
-export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
+export function run(seq: Crop[], env: Env, record?: SeasonResult[], yieldScale = 1): Summary {
   const whc = WHC[env.soil];
   const kSoil = K_SOIL[env.soil];
   let n: number =
@@ -234,7 +257,9 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
     const sameFamily = crop.family === prevFamily;
     let rainLeach = 0;
     if (env.soil === "sandy") rainLeach = 2 + 3 * Math.min(1, Math.max(0, (clim.rain_mm - 600) / 800));
-    else if (env.soil === "loam" && clim.rain_mm > 1000) rainLeach = 1.5 * Math.min(1, (clim.rain_mm - 1000) / 600);
+    else if ((env.soil === "loam" || env.soil === "silty_loam" || env.soil === "sandy_loam") && clim.rain_mm > 1000) {
+      rainLeach = 1.5 * Math.min(1, (clim.rain_mm - 1000) / 600);
+    }
     let dN = crop.soil_n_delta - rainLeach - (sameFamily ? 3 : 0);
     if (acidSoil && crop.family === "Fabaceae") dN *= 0.5;
     let ureaCost = 0;
@@ -265,8 +290,9 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
 
     // 6. Yield & Profit (88% fixed planting/input cost + 12% harvest/hauling cost scaled by yield)
     const yieldRatio = (1 - waterLoss) * (1 - waterlogLoss) * (1 - heatLoss) * (1 - pestLoss) * nFactor * solarFactor * rotationFactor * phFactor;
-    const yieldT = crop.base_yield_t_ha * yieldRatio;
-    const cropCost = crop.base_cost_php * (0.88 + 0.12 * Math.min(1.1, yieldRatio));
+    const yieldT = crop.base_yield_t_ha * yieldRatio * yieldScale;
+    const costRatio = Math.min(1.1 * Math.max(1, yieldScale), yieldRatio * yieldScale);
+    const cropCost = crop.base_cost_php * (0.88 + 0.12 * costRatio);
     const profit = yieldT * crop.price_php_per_t - cropCost - ureaCost - pumpCost;
 
     water += gap;
