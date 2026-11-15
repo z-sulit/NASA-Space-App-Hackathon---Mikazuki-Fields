@@ -22,6 +22,7 @@ import { firstVisitStep, stepOnScreen, Tour, type TourTarget } from "./Tour";
 import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
 import { reverseGeocode, type Place } from "../../api/geocode";
 import { inTargetName, lockTargetName, shortTargetName } from "../../utils/locationName";
+import { telemetryStatus, type TelemetryBadge } from "../../utils/telemetryStatus";
 import { planSpan, planStartYear, seasonWindows } from "../../data/calendar";
 import type { FieldHandle } from "../../three/tileField";
 
@@ -161,50 +162,64 @@ function Readout({
   live,
   tip,
   tips,
+  status,
 }: {
   label: string;
   value: string;
   live: boolean;
   tip?: string;
   tips?: ReturnType<typeof useHudTip>;
+  status?: TelemetryBadge;
 }) {
   const shown = useScramble(value, live, 300);
+  const badge = status ? <span className={`status-badge is-${status.level.toLowerCase()}`}>{status.level}</span> : null;
+  const advisory = status?.advisory ? (
+    <p className={`status-note is-${status.level.toLowerCase()} mt-0.5 text-[11px] leading-snug`}>{status.advisory}</p>
+  ) : null;
   if (!tip || !tips) {
     return (
-      <div className="flex items-baseline justify-between gap-4 border-b border-ink/10 py-1.5">
-        <dt className="micro text-[10.5px] text-ink/70">{label}</dt>
-        <dd className="micro text-[13px] whitespace-pre text-ink tabular" aria-label={value}>
-          {shown}
-        </dd>
+      <div className="border-b border-ink/10 py-1.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <dt className="micro min-w-0 text-[10.5px] text-ink/70">{label}</dt>
+          <dd className="flex shrink-0 items-center gap-1.5" aria-label={status ? `${value}, ${status.level}` : value}>
+            <span className="micro text-[13px] whitespace-pre text-ink tabular">{shown}</span>
+            {badge}
+          </dd>
+        </div>
+        {advisory}
       </div>
     );
   }
   const { active, onMouseEnter, onMouseLeave, onClick, onFocus, onBlur } = tips.bind(tip);
   return (
     <div
-      className={`flex cursor-pointer items-baseline justify-between gap-4 border-b border-ink/10 py-1.5 transition-colors ${
+      className={`cursor-pointer border-b border-ink/10 py-1.5 transition-colors ${
         active ? "-mx-1.5 rounded-[4px] bg-ink/[0.06] px-1.5" : ""
       }`}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       onClick={onClick}
     >
-      <dt className="min-w-0">
-        <button
-          type="button"
-          aria-pressed={active}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          className={`micro border-b border-dotted text-left text-[10.5px] transition-colors ${
-            active ? "border-sakura text-ink" : "border-ink/40 text-ink/75 hover:border-ink/70 hover:text-ink"
-          }`}
-        >
-          {label}
-        </button>
-      </dt>
-      <dd className="micro text-[13px] whitespace-pre text-ink tabular" aria-label={value}>
-        {shown}
-      </dd>
+      <div className="flex items-baseline justify-between gap-2">
+        <dt className="min-w-0">
+          <button
+            type="button"
+            aria-pressed={active}
+            onFocus={onFocus}
+            onBlur={onBlur}
+            className={`micro border-b border-dotted text-left text-[10.5px] transition-colors ${
+              active ? "border-sakura text-ink" : "border-ink/40 text-ink/75 hover:border-ink/70 hover:text-ink"
+            }`}
+          >
+            {label}
+          </button>
+        </dt>
+        <dd className="flex shrink-0 items-center gap-1.5" aria-label={status ? `${value}, ${status.level}` : value}>
+          <span className="micro text-[13px] whitespace-pre text-ink tabular">{shown}</span>
+          {badge}
+        </dd>
+      </div>
+      {advisory}
     </div>
   );
 }
@@ -981,8 +996,8 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             <dl className="mt-2">
               <Readout live={hudLive} label="Lat / Lon" value={`${lat} / ${lon}`} />
               <Readout live={hudLive} label={`Farm area (${areaHa === null ? "pin" : "outline"})`} value={`${req.landSizeHa} HA`} />
-              <Readout live={hudLive} label="Dry-season rain" value={`${Math.round(dry.rain_mm)} MM`} tip={TIP.rain} tips={targetTips} />
-              <Readout live={hudLive} label="Afternoon heat" value={`${dry.tmax_c.toFixed(1)} °C`} tip={TIP.heat} tips={targetTips} />
+              <Readout live={hudLive} label="Dry-season rain" value={`${Math.round(dry.rain_mm)} MM`} tip={TIP.rain} tips={targetTips} status={telemetryStatus("rain", dry.rain_mm)} />
+              <Readout live={hudLive} label="Afternoon heat" value={`${dry.tmax_c.toFixed(1)} °C`} tip={TIP.heat} tips={targetTips} status={telemetryStatus("heat", dry.tmax_c)} />
               <Readout live={hudLive} label="Soil thirst" value={dry.gwetroot.toFixed(2)} tip={TIP.thirst} tips={targetTips} />
               <Readout live={hudLive} label="Daily water use" value={`${dry.et0_mm_day.toFixed(1)} MM/DAY`} tip={TIP.et0} tips={targetTips} />
             </dl>
@@ -1024,7 +1039,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             </label>
             <dl className="mt-2">
               <Readout live={hudLive} label={`Altitude (${altitude?.from ?? "SRTM"})`} value={altitude ? `${Math.round(altitude.m)} M` : "No record"} tip={TIP.altitude} tips={condTips} />
-              <Readout live={hudLive} label={`Slope (${sampleTag(focus, "slope_pct", "SRTM")})`} value={`${focus.slope_pct}%`} tip={TIP.slope} tips={condTips} />
+              <Readout live={hudLive} label={`Slope (${sampleTag(focus, "slope_pct", "SRTM")})`} value={`${focus.slope_pct}%`} tip={TIP.slope} tips={condTips} status={telemetryStatus("slope", focus.slope_pct)} />
               <Readout live={hudLive} label={`Green cover (${sampleTag(focus, "ndvi_dry_min", "MODIS")})`} value={`NDVI ${focus.ndvi_dry_min.toFixed(2)}`} tip={TIP.ndvi} tips={condTips} />
               <Readout live={hudLive} label="2015–16 El Niño" value={focus.elnino_2016_dry_rain_pct === null ? "No record" : `${focus.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(focus.elnino_2016_dry_rain_pct)}% RAIN`} />
             </dl>
@@ -1202,18 +1217,36 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               if (i === null) return <p className="mt-1.5 text-[11px] text-[#f6efeb]/55">Tap a season for its dates and weather.</p>;
               const s = chosen.now.seasons[i];
               const w = windows[i];
+              const crop = CROP[s.crop];
               const rain = climate(target, w.kind, scenario).rain_mm;
               return (
                 <p className="season-detail" aria-live="polite">
                   <span className="font-semibold">
                     Season {i + 1} ({w.long} · {w.kind === "wet" ? "Wet" : "Dry"}):
                   </span>{" "}
-                  {CROP[s.crop].short} · Rain <span className="tabular">{Math.round(rain)} mm</span>
+                  {crop.short} ({crop.variety}) · {crop.establishment} · Rain <span className="tabular">{Math.round(rain)} mm</span>
                   {scenario === "elnino" ? " (2015–16 replay)" : ""} · Bare soil in heavy rain: {s.bareMonths.length ? s.bareMonths.join(", ") : "none"} · Pest
                   cycle: {s.pestBroken ? "broken" : i === 0 ? "starting" : "continues"}
                 </p>
               );
             })()}
+            <ul className="mt-2 divide-y divide-ink/10 rounded-md border border-ink/12 bg-ink/[0.03] px-2.5 py-1 text-[11px]" aria-label="Recommended varieties and establishment methods">
+              {chosen.now.seasons.map((s) => {
+                const crop = CROP[s.crop];
+                const active = (hoverSeason ?? focusSeason) === s.index;
+                return (
+                  <li key={s.index} className={`py-1 leading-snug ${active ? "text-ink" : "text-ink/80"}`}>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+                      <span className="font-semibold text-ink">
+                        S{s.index + 1} · {crop.short}
+                      </span>
+                      <span className="text-[10.5px] text-[#c9e86a]">{crop.variety}</span>
+                    </div>
+                    <p className="text-[10.5px] text-ink/65">{crop.establishment}</p>
+                  </li>
+                );
+              })}
+            </ul>
             <p className="mt-1 flex flex-wrap gap-x-3 text-[11px] text-[#f6efeb]/60">
               <span>
                 <span className="text-[#c9e86a]">●</span> pest cycle broken
