@@ -2,8 +2,7 @@ import { Fragment, useState, type CSSProperties } from "react";
 import { ArrowLeft, Loader2, Bean, BugOff, CloudRain, Sprout, TriangleAlert, Wheat } from "lucide-react";
 import type { CropId, Family, PlanId, PlanRequest, PlanResult, Scenario, SeasonResult } from "../../types";
 import { CROP, CROPS } from "../../data/crops";
-import { peso, Switch } from "../ui";
-import { formatPhpUsd } from "../ui";
+import { formatPhpUsd, Switch } from "../ui";
 
 const FAMILY_VAR: Record<Family, string> = {
   Poaceae: "var(--family-poaceae)",
@@ -176,7 +175,7 @@ export function PickPlants({
                 <span className="block text-xs text-ink/70">{plan.promise}</span>
                 <Chips rotation={plan.rotation} seasons={plan.seasons} />
                 <span className="mt-3 flex justify-between gap-2 text-xs text-ink/80 tabular">
-                  <span>{peso(plan.kpis.totalProfit)}</span>
+                  <span>{formatPhpUsd(plan.kpis.totalProfit)}</span>
                   <span>{plan.seasons.reduce((acc, s) => acc + s.yieldT, 0).toFixed(1)} t</span>
                   <span>Soil N → {Math.round(plan.kpis.nFinal)}</span>
                 </span>

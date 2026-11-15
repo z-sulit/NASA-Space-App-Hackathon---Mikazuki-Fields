@@ -212,6 +212,7 @@ export function farmToPreset(ctx: BFarmContext, base?: Preset): Preset {
       basis === "observed_2015_2016"
         ? Math.round((ctx.climate.elnino.dry.rain_mm / ctx.climate.normal.dry.rain_mm - 1) * 1000) / 10
         : (base?.elnino_2016_dry_rain_pct ?? null),
+    elevation_m: ctx.terrain.elevation_m,
     slope_pct: ctx.terrain.slope_pct,
     ndvi_dry_min: ctx.ndvi_profile.mean_ndvi,
     // Presets carry measured SRTM slope and MODIS NDVI; a pin borrows the nearest preset's.

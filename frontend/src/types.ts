@@ -59,6 +59,7 @@ export interface Preset {
   elnino?: Record<SeasonKind, SeasonClimate>;
   elnino_basis?: "observed_2015_2016" | "synthetic";
   elnino_2016_dry_rain_pct: number | null;
+  elevation_m?: number;
   slope_pct: number;
   ndvi_dry_min: number;
   placeholders: string[];
