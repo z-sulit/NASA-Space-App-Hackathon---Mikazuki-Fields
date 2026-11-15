@@ -137,7 +137,16 @@ export function TargetMap({
   useEffect(() => {
     if (!el.current) return;
     const bounds = L.latLngBounds([PH_BOUNDS.south - 3, PH_BOUNDS.west - 4], [PH_BOUNDS.north + 3, PH_BOUNDS.east + 4]);
-    const m = L.map(el.current, { zoomControl: false, attributionControl: false, zoomSnap: 0, minZoom: 4.5, maxZoom: 18, maxBounds: bounds, maxBoundsViscosity: 0.8 });
+    const m = L.map(el.current, {
+      preferCanvas: true,
+      zoomControl: false,
+      attributionControl: false,
+      zoomSnap: 0,
+      minZoom: 4.5,
+      maxZoom: 18,
+      maxBounds: bounds,
+      maxBoundsViscosity: 0.8,
+    });
     map.current = m;
     // Separate panes above tilePane (200) and below vector overlayPane (400) for GIBS and place labels.
     const overlayPane = m.createPane("gibsOverlay");
@@ -153,6 +162,9 @@ export function TargetMap({
       attribution: "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics",
       maxNativeZoom: 18,
       maxZoom: 19,
+      updateWhenZooming: false,
+      updateWhenIdle: true,
+      keepBuffer: 2,
     })
       .on("tileload", decodeTile)
       .once("load", () => handlers.current.onTilesReady?.())
@@ -161,6 +173,9 @@ export function TargetMap({
       pane: "referenceLabels",
       maxNativeZoom: 18,
       maxZoom: 19,
+      updateWhenZooming: false,
+      updateWhenIdle: true,
+      keepBuffer: 2,
     })
       .on("tileload", decodeTile)
       .addTo(m);
@@ -170,7 +185,7 @@ export function TargetMap({
 
     presets.forEach((p) => {
       const short = p.name.split(" (")[0];
-      const icon = L.divIcon({ className: "", html: `<span class="tgt"><i></i><b>${short} · Ref</b></span>`, iconSize: [0, 0] });
+      const icon = L.divIcon({ className: "", html: `<span class="tgt" data-ref-id="${p.id}"><i data-tour="refs"></i><b data-tour="refs">${short} · Ref</b></span>`, iconSize: [0, 0] });
       L.marker([p.lat, p.lon], { icon, keyboard: true, title: `Reference site: ${p.name}`, bubblingMouseEvents: false })
         .on("mouseover", () => handlers.current.onHover(p.id))
         .on("mouseout", () => handlers.current.onHover(null))
@@ -194,7 +209,7 @@ export function TargetMap({
       if (h.drawing && m.getZoom() >= 14) h.onBoundary([...h.boundary, p]);
       else h.onPickPoint(p);
     });
-    m.on("move zoom resize", place);
+    m.on("moveend zoomend resize", place);
     m.on("zoomend", () => handlers.current.onZoom?.(m.getZoom()));
     handlers.current.onZoom?.(m.getZoom());
     place();
@@ -224,6 +239,9 @@ export function TargetMap({
       opacity: 0.45,
       maxNativeZoom: cfg.maxNativeZoom,
       maxZoom: 19,
+      updateWhenZooming: false,
+      updateWhenIdle: true,
+      keepBuffer: 2,
     })
       .on("tileload", () => {
         loaded = true;

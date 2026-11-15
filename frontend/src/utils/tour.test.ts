@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { placeCard } from "./tour.ts";
+import { placeCard, visibleRefsRect } from "./tour.ts";
 
-const box = (left: number, top: number, width: number, height: number) => ({ left, top, width, right: left + width, bottom: top + height });
+const box = (left: number, top: number, width: number, height: number) => ({ left, top, width, height, right: left + width, bottom: top + height });
 
 test("placeCard goes under the target, above it when there is no room, and never off screen", () => {
   // Room below: centred under the target
@@ -16,4 +16,19 @@ test("placeCard goes under the target, above it when there is no room, and never
   // Target at the left edge of a phone: the card stays 12 px inside
   assert.equal(placeCard(box(0, 100, 60, 40), 340, 200, 390, 800).left, 12);
   assert.equal(placeCard(box(360, 100, 30, 40), 340, 200, 390, 800).left, 38);
+});
+
+test("visibleRefsRect merges visible reference markers and drops off-screen or zero-size nodes", () => {
+  const merged = visibleRefsRect(
+    [
+      box(610, 180, 90, 18),
+      box(640, 520, 110, 18),
+      box(0, 0, 0, 0),
+      box(1600, 300, 90, 18),
+    ],
+    1366,
+    800,
+  );
+  assert.deepEqual(merged, box(610, 180, 140, 358));
+  assert.equal(visibleRefsRect([box(-120, 100, 90, 18)], 1366, 800), null);
 });
