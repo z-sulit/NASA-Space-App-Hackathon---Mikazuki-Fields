@@ -75,7 +75,8 @@ export function Tour({
 }: {
   step: number | null;
   onStep: (step: number | null) => void;
-  onAdvance?: (nextTarget: TourTarget) => boolean;
+  /** Moves the mission on for the next step. True when it did; a string says what the user must do first. */
+  onAdvance?: (nextTarget: TourTarget) => boolean | string;
 }) {
   const [box, setBox] = useState<DOMRect | null>(null);
   const [cardH, setCardH] = useState(0);
@@ -144,12 +145,13 @@ export function Tour({
     if (last) return finish();
     const nextStep = step + 1;
     const nextTarget = STEPS[nextStep].target;
-    if (rectOf(nextStep) || onAdvance?.(nextTarget)) {
+    const advanced = rectOf(nextStep) ? true : (onAdvance?.(nextTarget) ?? false);
+    if (advanced === true) {
       setHint(null);
       onStep(nextStep);
       return;
     }
-    setHint(s.hint ?? "Complete this step to continue.");
+    setHint(advanced || (s.hint ?? "Complete this step to continue."));
   };
 
   return (
