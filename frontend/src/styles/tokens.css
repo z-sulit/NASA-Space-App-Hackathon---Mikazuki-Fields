@@ -136,27 +136,3 @@
     scroll-behavior: auto !important;
   }
 }
-
-@media print {
-  @page {
-    size: A4 portrait;
-    margin: 12mm 14mm;
-  }
-
-  html,
-  body,
-  #root,
-  .mission,
-  .h-\[100svh\] {
-    height: auto !important;
-    min-height: 0 !important;
-    overflow: visible !important;
-    background: #ffffff !important;
-    color: #111827 !important;
-  }
-
-  body {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-}
