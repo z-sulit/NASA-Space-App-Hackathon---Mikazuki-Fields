@@ -296,7 +296,9 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const [pin, setPin] = useState<LatLon | null>(last?.pin ?? null);
   const [acquiring, setAcquiring] = useState(false);
   const [pinVia, setPinVia] = useState<"api" | "browser" | "nearest" | null>(null);
-  const [mapNote, setMapNote] = useState<string | null>(last ? "Your last farm is ready. Lock it, or tap a new one." : null);
+  const [mapNote, setMapNote] = useState<string | null>(null);
+  const [mapZoom, setMapZoom] = useState(() => (typeof window !== "undefined" && window.innerWidth < 640 ? 5.0 : 5.9));
+  const [hasPickedLocation, setHasPickedLocation] = useState(false);
   const [checking, setChecking] = useState(false);
   const [tryAgain, setTryAgain] = useState<{ text: string; key: number } | null>(null);
   const [rejected, setRejected] = useState<(LatLon & { key: number }) | null>(null);
@@ -433,12 +435,14 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const inName = (p: Preset) => (p.id.startsWith("pin-") ? "your farm" : shortName(p));
 
   const pickPreset = (id: string) => {
-    setDrawing(false);
+    const next = presets.find((p) => p.id === id)!;
     resetBoundary();
+    setHasPickedLocation(true);
     setPin(null);
     setMapNote(null);
     setPinVia(null);
-    setTarget(presets.find((p) => p.id === id)!);
+    setTarget(next);
+    if (drawing) void mapRef.current?.glideTo(next.lat, next.lon, 16);
   };
   const refuse = (p: LatLon, text: string) => {
     const key = Date.now();
@@ -468,6 +472,9 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     }
     setRejected(null);
     if (ground.snapped) p = { lat: ground.snapped.lat, lon: ground.snapped.lon };
+    setHasPickedLocation(true);
+    const currentZoom = mapRef.current?.getZoom() ?? mapZoom;
+    if (drawing && currentZoom < 12) void mapRef.current?.glideTo(p.lat, p.lon, 16);
     setPin(p);
     setAcquiring(true);
     const { preset, live, via } = await fetchPinFarm(p.lat, p.lon, presets);
@@ -495,9 +502,13 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   };
   const setDrawMode = (on: boolean) => {
     setDrawing(on);
-    if (!on) resetBoundary();
-    // A field is tens of metres across: come down to where its corners can be told apart.
-    else void mapRef.current?.glideTo(target.lat, target.lon, 16);
+    if (!on) {
+      resetBoundary();
+      return;
+    }
+    // Zoom to field level only if the user already picked a location or zoomed in manually.
+    const zoom = mapRef.current?.getZoom() ?? mapZoom;
+    if (hasPickedLocation || zoom >= 12) void mapRef.current?.glideTo(target.lat, target.lon, 16);
   };
   const areaHa = boundary.length >= 3 ? ringAreaHa(boundary) : null;
   const areaNote = areaHa === null ? null : areaHa < MIN_HA ? `Under ${MIN_HA} ha: check the corners. Planning uses ${MIN_HA} ha.` : areaHa > MAX_HA ? `Over ${MAX_HA.toLocaleString("en-PH")} ha: planning uses ${MAX_HA.toLocaleString("en-PH")} ha.` : null;
@@ -509,11 +520,13 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     return () => clearTimeout(t);
   }, [boundary]); // eslint-disable-line react-hooks/exhaustive-deps
   const drawStatus =
-    boundary.length === 0
-      ? "Tap the map at each corner of your farm"
-      : areaHa === null
-        ? `${boundary.length} of 3 corners: tap ${3 - boundary.length} more to close the outline`
-        : (areaNote ?? `${boundary.length} corners · ${areaHa.toFixed(2)} ha. Drag a corner to adjust it.`);
+    mapZoom < 12
+      ? "Step 1: Search or tap your farm's general location on the map to zoom in."
+      : boundary.length === 0
+        ? "Step 2: Tap at least 3 corners around your field to trace your boundary (drag map to pan)."
+        : areaHa === null
+          ? `${boundary.length} of 3 corners: tap ${3 - boundary.length} more to close the outline`
+          : (areaNote ?? `${boundary.length} corners · ${areaHa.toFixed(2)} ha. Drag a corner to adjust it.`);
 
   // Current weather for the farm in view; never holds up targeting.
   useEffect(() => {
@@ -538,6 +551,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   /** A search result: glide over, then target it exactly like a tap. */
   const pickPlace = async (pl: Place) => {
     resetBoundary(); // a new place is a new farm
+    setHasPickedLocation(true);
     await mapRef.current?.glideTo(pl.lat, pl.lon, drawing ? 16 : undefined);
     await pickPoint({ lat: pl.lat, lon: pl.lon }, pl.name);
   };
@@ -713,6 +727,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             boundary={boundary}
             drawing={drawing && stage === "target"}
             onBoundary={drawBoundary}
+            onZoom={setMapZoom}
             onTilesReady={() => setMapReady(true)}
           />
           <div className={`mission-dim ${stage === "plants" || stage === "planting" ? "is-on" : ""}`} aria-hidden />
@@ -797,7 +812,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                       ? ""
                       : drawing
                         ? drawStatus
-                        : (mapNote ?? "Search a place, tap anywhere on land, or choose a sample reference site")}
+                        : (mapNote ?? "Search a town, tap anywhere on the map, or pick a reference site.")}
             </p>
             {stage !== "locking" && (
               <div className="mx-auto w-fit" data-tour="locate">
