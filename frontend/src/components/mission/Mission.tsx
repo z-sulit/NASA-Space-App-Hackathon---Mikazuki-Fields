@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode, type Ref } from "react";
-import { ArrowLeft, BookmarkPlus, CircleHelp, Crosshair, FileDown, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BookmarkPlus, CircleHelp, Crosshair, FileDown, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
 import { customPlan, scalePlanResult, scalePlansResponse } from "../../engine/plans";
@@ -19,6 +19,7 @@ import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
 import { reverseGeocode, type Place } from "../../api/geocode";
 import { hasResolvedPinName, inTargetName, lockTargetName, shortTargetName } from "../../utils/locationName";
 import { deleteSavedFarm, isFarmDirty, loadSavedFarms, nextFarmLabel, saveFarmPlot, updateSavedFarm, type SavedFarm } from "../../utils/savedFarms";
+import { seasonAlerts } from "../../utils/seasonAlerts";
 import { telemetryStatus, type TelemetryBadge } from "../../utils/telemetryStatus";
 import { planSpan, planStartYear, seasonWindows } from "../../data/calendar";
 import type { FieldHandle } from "../../three/tileField";
@@ -1469,12 +1470,13 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               {chosen.now.seasons.map((s) => {
                 const w = windows[s.index];
                 const on = focusSeason === s.index;
+                const alert = seasonAlerts(s);
                 return (
                   <li key={s.index}>
                     <button
                       type="button"
                       aria-pressed={on}
-                      aria-label={`Season ${s.index + 1}, ${w.long}, ${CROP[s.crop].short}`}
+                      aria-label={`Season ${s.index + 1}, ${w.long}, ${CROP[s.crop].short}${alert.netLoss ? ", net loss" : ""}${alert.wiltRisk ? ", crop wilt risk" : ""}`}
                       onClick={() => {
                         setPlaying(false);
                         setFocusSeason(on ? null : s.index);
@@ -1482,7 +1484,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                       onMouseEnter={() => setHoverSeason(s.index)}
                       onFocus={() => setHoverSeason(s.index)}
                       onBlur={() => setHoverSeason(null)}
-                      className={`season-pill ${on ? "is-on" : ""}`}
+                      className={`season-pill ${on ? "is-on" : ""} ${alert.severe ? "!border-red-400/75 ring-1 ring-red-400/50" : ""}`}
                       style={{ background: `color-mix(in srgb, var(--family-${CROP[s.crop].family.toLowerCase()}) 70%, #1d240a)` }}
                     >
                       <span className="block text-[10px] leading-3 text-[#f6efeb]/75">S{s.index + 1}</span>
@@ -1505,28 +1507,66 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               const w = windows[i];
               const crop = CROP[s.crop];
               const rain = climate(target, w.kind, scenario).rain_mm;
+              const alert = seasonAlerts(s);
               return (
-                <p className="season-detail" aria-live="polite">
-                  <span className="font-semibold">
-                    Season {i + 1} ({w.long} · {w.kind === "wet" ? "Wet" : "Dry"}):
-                  </span>{" "}
-                  {crop.short} ({crop.variety}) · {crop.establishment} · Rain <span className="tabular">{Math.round(rain)} mm</span>
-                  {scenario === "elnino" ? " (2015–16 replay)" : ""} · Bare soil in heavy rain: {s.bareMonths.length ? s.bareMonths.join(", ") : "none"} · Pest
-                  cycle: {s.pestBroken ? "broken" : i === 0 ? "starting" : "continues"}
-                </p>
+                <div className={`season-detail ${alert.severe ? "!border-red-400/50 !bg-red-950/35" : ""}`} aria-live="polite">
+                  {alert.severe && (
+                    <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[10.5px] font-semibold">
+                      {alert.wiltRisk && (
+                        <span className="inline-flex items-center gap-1 rounded bg-red-500/25 px-1.5 py-0.5 text-red-100 ring-1 ring-red-400/50">
+                          <AlertTriangle className="size-3" aria-hidden /> CROP WILT / DROUGHT RISK
+                        </span>
+                      )}
+                      {alert.netLoss && (
+                        <span className="rounded bg-red-600/80 px-1.5 py-0.5 text-white">
+                          NET LOSS
+                        </span>
+                      )}
+                      <span className="text-red-200 tabular">
+                        S{i + 1} · {w.long}
+                        {alert.netLoss ? ` · ${formatPhpUsd(s.profit)}` : ""}
+                        {alert.wiltRisk ? ` · ${Math.round(alert.unmetGapMm)} mm water deficit` : ""}
+                      </span>
+                    </div>
+                  )}
+                  <p>
+                    <span className="font-semibold">
+                      Season {i + 1} ({w.long} · {w.kind === "wet" ? "Wet" : "Dry"}):
+                    </span>{" "}
+                    {crop.short} ({crop.variety}) · {crop.establishment} · Rain <span className="tabular">{Math.round(rain)} mm</span>
+                    {scenario === "elnino" ? " (2015–16 replay)" : ""} · Bare soil in heavy rain: {s.bareMonths.length ? s.bareMonths.join(", ") : "none"} · Pest
+                    cycle: {s.pestBroken ? "broken" : i === 0 ? "starting" : "continues"}
+                  </p>
+                </div>
               );
             })()}
             <ul className="mt-2 divide-y divide-ink/10 rounded-md border border-ink/12 bg-ink/[0.03] px-2.5 py-1 text-[11px]" aria-label="Recommended varieties and establishment methods">
               {chosen.now.seasons.map((s) => {
                 const crop = CROP[s.crop];
                 const active = (hoverSeason ?? focusSeason) === s.index;
+                const alert = seasonAlerts(s);
                 return (
-                  <li key={s.index} className={`py-1 leading-snug ${active ? "text-ink" : "text-ink/80"}`}>
+                  <li
+                    key={s.index}
+                    className={`py-1 leading-snug ${active ? "text-ink" : "text-ink/80"} ${alert.severe ? "-mx-1.5 border-l-2 border-red-400/70 bg-red-950/25 px-1.5" : ""}`}
+                  >
                     <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                       <span className="font-semibold text-ink">
                         S{s.index + 1} · {crop.short}
                       </span>
-                      <span className="text-[10.5px] text-[#c9e86a]">{crop.variety}</span>
+                      <span className="flex flex-wrap items-center gap-1">
+                        {alert.wiltRisk && (
+                          <span className="rounded bg-red-500/25 px-1 py-0.5 text-[9.5px] font-semibold text-red-100 ring-1 ring-red-400/40">
+                            CROP WILT / DROUGHT RISK
+                          </span>
+                        )}
+                        {alert.netLoss && (
+                          <span className="rounded bg-red-600/80 px-1 py-0.5 text-[9.5px] font-semibold text-white">
+                            NET LOSS
+                          </span>
+                        )}
+                        <span className="text-[10.5px] text-[#c9e86a]">{crop.variety}</span>
+                      </span>
                     </div>
                     <p className="text-[10.5px] text-ink/65">{crop.establishment}</p>
                   </li>
