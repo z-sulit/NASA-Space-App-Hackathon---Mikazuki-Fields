@@ -74,7 +74,7 @@
     text-transform: uppercase;
   }
 
-  /* ---------- Motion: CropTab-style reveals with a cockpit (Mikazuki) layer ---------- */
+  /* Motion: CropTab-style reveals with a cockpit (Mikazuki) layer */
 
   /* Masked line reveal: text slides up from behind an invisible edge. */
   .line-mask {
@@ -115,10 +115,8 @@
     }
   }
 
-  /* Buttons: one system for the whole mission.
-     - Primary (sakura): the one action that moves the mission forward on each screen.
-     - Secondary (outline): going back or sideways.
-     Press squashes the button (squash and stretch) and hover answers within ~150 ms. */
+  /* Buttons: primary (sakura) is the one action that moves the mission forward on each screen; secondary (outline) goes back or sideways.
+     Press squashes the button, and hover answers within ~150 ms. */
   .btn {
     display: inline-flex;
     align-items: center;

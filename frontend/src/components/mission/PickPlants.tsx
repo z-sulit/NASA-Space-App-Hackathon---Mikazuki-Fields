@@ -123,7 +123,7 @@ export function PickPlants({
             <h2 className="font-display text-[clamp(24px,3vw,36px)] leading-tight font-normal tracking-[-0.02em]">What should grow in {farmName}?</h2>
             <p className="text-sm text-ink/70">Choose a route for the next 6 seasons, or build your own.</p>
           </div>
-          <button type="button" onClick={onBack} className="btn btn-secondary hover:bg-ink/10">
+          <button type="button" onClick={onBack} className="btn btn-secondary">
             <ArrowLeft className="size-4" aria-hidden /> Change farm
           </button>
         </div>
@@ -183,7 +183,7 @@ export function PickPlants({
                 return (
                   <Fragment key={i}>
                     {i > 0 && (
-                      <li aria-hidden className={`shrink-0 ${broke ? "text-[#c9e86a]" : "text-ink/25"}`} title={broke ? "Pest cycle broken" : "Same family"}>
+                      <li aria-hidden className={`shrink-0 ${broke ? "text-[#c9e86a]" : "text-ink/40"}`} title={broke ? "Pest cycle broken" : "Same family"}>
                         <BugOff className="size-3.5" />
                       </li>
                     )}
