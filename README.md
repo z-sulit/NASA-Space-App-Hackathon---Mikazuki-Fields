@@ -207,8 +207,8 @@ Team Tekkadan used SI tools to build faster. The team chose the problem, the dat
 | Area | SI tool | Where and how |
 |---|---|---|
 | Code | Claude Code (Anthropic), an AI coding assistant; other LLM assistants | Helped write and review much of the React front end (mission flow, map search and farm-boundary drawing, 3D field and crop models, guided tour, phone and tablet layout), the live SRTM terrain lookup in `backend/app/main.py`, and their tests. The team also used LLM assistants for code checking and UI styling. |
-| Audio | Microsoft neural text-to-speech (`en-PH-JamesNeural`) | The narration in the 30-second demo video is an SI-generated voice. The video's end card says so. |
-| Video | None for imagery | The demo video is NASA Image and Video Library footage and screen recordings of the app, with captions. Its editing scripts were written with an AI coding assistant. |
+| Audio | Microsoft neural text-to-speech (`en-PH-JamesNeural`); an AI coding assistant | In the 30-second demo video, the narration is an SI-generated voice and the background music is SI-made (composed and synthesized by a script the assistant wrote). |
+| Video | An AI coding assistant (no image or video generator) | The demo video was edited by SI: clip choice, cuts, captions, end card and narration script. Its pictures are real: NASA Image and Video Library footage and screen recordings of the app. A corner label ("SI-edited · SI voice and music") shows throughout, the end card repeats it, and the file's metadata describes the SI use. |
 | Images | None | No image generators were used. The emblem and the share image (`frontend/public/og-image.png`, a screenshot of the app) are drawn by the app's own code. |
 | Text | LLM assistants | Helped draft the project write-ups, including this submission section. |
 | Data and results | None | Every number comes from NASA POWER, SRTM, MODIS, NASA GIBS, PSA OpenSTAT, FAO references and the team's own optimizer. No data is SI-generated. |
