@@ -12,7 +12,7 @@ const FAMILY_VAR: Record<Family, string> = {
 const FAMILY_ICON = { Poaceae: Wheat, Fabaceae: Bean, Convolvulaceae: Sprout } as const;
 export type Choice = PlanId | "custom";
 
-function Seg<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: [T, string][]; onChange: (v: T) => void }) {
+export function Seg<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: [T, string][]; onChange: (v: T) => void }) {
   return (
     <div>
       <p className="text-xs font-medium text-ink/70">{label}</p>
@@ -30,6 +30,29 @@ function Seg<T extends string>({ label, value, options, onChange }: { label: str
         ))}
       </div>
     </div>
+  );
+}
+
+/** Land size in hectares, typed. Shared by farm settings (step 04) and the field panel (step 05). */
+export function HaInput({ id, value, onChange }: { id: string; value: number; onChange: (ha: number) => void }) {
+  return (
+    <span className="flex items-center gap-1">
+      <input
+        id={id}
+        type="number"
+        min={0.1}
+        max={500}
+        step={0.1}
+        value={value}
+        onChange={(e) => {
+          const raw = Number(e.target.value);
+          if (Number.isFinite(raw)) onChange(Math.round(Math.min(500, Math.max(0.1, raw)) * 100) / 100);
+        }}
+        className="w-16 rounded-[6px] border border-ink/25 bg-transparent px-1.5 py-0.5 text-right text-xs text-ink tabular"
+        aria-label="Land size in hectares"
+      />
+      <span className="text-xs text-ink/70">ha</span>
+    </span>
   );
 }
 
@@ -120,10 +143,6 @@ export function PickPlants({
   const ha = Number.isFinite(req.landSizeHa) && req.landSizeHa > 0 ? req.landSizeHa : 1;
   const sliderHa = Math.min(20, Math.max(0.25, ha));
   const sliderFill = ((sliderHa - 0.25) / (20 - 0.25)) * 100;
-  const setLandSize = (raw: number) => {
-    if (!Number.isFinite(raw)) return;
-    onReq({ landSizeHa: Math.round(Math.min(500, Math.max(0.1, raw)) * 100) / 100 });
-  };
 
   return (
     <div className="pick-wrap">
@@ -264,20 +283,7 @@ export function PickPlants({
                 <label htmlFor="land-size-ha" className="text-xs font-semibold">
                   Land size (ha)
                 </label>
-                <div className="flex items-center gap-1">
-                  <input
-                    id="land-size-ha"
-                    type="number"
-                    min={0.1}
-                    max={500}
-                    step={0.1}
-                    value={ha}
-                    onChange={(e) => setLandSize(Number(e.target.value))}
-                    className="w-16 rounded-[6px] border border-ink/25 bg-transparent px-1.5 py-0.5 text-right text-xs text-ink tabular"
-                    aria-label="Land size in hectares"
-                  />
-                  <span className="text-xs text-ink/70">ha</span>
-                </div>
+                <HaInput id="land-size-ha" value={ha} onChange={(landSizeHa) => onReq({ landSizeHa })} />
               </div>
               <input
                 type="range"
@@ -285,7 +291,7 @@ export function PickPlants({
                 max={20}
                 step={0.25}
                 value={sliderHa}
-                onChange={(e) => setLandSize(Number(e.target.value))}
+                onChange={(e) => onReq({ landSizeHa: Number(e.target.value) })}
                 aria-label="Land size slider in hectares"
                 className="mf-range mt-1.5 h-5 w-full"
                 style={{ ["--fill" as string]: `${sliderFill}%` } as CSSProperties}

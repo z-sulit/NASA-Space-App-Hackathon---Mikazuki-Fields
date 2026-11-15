@@ -39,6 +39,8 @@ export function PlaceSearch({ onPick, disabled = false }: { onPick: (p: Place) =
     try {
       const found = await searchPlaces(query, ctl.signal);
       if (ctl.signal.aborted) return;
+      // One match is the answer: target it without a second click (#15).
+      if (found.length === 1) return pick(found[0]);
       setResults(found);
       setActive(found.length ? 0 : -1);
       if (!found.length) setNote(`No place in the Philippines called "${query}". Try a province or town name, or tap the map.`);
