@@ -35,7 +35,7 @@ export function ElNinoAtmosphere({ on }: { on: boolean }) {
   const near = useMemo(() => dustShadows(70, 7, 1.8), []);
   const far = useMemo(() => dustShadows(110, 19, 0.9), []);
   return (
-    <div className={`elnino-atmo ${on ? "is-on" : ""}`} aria-hidden>
+    <div className={`elnino-atmo print:hidden ${on ? "is-on" : ""}`} aria-hidden>
       <div className="atmo-tint" />
       <div className="atmo-sun" />
       <div className="atmo-haze" />
