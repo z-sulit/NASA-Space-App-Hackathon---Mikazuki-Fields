@@ -36,15 +36,26 @@ export interface LatLon {
   lon: number;
 }
 
+export type GibsOverlay = "none" | "ndvi" | "rain";
+
+const GIBS_LAYERS: Record<Exclude<GibsOverlay, "none">, string> = {
+  ndvi: "MODIS_Terra_NDVI_8Day",
+  rain: "IMERG_Precipitation_Rate",
+};
+
+const OSM_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const ESRI_SAT_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const gibsUrl = (layer: string) =>
+  `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`;
+
 // On phones the HUD panels cover the lower half, so sit the islands higher.
 const phone = () => window.innerWidth < 640;
 const home = (): L.LatLngTuple => (phone() ? [9.6, 122.2] : [12.2, 122.4]);
 const homeZoom = () => (phone() ? 5.0 : 5.9);
 
 /**
- * Steps 02–03 backdrop: the real map, tinted like a cockpit display. Tap anywhere
- * in the Philippines to drop a target (or pick one of the 3 preset farms); a
- * reticle glides to the focused point.
+ * Steps 02–03 backdrop: the real map, tinted like a cockpit display or shown in true-color Satellite mode.
+ * Tap anywhere in the Philippines to drop a target (or pick a preset); a reticle glides to the focused point.
  */
 export function TargetMap({
   presets,
@@ -52,6 +63,8 @@ export function TargetMap({
   pin,
   rejected = null,
   locked,
+  satellite = false,
+  gibsOverlay = "none",
   onHover,
   onPickPreset,
   onPickPoint,
@@ -59,6 +72,7 @@ export function TargetMap({
   drawing,
   onBoundary,
   onZoom,
+  onOverlayError,
   onTilesReady,
   ref,
 }: {
@@ -68,6 +82,10 @@ export function TargetMap({
   /** A refused tap (water, outside the Philippines): shown as a fading red mark. */
   rejected?: (LatLon & { key: number }) | null;
   locked: boolean;
+  /** True-color Esri World Imagery base map instead of OSM street/terrain map. */
+  satellite?: boolean;
+  /** Optional semi-transparent NASA GIBS Earth-observation overlay. */
+  gibsOverlay?: GibsOverlay;
   onHover: (id: string | null) => void;
   onPickPreset: (id: string) => void;
   onPickPoint: (p: LatLon) => void;
@@ -78,12 +96,17 @@ export function TargetMap({
   onBoundary: (ring: LatLon[]) => void;
   /** Fired on init and whenever the map zoom changes. */
   onZoom?: (zoom: number) => void;
+  /** Fired when active GIBS tiles fail to load or recover. */
+  onOverlayError?: (offline: boolean) => void;
   /** The first screenful of map tiles has loaded (used to leave the loading screen). */
   onTilesReady?: () => void;
   ref?: Ref<TargetMapHandle>;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
+  const osmLayer = useRef<L.TileLayer | null>(null);
+  const satLayer = useRef<L.TileLayer | null>(null);
+  const gibsLayer = useRef<L.TileLayer | null>(null);
   const pinMarker = useRef<L.Marker | null>(null);
   const rejectMarker = useRef<L.Marker | null>(null);
   const outline = useRef<L.LayerGroup | null>(null);
@@ -92,8 +115,8 @@ export function TargetMap({
   focusRef.current = focus;
   const dragging = useRef(false);
   const dragEndAt = useRef(0);
-  const handlers = useRef({ onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary, onZoom });
-  handlers.current = { onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary, onZoom };
+  const handlers = useRef({ onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary, onZoom, onOverlayError });
+  handlers.current = { onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary, onZoom, onOverlayError };
 
   const place = () => {
     const m = map.current;
@@ -108,15 +131,26 @@ export function TargetMap({
     const bounds = L.latLngBounds([PH_BOUNDS.south - 3, PH_BOUNDS.west - 4], [PH_BOUNDS.north + 3, PH_BOUNDS.east + 4]);
     const m = L.map(el.current, { zoomControl: false, attributionControl: false, zoomSnap: 0, minZoom: 4.5, maxZoom: 18, maxBounds: bounds, maxBoundsViscosity: 0.8 });
     map.current = m;
-    // Attribution is drawn by Mission above the cockpit glass (the canopy would cover Leaflet's).
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    // Separate pane above tilePane (200) and below vector overlayPane (400) so GIBS rasters skip the OSM tint filter.
+    const overlayPane = m.createPane("gibsOverlay");
+    overlayPane.style.zIndex = "250";
+    overlayPane.style.pointerEvents = "none";
+
+    // Decode each tile off-thread before fade-in so zooming in never stalls the reveal.
+    const decodeTile = (e: L.TileEvent) => void (e.tile as HTMLImageElement).decode?.().catch(() => {});
+    const osm = L.tileLayer(OSM_URL, {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     })
-      // Decode each tile as it arrives. Browsers otherwise decode lazily at first paint,
-      // which (with the map hidden under the tiles) would land mid-transition as blank squares.
-      .on("tileload", (e: L.TileEvent) => void (e.tile as HTMLImageElement).decode?.().catch(() => {}))
-      .once("load", () => handlers.current.onTilesReady?.())
-      .addTo(m);
+      .on("tileload", decodeTile)
+      .once("load", () => handlers.current.onTilesReady?.());
+    const sat = L.tileLayer(ESRI_SAT_URL, {
+      attribution: "Tiles &copy; Esri",
+      maxNativeZoom: 18,
+      maxZoom: 19,
+    }).on("tileload", decodeTile);
+    osmLayer.current = osm;
+    satLayer.current = sat;
+    osm.addTo(m);
     // Final view straight away: the map is pre-painted under the tiles, and the page
     // does the zoom-in as a GPU scale, so Leaflet never re-renders mid-transition.
     m.setView(home(), homeZoom(), { animate: false });
@@ -152,11 +186,62 @@ export function TargetMap({
     handlers.current.onZoom?.(m.getZoom());
     place();
     return () => {
+      osmLayer.current = null;
+      satLayer.current = null;
+      gibsLayer.current = null;
       m.remove();
       map.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Swap OSM / Esri World Imagery base layers cleanly without recreating the map.
+  useEffect(() => {
+    const m = map.current;
+    const osm = osmLayer.current;
+    const sat = satLayer.current;
+    if (!m || !osm || !sat) return;
+    if (satellite) {
+      if (m.hasLayer(osm)) m.removeLayer(osm);
+      if (!m.hasLayer(sat)) sat.addTo(m);
+    } else {
+      if (m.hasLayer(sat)) m.removeLayer(sat);
+      if (!m.hasLayer(osm)) osm.addTo(m);
+    }
+  }, [satellite]);
+
+  // Mount/unmount NASA GIBS raster overlay in its dedicated pane.
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    gibsLayer.current?.remove();
+    gibsLayer.current = null;
+    handlers.current.onOverlayError?.(false);
+    if (gibsOverlay === "none") return;
+
+    let failed = 0;
+    const layer = L.tileLayer(gibsUrl(GIBS_LAYERS[gibsOverlay]), {
+      pane: "gibsOverlay",
+      opacity: 0.45,
+      maxNativeZoom: 9,
+      maxZoom: 19,
+    })
+      .on("tileload", () => {
+        failed = 0;
+        handlers.current.onOverlayError?.(false);
+      })
+      .on("tileerror", () => {
+        if (++failed >= 3) handlers.current.onOverlayError?.(true);
+      })
+      .addTo(m);
+    gibsLayer.current = layer;
+    return () => {
+      if (gibsLayer.current === layer) {
+        layer.remove();
+        gibsLayer.current = null;
+      }
+    };
+  }, [gibsOverlay]);
 
   useEffect(place, [focus?.lat, focus?.lon]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -181,7 +266,19 @@ export function TargetMap({
     const group = L.layerGroup().addTo(m);
     outline.current = group;
     const ring = boundary.map((p) => [p.lat, p.lon] as L.LatLngTuple);
-    const style = { color: "#c9e86a", weight: 3, fillColor: "#c9e86a", fillOpacity: 0.25, interactive: false };
+    const casing = satellite
+      ? (ring.length >= 3
+          ? L.polygon(ring, { color: "#141a06", weight: 5.5, opacity: 0.82, fill: false, interactive: false })
+          : L.polyline(ring, { color: "#141a06", weight: 5.5, opacity: 0.82, interactive: false })
+        ).addTo(group)
+      : null;
+    const style = {
+      color: satellite ? "#dfff78" : "#c9e86a",
+      weight: satellite ? 2.5 : 3,
+      fillColor: "#c9e86a",
+      fillOpacity: satellite ? 0.18 : 0.25,
+      interactive: false,
+    };
     const shape = (ring.length >= 3 ? L.polygon(ring, style) : L.polyline(ring, style)).addTo(group);
     if (!drawing || locked) return;
     boundary.forEach((_, i) => {
@@ -194,6 +291,7 @@ export function TargetMap({
       corner.on("drag", () => {
         const at = corner.getLatLng();
         ring[i] = [at.lat, at.lng];
+        casing?.setLatLngs(ring);
         shape.setLatLngs(ring);
       });
       corner.on("dragend", () => {
@@ -202,7 +300,7 @@ export function TargetMap({
         handlers.current.onBoundary(ring.map(([lat, lon]) => ({ lat, lon })));
       });
     });
-  }, [boundary, drawing, locked]);
+  }, [boundary, drawing, locked, satellite]);
 
   // Refused tap: a red cross with a ripple that fades out on its own (CSS), re-added per tap.
   useEffect(() => {
@@ -237,7 +335,7 @@ export function TargetMap({
     <div className="absolute inset-0">
       <div
         ref={el}
-        className="hud-map absolute inset-0"
+        className={`hud-map absolute inset-0${satellite ? " is-satellite" : ""}`}
         aria-label={drawing ? "Map of the Philippines: tap each corner of your farm" : "Map of the Philippines: tap anywhere to choose a farm"}
       />
       {pt && (

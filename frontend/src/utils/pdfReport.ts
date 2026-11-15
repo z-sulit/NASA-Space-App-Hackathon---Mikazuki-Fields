@@ -6,6 +6,7 @@ import { CROP } from "../data/crops";
 import { climate } from "../engine/simulate";
 import type { PlanRequest, PlanResult, Preset, Scenario } from "../types";
 import { PHP_PER_USD } from "./currency";
+import { reportTargetSlug } from "./locationName";
 
 export interface FieldReportInput {
   target: Preset;
@@ -84,8 +85,7 @@ function safeSegment(raw: string, fallback: string): string {
 }
 
 export function fieldReportFilename(target: Preset, plan: PlanResult): string {
-  const shortLoc = target.id.startsWith("pin-") ? "Your-Farm" : target.name.split(" (")[0];
-  const safeLocation = safeSegment(shortLoc, "Farm");
+  const safeLocation = safeSegment(reportTargetSlug(target), "Farm");
   const routeLabel = plan.custom ? "Custom" : `Route${plan.id}`;
   return `Mikazuki-Fields-Report-${safeLocation}-${routeLabel}.pdf`;
 }

@@ -4,6 +4,7 @@
  * 1.1 s apart, and repeat queries come from a cache.
  */
 import { inPhilippines } from "./power";
+import { formatReverseAddress } from "../utils/locationName";
 
 export interface Place {
   name: string;
@@ -14,13 +15,23 @@ export interface Place {
 }
 
 export class GeocodeError extends Error {
-  constructor(public kind: "busy" | "offline" | "failed") {
+  kind: "busy" | "offline" | "failed";
+  constructor(kind: "busy" | "offline" | "failed") {
     super(kind);
+    this.kind = kind;
   }
 }
 
 const cache = new Map<string, Place[]>();
+const reverseCache = new Map<string, string | null>();
 let nextSlot = 0;
+
+async function waitNominatimSlot(signal?: AbortSignal) {
+  const wait = nextSlot - Date.now();
+  nextSlot = Math.max(Date.now(), nextSlot) + 1100;
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  if (signal?.aborted) throw new DOMException("aborted", "AbortError");
+}
 
 export async function searchPlaces(query: string, signal?: AbortSignal): Promise<Place[]> {
   const key = query.trim().toLowerCase().replace(/\s+/g, " ");
@@ -28,10 +39,7 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
   if (hit) return hit;
   if (typeof navigator !== "undefined" && navigator.onLine === false) throw new GeocodeError("offline");
 
-  const wait = nextSlot - Date.now();
-  nextSlot = Math.max(Date.now(), nextSlot) + 1100;
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  if (signal?.aborted) throw new DOMException("aborted", "AbortError");
+  await waitNominatimSlot(signal);
 
   const url =
     "https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=ph&limit=5&accept-language=en&q=" + encodeURIComponent(key);
@@ -61,4 +69,30 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
     });
   cache.set(key, places);
   return places;
+}
+
+/**
+ * Reverse geocode a Philippine coordinate via Nominatim with 4-decimal caching and 1 req/s throttling.
+ * Returns null cleanly when offline, aborted, rate-limited, or unresolvable.
+ */
+export async function reverseGeocode(lat: number, lon: number, signal?: AbortSignal): Promise<string | null> {
+  if (!inPhilippines(lat, lon)) return null;
+  const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+  if (reverseCache.has(key)) return reverseCache.get(key) ?? null;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return null;
+
+  try {
+    await waitNominatimSlot(signal);
+    const url =
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=en&zoom=14` +
+      `&lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`;
+    const res = await fetch(url, { signal, headers: { Accept: "application/json" } });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { address?: Record<string, string | undefined>; display_name?: string };
+    const formatted = formatReverseAddress(data.address, data.display_name);
+    reverseCache.set(key, formatted);
+    return formatted;
+  } catch {
+    return null;
+  }
 }
