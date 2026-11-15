@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
-import { ArrowLeft, ArrowRight, Crosshair, Info, Loader2, Lock, MapPin, RotateCcw, Sprout, Waves } from "lucide-react";
+import { ArrowLeft, Crosshair, Info, Loader2, Lock, MapPin, RotateCcw, Sprout, Waves } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
 import { customPlan, scalePlanResult, scalePlansResponse } from "../../engine/plans";
@@ -8,30 +8,26 @@ import { inPhilippines } from "../../api/power";
 import { checkLand } from "../../api/landcheck";
 import { CROP } from "../../data/crops";
 import { Emblem } from "../Emblem";
-import { CountUp, InfoTip, peso, prefersReducedMotion, Switch, useScramble } from "../ui";
+import { CountUp, formatPhpUsd, formatPhpUsdInText, InfoTip, prefersReducedMotion, Switch, useScramble } from "../ui";
 import { TargetMap, type LatLon, type TargetMapHandle } from "./TargetMap";
 import { PickPlants, SeasonFlags, type Choice } from "./PickPlants";
 import { PlantField } from "./PlantField";
 import { ElNinoReport } from "./ElNinoReport";
 import { ElNinoAtmosphere } from "./ElNinoAtmosphere";
 import { SeasonTimeline } from "./SeasonTimeline";
+import { PlaceSearch } from "./PlaceSearch";
+import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
+import type { Place } from "../../api/geocode";
 import { planSpan, planStartYear, seasonWindows } from "../../data/calendar";
 import type { FieldHandle } from "../../three/tileField";
 
 /** Must match EXIT_MS in three/tileField.ts (kept here so the 3D chunk stays lazy). */
-const EXIT_MS = 1150;
+const EXIT_MS = 600;
 
-/**
- * The whole app as one step-by-step mission (from the team's sketch):
- *   01 Start    green tile field, loading, START
- *   02 Target   cockpit view over the Philippines; tap anywhere to target a farm
- *   03 Descend  the suit hovers down to the farm
- *   04 Plants   pick a route, or build your own rotation
- *   05 Field    the field plants itself in 3D, with its data
- */
+/** The whole app as one step-by-step mission (the team's sketch); STEPS groups the stages into its five steps. */
 type Stage = "intro" | "leaving" | "target" | "locking" | "flying" | "plants" | "planting" | "rising";
 const STEPS: { n: string; label: string; stages: Stage[] }[] = [
-  { n: "01", label: "Start", stages: ["intro", "leaving"] },
+  { n: "01", label: "Load", stages: ["intro", "leaving"] },
   { n: "02", label: "Target", stages: ["target", "locking", "rising"] },
   { n: "03", label: "Descend", stages: ["flying"] },
   { n: "04", label: "Plants", stages: ["plants"] },
@@ -115,7 +111,7 @@ const TIP = {
 } as const;
 
 function Readout({ label, value, live, tip, tipAlign = "left" }: { label: string; value: string; live: boolean; tip?: string; tipAlign?: "left" | "right" }) {
-  const shown = useScramble(value, live, 520);
+  const shown = useScramble(value, live, 300);
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-ink/10 py-1.5">
       <dt className="micro flex items-center gap-1 text-[10.5px] text-ink/70">
@@ -173,10 +169,16 @@ const PLAN_SOURCE: Record<DataSource, string> = {
   bundle: "Plans from the offline bundle (API not reachable)",
   demo: "Plans from the in-browser planner (API not reachable)",
 };
+const ROUTES: { id: Choice; label: string }[] = [
+  { id: "A", label: "Route A" },
+  { id: "B", label: "Route B" },
+  { id: "C", label: "Route C" },
+  { id: "custom", label: "Yours" },
+];
 const FARM_SOURCE: Record<DataSource, string> = {
-  api: "Mikazuki API · NASA POWER, SRTM, MODIS",
-  bundle: "Offline bundle · NASA POWER, SRTM, MODIS",
-  demo: "Preset farm · NASA POWER 2015–2024",
+  api: "Sample reference site · Full cached NASA POWER + SRTM + MODIS",
+  bundle: "Sample reference site (offline) · Cached NASA POWER + SRTM + MODIS",
+  demo: "Sample reference site · Cached NASA POWER + SRTM + MODIS",
 };
 
 /** The last farm and settings, so a returning farmer starts where they left off (this browser only). */
@@ -202,7 +204,7 @@ function saveLastFarm(v: LastFarm) {
   }
 }
 
-export function Mission({ presets: bundled, onReady, topRight }: { presets: Preset[]; onReady: () => void; topRight: ReactNode }) {
+export function Mission({ presets: bundled, onReady, topRight }: { presets: Preset[]; onReady: () => void; topRight?: ReactNode }) {
   // Preset farms: the app's bundled copy until the backend's measured data arrives.
   const [presets, setPresets] = useState<Preset[]>(bundled);
   const [farmSource, setFarmSource] = useState<DataSource>("demo");
@@ -236,7 +238,15 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   const viewRef = useRef<HTMLDivElement>(null);
   const canopyRef = useRef<HTMLDivElement>(null);
   const [tilesAlive, setTilesAlive] = useState(true);
+  const [mapReady, setMapReady] = useState(false);
+  const lockBtn = useRef<HTMLButtonElement>(null);
   const reduced = prefersReducedMotion();
+  // Floating HUD panels (#17). Phones start with the target data folded so the map shows.
+  const phone = typeof window !== "undefined" && window.innerWidth < 640;
+  const wide = useMedia("(min-width: 1024px)");
+  const leftPanel = usePanel({ minW: 240, minH: 150, collapsed: phone });
+  const rightPanel = usePanel({ minW: 240, minH: 150 });
+  const statsPanel = usePanel({ minW: 320, minH: wide ? 240 : 120, mode: wide ? "float" : "sheet" });
 
   const planSeq = useRef(0);
   const plan = useCallback(async (r: PlanRequest, p: Preset) => {
@@ -264,14 +274,19 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     };
   }, [plan, bundled]);
 
-  // Loading bar: eases toward 90% and finishes once the first routes are computed.
-  const ready = result !== null;
+  // Loading bar: eases toward 90% and finishes once the first routes are computed and the
+  // first screen of map tiles is in (or after 5 s without tiles, e.g. offline).
+  useEffect(() => {
+    const t = setTimeout(() => setMapReady(true), 5000);
+    return () => clearTimeout(t);
+  }, []);
+  const ready = result !== null && mapReady;
   useEffect(() => {
     if (stage !== "intro") return;
     const start = performance.now();
     let raf = 0;
     const tick = (now: number) => {
-      const k = Math.min(1, (now - start) / (reduced ? 1 : 1500));
+      const k = Math.min(1, (now - start) / (reduced ? 1 : 500));
       setProgress((p) => Math.max(p, ready && k >= 1 ? 100 : 90 * (1 - Math.pow(1 - k, 3))));
       if (!(ready && k >= 1)) raf = requestAnimationFrame(tick);
     };
@@ -280,7 +295,10 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   }, [ready, stage, reduced]);
   const loaded = progress >= 100;
   useEffect(() => {
-    if (loaded) onReady();
+    if (!loaded) return;
+    onReady();
+    // No start button (#13): go straight into the map once everything is in.
+    setStage((s) => (s === "intro" ? "leaving" : s));
   }, [loaded, onReady]);
 
   // Cockpit parallax: the far map and the near canopy shift opposite ways with the pointer.
@@ -312,7 +330,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   // context only once the cockpit has settled (tearing it down mid-move stalls frames).
   const tilesGone = useCallback(() => {
     setStage((s) => (s === "leaving" ? "target" : s));
-    setTimeout(() => setTilesAlive(false), 2500);
+    setTimeout(() => setTilesAlive(false), 1500);
   }, []);
 
   const hovered = hoverId ? presets.find((p) => p.id === hoverId)! : null;
@@ -321,9 +339,9 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   const lat = `${Math.abs(focus.lat).toFixed(2)}° ${focus.lat >= 0 ? "N" : "S"}`;
   const lon = `${Math.abs(focus.lon).toFixed(2)}° ${focus.lon >= 0 ? "E" : "W"}`;
   const shortName = (p: Preset) => (p.id.startsWith("pin-") ? "Your farm" : p.name.split(" (")[0]);
-  /** Where a terrain value comes from: measured, borrowed from the nearest preset, or a sample. */
+  /** Where a terrain value comes from: measured, anchored to the nearest reference site, or a sample. */
   const sampleTag = (p: Preset, key: string, measured: string) =>
-    !p.placeholders.includes(key) ? measured : p.id.startsWith("pin-") && farmSource !== "demo" ? "nearest farm" : "sample";
+    !p.placeholders.includes(key) ? measured : p.id.startsWith("pin-") ? "nearest ref" : "sample";
   /** Mid-sentence form: "in your farm", "in Bukidnon". */
   const inName = (p: Preset) => (p.id.startsWith("pin-") ? "your farm" : shortName(p));
 
@@ -338,7 +356,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     setRejected({ ...p, key });
     setTryAgain({ text, key });
   };
-  const pickPoint = async (tap: LatLon) => {
+  const pickPoint = async (tap: LatLon, place?: string) => {
     let p = tap;
     const seq = ++tapSeq.current;
     // A new tap supersedes any check or fetch still running for an older one.
@@ -367,10 +385,18 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     if (seq !== tapSeq.current) return;
     setAcquiring(false);
     setPinVia(via);
-    if (!live) setMapNote("Live NASA data unavailable; using the nearest preset's climate.");
+    if (!live) setMapNote("Live NASA data unavailable; using the nearest reference site's climate & terrain.");
     else if (ground.snapped) setMapNote(`Moved your pin ${Math.round(ground.snapped.meters)} m onto the nearest land.`);
     else if (ground.kind === "unknown") setMapNote("Couldn't check the ground here (map offline); treating it as land.");
+    else if (place) setMapNote(`Targeting ${place}. Lock it to plan this farm.`);
     setTarget(preset);
+    // One Enter away from planning (after the re-render that enables the button).
+    if (place) requestAnimationFrame(() => lockBtn.current?.focus());
+  };
+  /** A search result: glide over, then target it exactly like a tap. */
+  const pickPlace = async (pl: Place) => {
+    await mapRef.current?.glideTo(pl.lat, pl.lon);
+    await pickPoint({ lat: pl.lat, lon: pl.lon }, pl.name);
   };
 
   const lockOn = async () => {
@@ -379,7 +405,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     saveLastFarm({ target: p, pin, req });
     setStage("locking");
     const planning = plan(req, p); // compute this farm's routes while we fly
-    await new Promise((r) => setTimeout(r, reduced ? 0 : 750));
+    await new Promise((r) => setTimeout(r, reduced ? 0 : 200));
     setStage("flying");
     await Promise.all([mapRef.current?.flyTo(p.lat, p.lon), planning]);
     setStage("plants");
@@ -404,6 +430,13 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     return () => clearTimeout(t);
   }, [planSig]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const plant = () => {
+    setSeason(-1);
+    setFocusSeason(null);
+    setPlaying(false);
+    setStage("planting");
+  };
+
   // Keyboard: Esc goes back a step, Enter does the screen's main action, 1–4 pick a route,
   // E toggles El Niño. Ignored while typing in a field.
   const keys = useRef({ stage, lockOn: () => {}, backToMap: () => {}, plant: () => {}, busy });
@@ -411,10 +444,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     stage,
     lockOn: () => void lockOn(),
     backToMap: () => void backToMap(),
-    plant: () => {
-      setSeason(-1);
-      setStage("planting");
-    },
+    plant,
     busy,
   };
   useEffect(() => {
@@ -429,7 +459,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       } else if (e.key === "Enter" && !onControl) {
         if (k.stage === "target") k.lockOn();
         else if (k.stage === "plants" && !k.busy) k.plant();
-      } else if (k.stage === "plants" && ["1", "2", "3", "4"].includes(e.key)) {
+      } else if ((k.stage === "plants" || k.stage === "planting") && ["1", "2", "3", "4"].includes(e.key)) {
         setChoice((["A", "B", "C", "custom"] as Choice[])[Number(e.key) - 1]);
       } else if ((e.key === "e" || e.key === "E") && ["target", "plants", "planting"].includes(k.stage)) {
         setScenario((s) => (s === "elnino" ? "normal" : "elnino"));
@@ -475,6 +505,12 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     return notes;
   }, [result, req.overrides.soilPh]);
 
+  const chosenWhy = useMemo(() => {
+    if (!chosen) return [];
+    if (chosen.now.custom) return chosen.now.why;
+    return chosen.now.why.map(formatPhpUsdInText);
+  }, [chosen]);
+
   return (
     <section
       aria-label="Mikazuki Fields"
@@ -491,10 +527,11 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             focus={stage === "plants" || stage === "planting" ? null : { lat: focus.lat, lon: focus.lon }}
             pin={pin}
             rejected={stage === "target" ? rejected : null}
-            locked={stage !== "target"}
+            locked={stage !== "target" && stage !== "leaving"}
             onHover={setHoverId}
             onPickPreset={pickPreset}
             onPickPoint={(p) => void pickPoint(p)}
+            onTilesReady={() => setMapReady(true)}
           />
           <div className={`mission-dim ${stage === "plants" || stage === "planting" ? "is-on" : ""}`} aria-hidden />
           <div className="hud-scan" aria-hidden />
@@ -512,12 +549,12 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       <div className="hud-frame" aria-hidden />
 
       {/* Top bar */}
-      <div className="relative z-40 mx-auto flex max-w-[1400px] items-center justify-between gap-3 px-4 pt-4">
-        <div className="flex items-center gap-2">
-          <Emblem size={30} tile={false} />
-          <span className="micro">Mikazuki Fields</span>
+      <div className="relative z-40 mx-auto flex max-w-[1400px] items-center justify-between gap-2 px-4 pt-4">
+        <div className="flex shrink-0 items-center gap-2">
+          <Emblem size={30} />
+          <span className="micro whitespace-nowrap">Mikazuki Fields</span>
         </div>
-        <div className="flex items-center gap-2">{topRight}</div>
+        {topRight && <div className="flex items-center gap-2">{topRight}</div>}
       </div>
 
       {/* Step 01 */}
@@ -537,27 +574,18 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             Tap any farm in the Philippines and see what to plant for the next 3 years, season by season, from 10 years of NASA weather.
           </p>
           <div className="mt-6 h-14">
-            {!loaded ? (
-              <div className="w-[min(320px,80vw)]" role="progressbar" aria-label="Loading" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}>
-                <div className="flex justify-between text-sm text-ink/80">
-                  <span>Loading NASA weather for 3 farms</span>
-                  <span className="tabular">{String(Math.round(progress)).padStart(3, "0")}%</span>
-                </div>
-                <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-ink/20">
-                  <div className="h-full rounded-full bg-sakura transition-[width] duration-150" style={{ width: `${progress}%` }} />
-                </div>
+            <div className="w-[min(320px,80vw)]" role="progressbar" aria-label="Loading" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}>
+              <div className="flex items-center justify-between gap-3 text-sm text-ink/80">
+                <span className="flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  {loaded ? "Opening the map" : "Loading the map and NASA reference data"}
+                </span>
+                <span className="tabular">{Math.round(progress)}%</span>
               </div>
-            ) : (
-              <button
-                type="button"
-                autoFocus
-                onClick={() => setStage("leaving")}
-                disabled={stage === "leaving"}
-                className="btn btn-primary btn-lg pop-in min-h-14 rounded-full px-8 text-base"
-              >
-                Choose my farm <ArrowRight className="size-5 translate-y-px" aria-hidden />
-              </button>
-            )}
+              <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-ink/20">
+                <div className="h-full rounded-full bg-sakura transition-[width] duration-150" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -577,8 +605,9 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                     ? "Acquiring NASA data…"
                     : tryAgain
                       ? ""
-                      : (mapNote ?? "Tap the map anywhere on land, or pick one of the 3 marked farms")}
+                      : (mapNote ?? "Search a place, tap anywhere on land, or choose a sample reference site")}
             </p>
+            {stage !== "locking" && <PlaceSearch onPick={(pl) => void pickPlace(pl)} />}
             {tryAgain && stage === "target" && (
               <p key={tryAgain.key} className="try-again" role="alert">
                 <Waves className="size-4 shrink-0" aria-hidden />
@@ -590,19 +619,27 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             )}
           </div>
 
-          <aside className="hud-panel hud-panel-left" aria-label="Target data">
-            <p className="micro flex items-center gap-1.5 text-sakura">
-              <MapPin className="size-3.5" aria-hidden /> Target
-              {acquiring && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
-            </p>
-            <p className="mt-1 font-display text-xl leading-6">{shortName(focus)}</p>
+          <div className="hud-panels">
+          <aside
+            ref={leftPanel.ref}
+            style={leftPanel.style}
+            className={`hud-panel hud-panel-left ${leftPanel.lifted ? "is-lifted" : ""} ${leftPanel.active ? "is-active" : ""}`}
+            aria-label="Target data"
+          >
+            <PanelBar panel={leftPanel} label="target data">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-sakura">
+                <MapPin className="size-3.5" aria-hidden /> Target
+                {acquiring && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
+              </p>
+              <p className="truncate font-display text-xl leading-6">{shortName(focus)}</p>
+            </PanelBar>
+            {!leftPanel.collapsed && (
+            <div className="panel-body">
             <p className="text-[11px] text-ink/70">
               {focus.id.startsWith("pin-")
-                ? pinVia === "api"
-                  ? "Live NASA POWER via the Mikazuki API"
-                  : pinVia === "browser"
-                    ? "Live NASA POWER, 2015–2024"
-                    : "Nearest preset climate"
+                ? pinVia === "api" || pinVia === "browser" || (pinVia === null && /live|Mikazuki API/i.test(focus.source))
+                  ? "Live NASA POWER climate for this pin · Slope & NDVI anchored to nearest reference site"
+                  : "Using nearest reference site climate & terrain"
                 : FARM_SOURCE[farmSource]}
             </p>
             <dl className="mt-2">
@@ -612,9 +649,23 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               <Readout live={hudLive} label="Soil thirst" value={dry.gwetroot.toFixed(2)} tip={TIP.thirst} />
               <Readout live={hudLive} label="Daily water use" value={`${dry.et0_mm_day.toFixed(1)} MM/DAY`} tip={TIP.et0} />
             </dl>
+            </div>
+            )}
+            <ResizeGrip panel={leftPanel} label="target data" />
           </aside>
 
-          <aside className="hud-panel hud-panel-right" aria-label="Conditions">
+          <aside
+            ref={rightPanel.ref}
+            style={rightPanel.style}
+            className={`hud-panel hud-panel-right ${rightPanel.lifted ? "is-lifted" : ""} ${rightPanel.active ? "is-active" : ""}`}
+            aria-label="Conditions"
+          >
+            <PanelBar panel={rightPanel} label="conditions">
+              <p className="text-xs font-semibold text-sakura">Conditions</p>
+            </PanelBar>
+            <div className="panel-body">
+            {!rightPanel.collapsed && (
+            <>
             <label className="flex items-center justify-between gap-3">
               <span>
                 <span className="block text-sm font-semibold">El Niño</span>
@@ -629,19 +680,25 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             <dl className="mt-2">
               <Readout live={hudLive} label={`Slope (${sampleTag(focus, "slope_pct", "SRTM")})`} value={`${focus.slope_pct}%`} tip={TIP.slope} tipAlign="right" />
               <Readout live={hudLive} label={`Green cover (${sampleTag(focus, "ndvi_dry_min", "MODIS")})`} value={`NDVI ${focus.ndvi_dry_min.toFixed(2)}`} tip={TIP.ndvi} tipAlign="right" />
-              <Readout live={hudLive} label="2015–16 El Niño" value={focus.elnino_2016_dry_rain_pct === null ? "—" : `${focus.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(focus.elnino_2016_dry_rain_pct)}% RAIN`} />
-
+              <Readout live={hudLive} label="2015–16 El Niño" value={focus.elnino_2016_dry_rain_pct === null ? "No record" : `${focus.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(focus.elnino_2016_dry_rain_pct)}% RAIN`} />
             </dl>
+            </>
+            )}
+            {/* Lock stays reachable even with the panel folded. */}
             <button
+              ref={lockBtn}
               type="button"
               onClick={() => void lockOn()}
               disabled={stage !== "target" || acquiring || checking}
-              className="btn btn-primary btn-lg mt-4 w-full"
+              className={`btn btn-primary btn-lg w-full ${rightPanel.collapsed ? "" : "mt-4"}`}
             >
               {stage === "locking" ? <Lock className="size-4" aria-hidden /> : <Crosshair className="size-4" aria-hidden />}
               {stage === "locking" ? "Locked" : `Lock ${shortName(target)}`}
             </button>
+            </div>
+            <ResizeGrip panel={rightPanel} label="conditions" />
           </aside>
+          </div>
         </div>
       )}
 
@@ -673,12 +730,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           onScenario={setScenario}
           notes={planNotes}
           busy={busy}
-          onPlant={() => {
-            setSeason(-1);
-            setFocusSeason(null);
-            setPlaying(false);
-            setStage("planting");
-          }}
+          onPlant={plant}
           onBack={() => void backToMap()}
         />
       )}
@@ -698,13 +750,13 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               <h2 className="font-display text-[clamp(24px,3.2vw,40px)] leading-tight font-normal tracking-[-0.02em]">
                 {chosen.now.custom ? "Your rotation" : `Route ${chosen.now.id}`} in {inName(target)}
               </h2>
-              <p className="micro mt-2 h-4 text-ink/80 tabular" aria-live="polite">
+              <p className="micro mt-2 min-h-4 text-ink/80 tabular" aria-live="polite">
                 {current
                   ? `Planting · S${current.index + 1} ${current.kind} · ${CROP[current.crop].short}`
                   : season >= 6
                     ? scenario === "elnino"
                       ? `El Niño replay (2015–16 weather) · ${planSpan(startYear)} · drag to look around`
-                      : `Planted · ${planSpan(startYear)} (6 seasons) · drag to look around`
+                      : `Planted · ${planSpan(startYear)} (6 seasons) · drag to turn, pinch or scroll to zoom`
                     : "Landing · preparing soil"}
               </p>
             </div>
@@ -722,10 +774,37 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             )}
           </div>
 
-          <aside className={`stats-panel ${season >= 6 ? "is-in" : ""}`} aria-labelledby="stats-h">
-            <h3 id="stats-h" className="font-display text-2xl font-normal tracking-[-0.02em]">
-              {chosen.now.name}
-            </h3>
+          <aside
+            ref={statsPanel.ref}
+            style={statsPanel.style}
+            className={`stats-panel ${season >= 6 ? "is-in" : ""} ${statsPanel.lifted ? "is-lifted" : ""} ${statsPanel.active ? "is-active" : ""} ${statsPanel.collapsed ? "is-collapsed" : ""}`}
+            aria-labelledby="stats-h"
+          >
+            <PanelBar panel={statsPanel} label="field data">
+              <h3 id="stats-h" className="truncate font-display text-2xl leading-8 font-normal tracking-[-0.02em]">
+                {chosen.now.name}
+              </h3>
+              {statsPanel.collapsed && (
+                <p className="truncate text-xs text-ink/70 tabular">3-year profit {formatPhpUsd(chosen.now.kpis.totalProfit)}</p>
+              )}
+            </PanelBar>
+            {/* One tap switches the route right here (#15); the field regrows in place. */}
+            <div className="route-tabs" role="radiogroup" aria-label="Route, keys 1 to 4">
+              {ROUTES.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={choice === r.id}
+                  onClick={() => setChoice(r.id)}
+                  className={`route-tab ${choice === r.id ? "is-on" : ""}`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+            {!statsPanel.collapsed && (
+            <div className="panel-body">
             <p className="text-sm text-ink/70">{chosen.now.promise}</p>
             <p className="mt-1 text-xs text-ink/70">
               {chosen.now.custom ? "Simulated in your browser" : PLAN_SOURCE[result!.source]}
@@ -758,7 +837,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                     >
                       <span className="block text-[10px] leading-3 text-[#f6efeb]/75">S{s.index + 1}</span>
                       <span className="block w-full truncate text-[11px] leading-[14px] font-semibold">{CROP[s.crop].short}</span>
-                      <span className="mt-0.5 block w-full text-[9.5px] leading-3 text-[#f6efeb]/75 tabular">
+                      <span className="mt-0.5 block w-full text-[10px] leading-3 text-[#f6efeb]/75 tabular">
                         {w.months}
                         <br />
                         {w.years}
@@ -786,7 +865,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                 </p>
               );
             })()}
-            <p className="mt-1 flex flex-wrap gap-x-3 text-[10.5px] text-[#f6efeb]/60">
+            <p className="mt-1 flex flex-wrap gap-x-3 text-[11px] text-[#f6efeb]/60">
               <span>
                 <span className="text-[#c9e86a]">●</span> pest cycle broken
               </span>
@@ -798,11 +877,14 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               <p className="text-xs font-medium text-ink/70">3-year profit ({landHa} ha)</p>
               <p className="font-display text-[34px] leading-10 tracking-[-0.02em]">
                 <CountUp value={chosen.now.kpis.totalProfit} format={peso} />
+              <p className="text-xs font-medium text-ink/70">3-year profit</p>
+              <p className="font-display text-[22px] leading-8 tracking-[-0.02em] sm:text-[24px]">
+                <CountUp value={chosen.now.kpis.totalProfit} format={formatPhpUsd} />
               </p>
               {scenario === "elnino" && Math.abs(chosen.now.kpis.totalProfit - chosen.normal.kpis.totalProfit) >= 1 && (
                 <p className="text-xs text-[#f3b49f] tabular">
                   {chosen.now.kpis.totalProfit < chosen.normal.kpis.totalProfit ? "−" : "+"}
-                  {peso(Math.abs(chosen.now.kpis.totalProfit - chosen.normal.kpis.totalProfit))} vs a normal year
+                  {formatPhpUsd(Math.abs(chosen.now.kpis.totalProfit - chosen.normal.kpis.totalProfit))} vs a normal year
                 </p>
               )}
             </div>
@@ -821,8 +903,8 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                   ["Bare months in rain", <CountUp value={chosen.now.kpis.bareMonthCount} format={(v) => `${Math.round(v)}`} />],
                 ] as [string, ReactNode][]
               ).map(([label, value], i) => (
-                <div key={label} className={`rounded-md bg-ink/[0.06] px-2.5 py-2 ${i === 6 ? "col-span-2" : ""}`}>
-                  <dt className="micro text-[10.5px] text-ink/70">{label}</dt>
+                <div key={label} className={`rounded-md bg-ink/[0.06] px-2.5 py-2 ${i === 4 ? "col-span-2" : ""}`}>
+                  <dt className="micro text-[11px] text-ink/70">{label}</dt>
                   <dd className="font-display text-lg leading-6 tabular">{value}</dd>
                 </div>
               ))}
@@ -836,7 +918,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             </label>
             {scenario === "elnino" && <ElNinoReport req={req} preset={target} now={chosen.now} normal={chosen.normal} />}
             <ul className="mt-5 list-disc space-y-1 pl-4 text-sm text-ink/80">
-              {chosen.now.why.slice(0, 2).map((w) => (
+              {chosenWhy.slice(0, 2).map((w) => (
                 <li key={w}>{w}</li>
               ))}
             </ul>
@@ -859,6 +941,9 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                 <ArrowLeft className="size-4" aria-hidden /> New farm
               </button>
             </div>
+            </div>
+            )}
+            <ResizeGrip panel={statsPanel} label="field data" />
           </aside>
         </div>
       )}

@@ -10,22 +10,23 @@ To redeploy the preview: `npx vite build --base=./`, then push the contents of `
 cd frontend
 npm install
 npm run dev        # http://localhost:5173
+npm test           # money-text parser (Node's built-in test runner)
 ```
 
 ## What works
 
 One screen, no page scroll: the app is a 5-step mission (`src/components/mission/`, from the team sketch). A step rail at the bottom shows where you are.
 
-1. **Start**: an interactive WebGL field of green tiles (`src/three/tileField.ts`). Tiles light up, rise and send out a ripple under the pointer; tap to plant a patch. The loading bar becomes START.
-2. **Target**: you sit in the cockpit. The canopy frame, heading tape and altitude ladder move against the map for depth, the suit idles in the air, and the data panels are angled on the glass. **Tap anywhere in the Philippines**: the backend fetches live NASA POWER data for that point (or, without the backend, the browser asks NASA POWER directly), with the nearest preset as a last resort. The 3 preset farms are still on the map.
+1. **Load**: an interactive WebGL field of green tiles (`src/three/tileField.ts`) with a loading bar while the first map tiles and routes load, then the app goes straight into the map (no start button).
+2. **Target**: you sit in the cockpit. The canopy frame, heading tape and altitude ladder move against the map for depth, the suit idles in the air, and the data panels are angled on the glass. **Search a place by name, or tap anywhere in the Philippines**: search uses OpenStreetMap Nominatim (`src/api/geocode.ts`; on Enter, at most one request a second, per its usage policy) and feeds the point into the same tap flow. The backend fetches live NASA POWER data for that point (or, without the backend, the browser asks NASA POWER directly), with the nearest preset as a last resort. The 3 preset farms are still on the map.
 3. **Descend**: lock the target and the suit flies down to it (speed streaks, faster instruments) while the routes are computed.
 4. **Plants**: the only part that scrolls. Pick route A, B or C, or **build your own** 6-season rotation (pest-break markers between seasons). Farm settings (soil, water, goal, soil test, pests, priorities) re-plan the routes.
-5. **Field**: a WebGL field (`src/three/plantScene.ts`) plants itself season by season with 3D corn, legumes and sweet potato while a drone hovers over each plot; then the field-data panel slides in. The dry-spell switch wilts the crops it hurts. Drag to look around; change plants or pick a new farm.
+5. **Field**: a WebGL field (`src/three/plantScene.ts`) plants itself season by season with 3D corn, legumes and sweet potato while a drone hovers over each plot; then the field-data panel slides in. Route A / B / C / Yours tabs switch the plan in one tap and the beds regrow in place. The dry-spell switch wilts the crops it hurts. Drag to turn and tilt, pinch or scroll to zoom, double-click to reset; change plants or pick a new farm.
 
-- Keyboard: Enter does each screen's main action (lock the farm, plant the route), Esc goes back a step, 1–4 pick a route, E toggles El Niño. The last farm and settings are remembered in this browser.
+- Keyboard: Enter does each screen's main action (lock the farm, plant the route), Esc goes back a step, 1–4 pick a route (also on the field), E toggles El Niño. The last farm and settings are remembered in this browser.
+- HUD panels (`src/components/mission/FloatPanel.tsx`): drag the bar to move (kept on screen), corner grip to resize (with minimum sizes), chevron to fold; double-click the bar to put it back. Arrow keys work on the grip and corner. On phones and tablets the field data is a bottom sheet: drag its handle to resize it.
 - A tap just off the coast (within about 500 m) moves onto the nearest land; further out it is refused with "Try again".
-- First-run language picker (English only for now; other languages fall back to English).
-- Phone layout: HUD panels stack at the bottom, the field data sits under the 3D view, no horizontal scroll at 390 px.
+- Phone and tablet layout: HUD panels stack above the step rail (target data starts folded on phones), the field data is a bottom sheet, every control is at least 44 px on touch screens, and nothing overflows at 360–430 px or 768–1024 px.
 
 ## Where the numbers come from
 

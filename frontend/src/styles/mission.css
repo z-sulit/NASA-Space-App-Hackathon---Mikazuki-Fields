@@ -5,7 +5,7 @@
     isolation: isolate;
   }
 
-  /* ---------- Frame 1 ---------- */
+  /* Frame 1 */
   .tile-fallback {
     background:
       radial-gradient(ellipse 60% 55% at 60% 55%, rgb(124 145 76 / 0.55), transparent 70%),
@@ -21,8 +21,8 @@
     max-width: min(640px, calc(100vw - 32px));
     pointer-events: none;
     transition:
-      opacity 0.6s var(--mf-ease),
-      transform 0.6s var(--mf-ease);
+      opacity 0.3s var(--mf-ease),
+      transform 0.3s var(--mf-ease);
   }
   .intro-copy button,
   .intro-copy a {
@@ -41,7 +41,7 @@
     transform: translateY(-24px);
   }
 
-  /* ---------- Cockpit chrome ---------- */
+  /* Cockpit chrome */
   .hud-frame {
     position: absolute;
     inset: 14px;
@@ -80,7 +80,7 @@
     pointer-events: none;
     background: linear-gradient(180deg, rgb(20 26 6 / 0.35), rgb(20 26 6 / 0.85));
     opacity: 0;
-    transition: opacity 0.9s var(--mf-ease);
+    transition: opacity 0.3s var(--mf-ease);
   }
   .mission-dim.is-on {
     opacity: 1;
@@ -146,7 +146,7 @@
     width: 0;
     height: 0;
     pointer-events: none;
-    transition: transform 0.55s var(--mf-ease);
+    transition: transform 0.25s var(--mf-ease);
   }
   .reticle-ring,
   .reticle-brackets,
@@ -204,7 +204,7 @@
   }
 
 
-  /* ---------- Cockpit: you sit inside the suit, looking out through the canopy ---------- */
+  /* Cockpit: you sit inside the suit, looking out through the canopy */
   .cockpit-view {
     /* The world sits far away: it drifts a little against the pointer (translate is set
        from JS). During the intro it waits, zoomed in, under the tiles; on START it eases
@@ -212,7 +212,7 @@
     scale: 1.04;
     transition:
       translate 0.5s var(--mf-ease),
-      scale 1.7s cubic-bezier(0.22, 1, 0.36, 1);
+      scale 0.7s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
   }
   .mission[data-stage="intro"] .cockpit-view {
@@ -224,14 +224,14 @@
     position: absolute;
     inset: 0;
     z-index: 10;
-    transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1) 0.28s;
+    transition: opacity 0.42s cubic-bezier(0.4, 0, 0.2, 1) 0.12s;
   }
   .tile-stage.is-leaving {
     opacity: 0;
     pointer-events: none;
   }
   .mission[data-stage="flying"] .cockpit-view {
-    animation: hover-dip 3s var(--mf-ease) both;
+    animation: hover-dip 1.2s var(--mf-ease) both;
   }
   @keyframes hover-dip {
     0% {
@@ -254,7 +254,7 @@
        translate is set from JS. On START it closes in around you as the tiles fade. */
     transition: translate 0.35s var(--mf-ease);
     will-change: transform, opacity;
-    animation: canopy-in 1.3s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+    animation: canopy-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
   }
   /* Mounted during the intro so it is painted before it is needed. Not 0: browsers
      skip painting fully transparent layers, which would push that work into the
@@ -436,7 +436,7 @@
     text-align: center;
     width: max-content;
     max-width: calc(100vw - 32px);
-    animation: fade-up 0.6s var(--mf-ease) both;
+    animation: fade-up 0.25s var(--mf-ease) both;
     padding: 10px 18px 12px;
     border-radius: var(--r-panel);
     background: rgb(20 26 6 / 0.72);
@@ -452,13 +452,18 @@
     pointer-events: auto;
   }
   /* Same trick as .canopy.is-pre: painted ahead, revealed at the handover. */
-  .cockpit-hud.is-pre > * {
+  .cockpit-hud.is-pre > *,
+  .cockpit-hud.is-pre .hud-panel {
     opacity: 0.004;
     animation: none;
     pointer-events: none;
   }
   .hud-title {
     pointer-events: none;
+  }
+  /* Desktop: the two panels are placed on their own (left / right of the glass). */
+  .hud-panels {
+    display: contents;
   }
   .hud-panel {
     position: absolute;
@@ -470,6 +475,10 @@
     background: linear-gradient(160deg, rgb(41 51 15 / 0.92), rgb(20 26 6 / 0.9));
     /* Elevation only: the panels sit on the canopy glass, above the map. */
     box-shadow: 0 24px 60px rgb(0 0 0 / 0.4);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100svh - 16px);
+    pointer-events: auto;
   }
   .hud-panel-left {
     left: clamp(48px, 6vw, 120px);
@@ -477,7 +486,7 @@
     translate: 0 -50%;
     transform-origin: 0% 50%;
     transform: rotateY(20deg);
-    animation: unfold-left 0.9s cubic-bezier(0.34, 1.32, 0.64, 1) 0.2s both;
+    animation: unfold-left 0.3s cubic-bezier(0.34, 1.32, 0.64, 1) 0.05s both;
   }
   .hud-panel-right {
     right: clamp(48px, 6vw, 120px);
@@ -485,7 +494,7 @@
     translate: 0 -50%;
     transform-origin: 100% 50%;
     transform: rotateY(-20deg);
-    animation: unfold-right 0.9s cubic-bezier(0.34, 1.32, 0.64, 1) 0.32s both;
+    animation: unfold-right 0.3s cubic-bezier(0.34, 1.32, 0.64, 1) 0.1s both;
   }
   @keyframes unfold-left {
     from {
@@ -510,31 +519,35 @@
   .mission[data-stage="locking"] .hud-panel {
     animation: none;
     opacity: 0.7;
-    transition: opacity 0.4s;
+    transition: opacity 0.2s;
   }
   @media (max-width: 900px) {
     .alt-ladder {
       display: none;
     }
+    .hud-panels {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 56px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 560px;
+      margin-inline: auto;
+      pointer-events: none;
+    }
     .hud-panel {
+      position: relative;
       width: auto;
-      left: 16px;
-      right: 16px;
+      left: auto;
+      right: auto;
       top: auto;
       translate: none;
-      padding: 10px 12px;
+      padding: 8px 12px 10px;
       transform: none;
-      animation: fade-up 0.6s var(--mf-ease) 0.2s both;
-    }
-    .hud-panel-left {
-      bottom: 196px;
-    }
-    /* Readouts use Tailwind's flex utility, which outranks this layer. */
-    .hud-panel-left dl > div:nth-child(n + 3) {
-      display: none !important;
-    }
-    .hud-panel-right {
-      bottom: 64px;
+      animation: fade-up 0.25s var(--mf-ease) 0.05s both;
+      max-height: 34svh;
     }
     .hud-panel-right dl {
       display: none;
@@ -573,7 +586,7 @@
     color: var(--sakura);
   }
 
-  /* ---------- Step rail ---------- */
+  /* Step rail */
   .step-rail {
     position: absolute;
     z-index: 45;
@@ -597,8 +610,8 @@
     font-size: 10.5px;
     color: rgb(246 239 235 / 0.5);
     transition:
-      background-color 0.4s var(--mf-ease),
-      color 0.4s;
+      background-color 0.2s var(--mf-ease),
+      color 0.2s;
   }
   .step-rail li.is-done {
     color: var(--sakura);
@@ -608,7 +621,7 @@
     color: var(--foreground);
   }
 
-  /* ---------- Step 04: the only part that scrolls ---------- */
+  /* Step 04: the only part that scrolls */
   .pick-wrap {
     position: absolute;
     inset: 0;
@@ -632,7 +645,7 @@
     backdrop-filter: blur(14px);
     box-shadow: 0 30px 80px rgb(0 0 0 / 0.45);
     transform-origin: 50% 0%;
-    animation: pick-in 0.8s var(--mf-ease) both;
+    animation: pick-in 0.3s var(--mf-ease) both;
   }
   @keyframes pick-in {
     from {
@@ -657,7 +670,7 @@
       border-color 0.16s,
       background-color 0.16s,
       opacity 0.2s;
-    animation: fade-up 0.5s var(--mf-ease) both;
+    animation: fade-up 0.25s var(--mf-ease) both;
   }
   /* Staging: once a route is chosen, the others step back. */
   [role="radiogroup"]:has(.route-card.is-on) .route-card:not(.is-on):not(:hover) {
@@ -667,13 +680,13 @@
     transform: scale(0.98);
   }
   .route-card:nth-child(2) {
-    animation-delay: 70ms;
+    animation-delay: 30ms;
   }
   .route-card:nth-child(3) {
-    animation-delay: 140ms;
+    animation-delay: 60ms;
   }
   .route-card:nth-child(4) {
-    animation-delay: 210ms;
+    animation-delay: 90ms;
   }
   .route-card:hover {
     transform: translateY(-3px);
@@ -683,7 +696,7 @@
     border-color: var(--sakura);
     background: rgb(245 191 205 / 0.1);
     box-shadow: 0 0 0 2px var(--sakura);
-    animation: card-pop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: card-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   /* Exaggerated feedback: the chosen card pops, then settles. */
   @keyframes card-pop {
@@ -740,8 +753,12 @@
     transform: scale(0.96);
   }
   @media (max-width: 1023px) {
+    /* Bottom sheet; its bar's handle drags the height (padding is set further down). */
     .stats-panel {
-      padding-bottom: 64px;
+      border-radius: 16px 16px 0 0;
+    }
+    .stats-panel.is-collapsed {
+      max-height: none;
     }
   }
 
@@ -753,15 +770,15 @@
     flex-direction: column;
     width: 100%;
     max-height: 52%;
-    overflow-y: auto;
-    padding: 16px;
+    overflow: hidden;
+    padding: 4px 16px 16px;
     border-top: 1px solid rgb(246 239 235 / 0.14);
     background: rgb(29 36 10 / 0.93);
     transform: translateY(100%);
     opacity: 0;
     transition:
-      transform 0.8s cubic-bezier(0.34, 1.2, 0.64, 1),
-      opacity 0.5s;
+      transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1),
+      opacity 0.2s;
   }
   .stats-panel.is-in {
     transform: none;
@@ -772,7 +789,7 @@
       width: 400px;
       max-height: none;
       margin: 72px 24px 24px 0;
-      padding: 20px;
+      padding: 8px 20px 20px;
       border: 1px solid rgb(246 239 235 / 0.16);
       border-radius: 16px;
       transform: translateX(110%);
@@ -822,7 +839,7 @@
   color: var(--sakura);
 }
 
-/* ---------- El Niño atmosphere (over the map, under the cockpit glass and HUD) ---------- */
+/* El Niño atmosphere (over the map, under the cockpit glass and HUD) */
 .elnino-atmo {
   position: absolute;
   inset: 0;
@@ -830,7 +847,7 @@
   overflow: hidden;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 1.1s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .elnino-atmo.is-on {
   opacity: 1;
@@ -1062,7 +1079,7 @@
   }
 }
 
-/* ---------- Season timeline (step 05) ---------- */
+/* Season timeline (step 05) */
 .season-pill {
   display: flex;
   width: 100%;
@@ -1090,7 +1107,6 @@
 .season-detail {
   margin-top: 6px;
   padding: 6px 9px;
-  border-left: 2px solid var(--sakura);
   border-radius: 4px;
   background: rgb(246 239 235 / 0.06);
   font-size: 12px;
@@ -1111,7 +1127,7 @@
   align-items: center;
   gap: 8px;
   width: min(560px, calc(100% - 24px));
-  animation: fade-up 0.5s var(--mf-ease) both;
+  animation: fade-up 0.25s var(--mf-ease) both;
 }
 .season-readout {
   display: flex;
@@ -1169,7 +1185,7 @@
   right: calc(100% / 14);
   height: 2px;
   background: linear-gradient(90deg, var(--sakura) var(--fill), rgb(246 239 235 / 0.2) var(--fill));
-  transition: background 0.3s;
+  transition: background 0.15s;
 }
 .season-stop {
   position: relative;
@@ -1222,6 +1238,316 @@
 @media (prefers-reduced-motion: reduce) {
   .season-timeline,
   .season-readout {
+    animation: none;
+  }
+}
+
+/* Movable panels (#17): bar, body, resize grip */
+.panel-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 -6px 4px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.is-active .panel-bar,
+.is-active {
+  cursor: grabbing;
+}
+.panel-grip,
+.panel-fold {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: rgb(246 239 235 / 0.7);
+  transition:
+    background-color 0.12s,
+    color 0.12s;
+}
+.panel-grip {
+  cursor: inherit;
+}
+/* Bigger hit areas than the icons (44 px). */
+.panel-grip::after,
+.panel-fold::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+}
+.panel-grip:hover,
+.panel-fold:hover {
+  background: rgb(246 239 235 / 0.1);
+  color: #f6efeb;
+}
+.panel-grip:focus-visible,
+.panel-fold:focus-visible,
+.panel-resize:focus-visible {
+  outline: 2px solid #f6efeb;
+  outline-offset: 1px;
+}
+.panel-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--sakura) transparent;
+}
+.stats-panel .panel-body {
+  display: flex;
+  flex-direction: column;
+  margin-right: -8px;
+  padding-right: 8px;
+}
+.panel-resize {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 0 0 14px 0;
+  cursor: nwse-resize;
+  touch-action: none;
+  background:
+    linear-gradient(135deg, transparent 55%, rgb(246 239 235 / 0.45) 55% 62%, transparent 62% 72%, rgb(246 239 235 / 0.45) 72% 79%, transparent 79%);
+}
+.panel-resize::after {
+  content: "";
+  position: absolute;
+  inset: -13px;
+}
+.panel-resize:hover {
+  background-color: rgb(246 239 235 / 0.08);
+}
+/* A lifted panel lies flat and above its neighbours while it is moved. */
+.hud-panel.is-lifted,
+.stats-panel.is-lifted {
+  z-index: 30;
+}
+.hud-panel.is-active,
+.stats-panel.is-active {
+  box-shadow: 0 30px 80px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(245 191 205 / 0.5);
+}
+@media (max-width: 1023px) {
+  /* Sheet: the bar is a pull handle. */
+  .stats-panel .panel-bar {
+    cursor: ns-resize;
+  }
+  .stats-panel .panel-bar::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    translate: -50% 0;
+    border-radius: 2px;
+    background: rgb(246 239 235 / 0.55); /* the drag affordance: 3:1 */
+  }
+  /* Unlayered, so it wins over the panel's padding shorthand: clears the step rail. */
+  .stats-panel {
+    padding-top: 14px;
+    padding-bottom: 60px;
+  }
+}
+
+/* Route switcher on the field (#15) */
+.route-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  margin-bottom: 10px;
+  padding: 2px;
+  border: 1px solid rgb(246 239 235 / 0.4);
+  border-radius: var(--r-control);
+}
+.route-tab {
+  min-height: 40px;
+  border-radius: 6px;
+  font: 600 13px/1.1 var(--mf-font-display);
+  color: rgb(246 239 235 / 0.8);
+  transition:
+    background-color 0.12s,
+    color 0.12s,
+    transform 0.12s var(--mf-ease);
+}
+.route-tab:hover {
+  background: rgb(246 239 235 / 0.1);
+}
+.route-tab:active {
+  transform: scale(0.96);
+}
+.route-tab.is-on {
+  background: var(--sakura);
+  color: var(--foreground);
+}
+.route-tab:focus-visible {
+  outline: 2px solid #f6efeb;
+  outline-offset: 2px;
+}
+
+/* Place search in step 02 (#23) */
+.place-search {
+  position: relative;
+  width: min(420px, calc(100vw - 56px));
+  margin: 10px auto 0;
+  text-align: left;
+  pointer-events: auto;
+}
+.place-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 4px 4px 4px 12px;
+  /* 0.5 ink: the outline is what marks this as a field, so it needs 3:1. */
+  border: 1px solid rgb(246 239 235 / 0.5);
+  border-radius: var(--r-card);
+  background: rgb(20 26 6 / 0.9);
+  transition: border-color 0.12s;
+}
+.place-search-box:focus-within {
+  border-color: var(--sakura);
+}
+.place-search-box input {
+  min-width: 0;
+  flex: 1;
+  height: 36px;
+  background: transparent;
+  font-size: 15px;
+  color: #f6efeb;
+  outline: none;
+}
+.place-search-box input::placeholder {
+  color: rgb(246 239 235 / 0.6);
+}
+.place-search-box input::-webkit-search-cancel-button {
+  display: none;
+}
+.place-search-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px; /* card 10 - padding 4 */
+  color: rgb(246 239 235 / 0.7);
+}
+.place-search-icon:hover {
+  background: rgb(246 239 235 / 0.1);
+}
+/* Secondary on purpose: on this screen the one sakura action is Lock. */
+.place-search-go {
+  display: grid;
+  place-items: center;
+  min-width: 72px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 6px; /* card 10 - padding 4 */
+  background: rgb(246 239 235 / 0.14);
+  font: 600 13px/1 var(--mf-font-display);
+  color: #f6efeb;
+  transition:
+    transform 0.12s var(--mf-ease),
+    background-color 0.12s;
+}
+.place-search-go:hover:not(:disabled) {
+  background: rgb(246 239 235 / 0.24);
+}
+.place-search-go:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.place-search-go:focus-visible,
+.place-search-icon:focus-visible {
+  outline: 2px solid #f6efeb;
+  outline-offset: 1px;
+}
+.place-search-go:disabled {
+  opacity: 0.7;
+}
+.place-search-list {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  padding: 4px;
+  border: 1px solid rgb(246 239 235 / 0.2);
+  border-radius: var(--r-card);
+  background: rgb(20 26 6 / 0.97);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 0.5);
+  animation: fade-up 0.15s var(--mf-ease) both;
+}
+.place-search-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.place-search-list li.is-active {
+  background: rgb(245 191 205 / 0.16);
+}
+/* Sits on the title's own plate, so no second box around it. */
+.place-search-note {
+  margin-top: 6px;
+  padding: 0 2px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: rgb(246 239 235 / 0.88);
+}
+
+/* Touch (#20): every control at least 44 px on coarse pointers */
+@media (pointer: coarse) {
+  .pick-panel [aria-pressed],
+  .route-tab,
+  .season-play {
+    min-height: 44px;
+  }
+  .place-search-box {
+    min-height: 52px;
+  }
+  .place-search-go,
+  .place-search-icon,
+  .place-search-box input {
+    height: 44px;
+  }
+  [role="switch"] {
+    position: relative;
+  }
+  [role="switch"]::after {
+    content: "";
+    position: absolute;
+    inset: -7px;
+  }
+  .panel-resize {
+    width: 24px;
+    height: 24px;
+  }
+}
+@media (max-width: 639px) {
+  /* Phones: tighter cockpit title so the map keeps the middle of the screen. */
+  .hud-title {
+    top: calc(2.5% + 64px);
+    padding: 8px 12px 10px;
+  }
+  .heading-tape {
+    display: none;
+  }
+  .place-search {
+    width: calc(100vw - 48px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .place-search-list {
     animation: none;
   }
 }

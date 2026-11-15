@@ -155,6 +155,18 @@ def test_custom_pin_cache_miss_then_cache_hit(tmp_path: Path, monkeypatch: Any) 
         ctx_hit = FarmContext.model_validate(resp_hit.json())
         assert ctx_hit.climate.normal.wet.rain_mm == 2196.0
 
+        # A nearby point in the same 0.01-degree cell reuses the cache but keeps its own location.
+        resp_near = client.get("/api/farm", params={"lat": 8.1032, "lon": 125.1018})
+        ctx_near = FarmContext.model_validate(resp_near.json())
+        assert (ctx_near.location.lat, ctx_near.location.lon) == (8.1032, 125.1018)
+
+
+def test_plans_reject_out_of_range_coordinates() -> None:
+    """POST /api/plans checks lat/lon the same way GET /api/farm does."""
+    with TestClient(app) as client:
+        resp = client.post("/api/plans", json={"preset_id": None, "lat": 200, "lon": 0})
+        assert resp.status_code == 422
+
 
 def test_custom_pin_timeout_fallback_no_cache(tmp_path: Path, monkeypatch: Any) -> None:
     """Verify timeout falls back to nearest preset climate with is_custom_pin=True and writes no cache."""

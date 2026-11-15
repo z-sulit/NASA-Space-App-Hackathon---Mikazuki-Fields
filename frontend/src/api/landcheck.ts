@@ -1,14 +1,6 @@
 /**
- * Is the tapped point land a farm could be on, or a body of water?
- *
- * Reads the OpenStreetMap tile under the point (the same map the farmer sees) at zoom 12,
- * about 38 m per pixel, and looks at the 7×7 pixels around it. OSM draws every sea, lake,
- * river and reservoir in one water colour (#aad3df), so a mostly-water patch means the
- * point is water. Tiles allow cross-origin reads, so this works without the backend.
- *
- * NASA MODIS land cover (MCD12Q1) would also give built-up and forest classes, but the
- * ORNL service answered only about 1 in 5 requests when tested and one 500 m pixel is too
- * coarse near towns, so it is not used for the yes/no decision here.
+ * Is the tapped point land or water? Reads the OpenStreetMap tile under it at zoom 12 (about 38 m per pixel).
+ * OSM draws every sea, lake and river in one colour (#aad3df), so a mostly-water 7×7 patch means water.
  */
 export type LandVerdict = {
   kind: "land" | "water" | "unknown";
