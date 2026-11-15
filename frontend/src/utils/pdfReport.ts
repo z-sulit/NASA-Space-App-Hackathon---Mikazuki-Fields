@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import type { DataSource } from "../api/client";
+import { emblemSvg } from "../components/Emblem";
 import { planSpan, type SeasonWindow } from "../data/calendar";
 import { CROP } from "../data/crops";
 import { climate } from "../engine/simulate";
@@ -98,7 +99,30 @@ function drawFooter(doc: jsPDF, pageNum: number, totalPages: number) {
   doc.text(`Page ${pageNum} of ${totalPages}`, PAGE_W - M, 286, { align: "right" });
 }
 
-export function buildFieldReportPdf(input: FieldReportInput): jsPDF {
+async function emblemPngDataUrl(sizePx = 128): Promise<string | null> {
+  if (typeof document === "undefined" || typeof Image === "undefined") return null;
+  try {
+    const dataUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(emblemSvg({ size: sizePx, backdrop: true }))}`;
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("emblem load failed"));
+      el.src = dataUri;
+    });
+    await img.decode?.().catch(() => {});
+    const canvas = document.createElement("canvas");
+    canvas.width = sizePx;
+    canvas.height = sizePx;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, sizePx, sizePx);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+}
+
+export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string | null = null): jsPDF {
   const { target, req, scenario, plan, normalPlan, why, notes, windows, startYear, farmSource, pinVia, planSource, altitude } = input;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
@@ -120,14 +144,21 @@ export function buildFieldReportPdf(input: FieldReportInput): jsPDF {
 
   // ---------------- PAGE 1: PROFILE, TELEMETRY & 3-YEAR SUMMARY ----------------
   let y = 16;
-  setText(doc, 15.5, INK, "bold");
-  doc.text(pdfText("Mikazuki Fields - Field & Crop Rotation Report"), M, y);
+  const logoMm = 11;
+  const textX = logoDataUrl ? M + logoMm + 3.5 : M;
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, "PNG", M, 11.5, logoMm, logoMm);
+  }
+  setText(doc, 15, INK, "bold");
+  doc.text(pdfText("Mikazuki Fields - Field & Crop Rotation Report"), textX, y);
   setText(doc, 8.5, MUTED);
   doc.text(pdfText(`Generated ${generatedDate}`), PAGE_W - M, y - 1, { align: "right" });
 
   y += 6;
-  setText(doc, 9.5, MUTED);
-  doc.text(pdfText(`${routeBadge}: ${plan.name}  |  ${target.name}  |  ${planSpan(startYear)} (6 Seasons)`), M, y);
+  setText(doc, 9, MUTED);
+  const subMaxW = PAGE_W - M - 48 - textX;
+  const subLine = doc.splitTextToSize(pdfText(`${routeBadge}: ${plan.name}  |  ${target.name}  |  ${planSpan(startYear)} (6 Seasons)`), subMaxW)[0] ?? "";
+  doc.text(subLine, textX, y);
   setText(doc, 8.5, MUTED);
   doc.text(pdfText(planSourceText), PAGE_W - M, y, { align: "right" });
 
@@ -504,7 +535,8 @@ export function buildFieldReportPdf(input: FieldReportInput): jsPDF {
   return doc;
 }
 
-export function downloadFieldReportPdf(input: FieldReportInput): void {
-  const doc = buildFieldReportPdf(input);
+export async function downloadFieldReportPdf(input: FieldReportInput): Promise<void> {
+  const logoDataUrl = await emblemPngDataUrl();
+  const doc = buildFieldReportPdf(input, logoDataUrl);
   doc.save(fieldReportFilename(input.target, input.plan));
 }
