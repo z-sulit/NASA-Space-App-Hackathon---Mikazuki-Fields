@@ -123,6 +123,7 @@ class PlanOverrides(BaseModel):
     max_budget_php: Optional[float] = Field(default=None, ge=0.0)
     excluded_crops: list[str] = Field(default_factory=list)
     must_include_staple: bool = False
+    last_harvest_yield_t_ha: Optional[float] = Field(default=None, gt=0.0, le=50.0)
 
 
 class PlanRequest(BaseModel):
@@ -132,7 +133,7 @@ class PlanRequest(BaseModel):
     lat: float = Field(default=7.90, ge=-90.0, le=90.0)
     lon: float = Field(default=125.09, ge=-180.0, le=180.0)
     baseline_crop: str = "corn"
-    soil_texture: Literal["clay", "loam", "sandy"] = "loam"
+    soil_texture: Literal["clay", "clay_loam", "silty_loam", "loam", "sandy_loam", "sandy"] = "loam"
     irrigation: Literal["rainfed", "irrigated"] = "rainfed"
     goal: Literal["cash", "forage"] = "cash"
     sliders: PlanSliders = Field(default_factory=PlanSliders)

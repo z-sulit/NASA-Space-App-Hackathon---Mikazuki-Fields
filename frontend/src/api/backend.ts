@@ -94,6 +94,7 @@ export function toBackendRequest(req: PlanRequest, preset: Preset) {
       max_budget_php: o.maxBudgetPhp ?? null,
       excluded_crops: o.excludedCrops ?? [],
       must_include_staple: o.mustIncludeStaple ?? false,
+      last_harvest_yield_t_ha: o.lastHarvestYieldTHa ?? null,
     },
   };
 }
