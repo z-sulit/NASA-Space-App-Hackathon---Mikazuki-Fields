@@ -16,6 +16,14 @@ test("placeCard goes under the target, above it when there is no room, and never
   // Target at the left edge of a phone: the card stays 12 px inside
   assert.equal(placeCard(box(0, 100, 60, 40), 340, 200, 390, 800).left, 12);
   assert.equal(placeCard(box(360, 100, 30, 40), 340, 200, 390, 800).left, 38);
+  // Tall refs spotlight on desktop with preferSide places the card cleanly beside it without covering Mindanao.
+  const sideAt = placeCard(box(660, 270, 230, 300), 390, 250, 1366, 768, { preferSide: true });
+  assert.equal(sideAt.left + 390 <= 660 - 12 || sideAt.left >= 890 + 12, true);
+  assert.equal(sideAt.left >= 12 && sideAt.left + 390 <= 1366 - 12, true);
+  // Falls back below/above on narrow mobile screens where neither side has room.
+  const narrowAt = placeCard(box(120, 200, 140, 180), 366, 220, 390, 844, { preferSide: true });
+  assert.equal(narrowAt.left, 12);
+  assert.equal(narrowAt.top >= 380 + 12, true);
 });
 
 test("visibleRefsRect merges visible reference markers and drops off-screen or zero-size nodes", () => {
