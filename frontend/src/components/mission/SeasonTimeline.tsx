@@ -5,10 +5,8 @@ import type { SeasonWindow } from "../../data/calendar";
 import { CROP } from "../../data/crops";
 
 /**
- * Temporal scrubber over the 3D field: All + six season stops (S1–S6 with their dates).
- * Picking a stop spotlights that bed and shows its weather and soil readout; Play walks
- * S1 → S6 at one season a second, then returns to All. Keyboard: the track is a slider
- * (←/→ move one stop, Home = All, End = S6).
+ * Scrubber over the 3D field: All + six season stops. Picking a stop spotlights that bed; Play walks S1 to S6, one a second.
+ * The track is a keyboard slider (arrows move one stop, Home = All, End = S6).
  */
 export function SeasonTimeline({
   windows,

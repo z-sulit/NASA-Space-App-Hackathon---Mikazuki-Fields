@@ -1,9 +1,6 @@
 /**
- * Step 05, the plantation, in WebGL: six soil plots, one per season, planted one
- * after another by the hovering suit. Plants are real 3D models built from
- * primitives (corn-like grasses, bushy beans, spreading sweet-potato vines),
- * drawn as one instanced mesh per crop family so ~200 plants stay cheap.
- * The camera lands from above, then drifts; drag to orbit.
+ * Step 05 in WebGL: six soil plots, one per season, planted one after another by the hovering suit.
+ * One instanced mesh per crop family keeps ~200 plants cheap.
  */
 import {
   ACESFilmicToneMapping,

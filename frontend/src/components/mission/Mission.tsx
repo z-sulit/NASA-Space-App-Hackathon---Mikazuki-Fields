@@ -24,14 +24,7 @@ import type { FieldHandle } from "../../three/tileField";
 /** Must match EXIT_MS in three/tileField.ts (kept here so the 3D chunk stays lazy). */
 const EXIT_MS = 600;
 
-/**
- * The whole app as one step-by-step mission (from the team's sketch):
- *   01 Load     green tile field while the map and data load, then straight on (no button)
- *   02 Target   cockpit view over the Philippines; tap anywhere to target a farm
- *   03 Descend  the suit hovers down to the farm
- *   04 Plants   pick a route, or build your own rotation
- *   05 Field    the field plants itself in 3D, with its data
- */
+/** The whole app as one step-by-step mission (the team's sketch); STEPS groups the stages into its five steps. */
 type Stage = "intro" | "leaving" | "target" | "locking" | "flying" | "plants" | "planting" | "rising";
 const STEPS: { n: string; label: string; stages: Stage[] }[] = [
   { n: "01", label: "Load", stages: ["intro", "leaving"] },
@@ -176,9 +169,9 @@ const PLAN_SOURCE: Record<DataSource, string> = {
   demo: "Plans from the in-browser planner (API not reachable)",
 };
 const ROUTES: { id: Choice; label: string }[] = [
-  { id: "A", label: "A" },
-  { id: "B", label: "B" },
-  { id: "C", label: "C" },
+  { id: "A", label: "Route A" },
+  { id: "B", label: "Route B" },
+  { id: "C", label: "Route C" },
   { id: "custom", label: "Yours" },
 ];
 const FARM_SOURCE: Record<DataSource, string> = {
@@ -434,6 +427,13 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     return () => clearTimeout(t);
   }, [req]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const plant = () => {
+    setSeason(-1);
+    setFocusSeason(null);
+    setPlaying(false);
+    setStage("planting");
+  };
+
   // Keyboard: Esc goes back a step, Enter does the screen's main action, 1–4 pick a route,
   // E toggles El Niño. Ignored while typing in a field.
   const keys = useRef({ stage, lockOn: () => {}, backToMap: () => {}, plant: () => {}, busy });
@@ -441,10 +441,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     stage,
     lockOn: () => void lockOn(),
     backToMap: () => void backToMap(),
-    plant: () => {
-      setSeason(-1);
-      setStage("planting");
-    },
+    plant,
     busy,
   };
   useEffect(() => {
@@ -674,7 +671,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             <dl className="mt-2">
               <Readout live={hudLive} label={`Slope (${sampleTag(focus, "slope_pct", "SRTM")})`} value={`${focus.slope_pct}%`} tip={TIP.slope} tipAlign="right" />
               <Readout live={hudLive} label={`Green cover (${sampleTag(focus, "ndvi_dry_min", "MODIS")})`} value={`NDVI ${focus.ndvi_dry_min.toFixed(2)}`} tip={TIP.ndvi} tipAlign="right" />
-              <Readout live={hudLive} label="2015–16 El Niño" value={focus.elnino_2016_dry_rain_pct === null ? "—" : `${focus.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(focus.elnino_2016_dry_rain_pct)}% RAIN`} />
+              <Readout live={hudLive} label="2015–16 El Niño" value={focus.elnino_2016_dry_rain_pct === null ? "No record" : `${focus.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(focus.elnino_2016_dry_rain_pct)}% RAIN`} />
             </dl>
             </>
             )}
@@ -722,12 +719,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           onReq={(patch) => setReq((r) => ({ ...r, ...patch }))}
           notes={planNotes}
           busy={busy}
-          onPlant={() => {
-            setSeason(-1);
-            setFocusSeason(null);
-            setPlaying(false);
-            setStage("planting");
-          }}
+          onPlant={plant}
           onBack={() => void backToMap()}
         />
       )}
@@ -796,7 +788,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                   onClick={() => setChoice(r.id)}
                   className={`route-tab ${choice === r.id ? "is-on" : ""}`}
                 >
-                  {r.id === "custom" ? r.label : `Route ${r.label}`}
+                  {r.label}
                 </button>
               ))}
             </div>
@@ -834,7 +826,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                     >
                       <span className="block text-[10px] leading-3 text-[#f6efeb]/75">S{s.index + 1}</span>
                       <span className="block w-full truncate text-[11px] leading-[14px] font-semibold">{CROP[s.crop].short}</span>
-                      <span className="mt-0.5 block w-full text-[9.5px] leading-3 text-[#f6efeb]/75 tabular">
+                      <span className="mt-0.5 block w-full text-[10px] leading-3 text-[#f6efeb]/75 tabular">
                         {w.months}
                         <br />
                         {w.years}
@@ -862,7 +854,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                 </p>
               );
             })()}
-            <p className="mt-1 flex flex-wrap gap-x-3 text-[10.5px] text-[#f6efeb]/60">
+            <p className="mt-1 flex flex-wrap gap-x-3 text-[11px] text-[#f6efeb]/60">
               <span>
                 <span className="text-[#c9e86a]">●</span> pest cycle broken
               </span>
@@ -893,7 +885,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                 ] as [string, ReactNode][]
               ).map(([label, value], i) => (
                 <div key={label} className={`rounded-md bg-ink/[0.06] px-2.5 py-2 ${i === 4 ? "col-span-2" : ""}`}>
-                  <dt className="micro text-[10.5px] text-ink/70">{label}</dt>
+                  <dt className="micro text-[11px] text-ink/70">{label}</dt>
                   <dd className="font-display text-lg leading-6 tabular">{value}</dd>
                 </div>
               ))}
