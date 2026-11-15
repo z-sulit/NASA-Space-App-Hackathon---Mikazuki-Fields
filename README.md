@@ -202,7 +202,18 @@ $$\mathrm{Erosion\_Index}_t = \mathrm{clip}\left(\frac{\mathrm{rain\_mm}}{1200} 
 - **Agronomic & Regional Factors Considered:** Calibrated for Philippine Wet (Jun–Nov) and Dry (Dec–May) cropping calendars, regional farmgate prices and yields (`PSA OpenSTAT`), slope feasibility (`>8%` blocking paddy rice in steep Bukidnon uplands), acid-soil nodulation penalties (`soil_ph < 5.5` triggering a liming advisory), and clear disclosures on satellite spatial resolution (`50–70 km` POWER cells, `250 m` MODIS pixels) recommending local Department of Agriculture (DA) soil lab verification.
 
 ### Use of Super Intelligence (SI) Disclosure
-Artificial intelligence / LLM coding assistants (Super Intelligence tools) were used by Team Tekkadan to assist with code checking, UI styling and Video Generation. All NASA Earth observation datasets, agronomic calibration parameters, and simulation formulas were grounded in verified NASA, FAO, and PSA OpenSTAT references, with zero NASA branding or logos generated or modified.
+Team Tekkadan used SI tools to build faster. The team chose the problem, the data, the agronomic model and the design, and reviewed and tested everything the tools produced.
+
+| Area | SI tool | Where and how |
+|---|---|---|
+| Code | Claude Code (Anthropic), an AI coding assistant; other LLM assistants | Helped write and review much of the React front end (mission flow, map search and farm-boundary drawing, 3D field and crop models, guided tour, phone and tablet layout), the live SRTM terrain lookup in `backend/app/main.py`, and their tests. The team also used LLM assistants for code checking and UI styling. |
+| Audio | Microsoft neural text-to-speech (`en-PH-JamesNeural`) | The narration in the 30-second demo video is an SI-generated voice. The video's end card says so. |
+| Video | None for imagery | The demo video is NASA Image and Video Library footage and screen recordings of the app, with captions. Its editing scripts were written with an AI coding assistant. |
+| Images | None | No image generators were used. The emblem and the share image (`frontend/public/og-image.png`, a screenshot of the app) are drawn by the app's own code. |
+| Text | LLM assistants | Helped draft the project write-ups, including this submission section. |
+| Data and results | None | Every number comes from NASA POWER, SRTM, MODIS, NASA GIBS, PSA OpenSTAT, FAO references and the team's own optimizer. No data is SI-generated. |
+
+No SI-generated content uses, contains or modifies NASA branding, logos or mission identifiers.
 
 ### NASA Data
 - `NASA POWER Agroclimatology API (MERRA-2)` — https://power.larc.nasa.gov/
