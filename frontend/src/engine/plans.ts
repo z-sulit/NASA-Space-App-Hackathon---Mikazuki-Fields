@@ -11,6 +11,7 @@ import { formatPhpUsd } from "../utils/currency";
 const N_CROPS = CROPS.length;
 const TOTAL = N_CROPS ** 6;
 const FORAGE = new Set<CropId>(["corn", "sorghum", "cowpea"]);
+const STAPLE = new Set<CropId>(["corn", "paddy_rice", "upland_rice"]);
 
 function decode(r: number, out: Crop[]): Crop[] {
   for (let t = 0; t < 6; t++) {
@@ -23,6 +24,7 @@ function decode(r: number, out: Crop[]): Crop[] {
 interface Arrays {
   ok: Uint8Array;
   guard3: Uint8Array;
+  consecSame: Uint8Array;
   highWater: Uint8Array;
   water: Float64Array;
   soil: Float64Array;
@@ -30,12 +32,16 @@ interface Arrays {
   waterE: Float64Array;
   soilE: Float64Array;
   econE: Float64Array;
+  shortDry: Uint8Array;
+  lossN: Uint8Array;
+  lossE: Uint8Array;
 }
 
-function evaluateAll(req: PlanRequest, envN: Env, envE: Env): Arrays {
+function evaluateAll(req: PlanRequest, envN: Env, envE: Env, relaxConstraints = false): Arrays {
   const a: Arrays = {
     ok: new Uint8Array(TOTAL),
     guard3: new Uint8Array(TOTAL),
+    consecSame: new Uint8Array(TOTAL),
     highWater: new Uint8Array(TOTAL),
     water: new Float64Array(TOTAL),
     soil: new Float64Array(TOTAL),
@@ -43,7 +49,14 @@ function evaluateAll(req: PlanRequest, envN: Env, envE: Env): Arrays {
     waterE: new Float64Array(TOTAL),
     soilE: new Float64Array(TOTAL),
     econE: new Float64Array(TOTAL),
+    shortDry: new Uint8Array(TOTAL),
+    lossN: new Uint8Array(TOTAL),
+    lossE: new Uint8Array(TOTAL),
   };
+  const excluded = new Set<CropId>(req.overrides.excludedCrops ?? []);
+  const checkExcluded = excluded.size > 0 && excluded.size < N_CROPS;
+  const maxBudget = !relaxConstraints ? (req.overrides.maxBudgetPhp ?? null) : null;
+  const needStaple = !relaxConstraints && Boolean(req.overrides.mustIncludeStaple);
   const seq: Crop[] = new Array(6);
   for (let r = 0; r < TOTAL; r++) {
     decode(r, seq);
@@ -52,20 +65,46 @@ function evaluateAll(req: PlanRequest, envN: Env, envE: Env): Arrays {
       for (let t = 0; t < 6; t++) if (FORAGE.has(seq[t].id)) f++;
       if (f < 2) continue;
     }
+    if (checkExcluded) {
+      let skip = false;
+      for (let t = 0; t < 6; t++) if (excluded.has(seq[t].id)) { skip = true; break; }
+      if (skip) continue;
+    }
+    if (needStaple) {
+      let st = 0;
+      for (let t = 0; t < 6; t++) if (STAPLE.has(seq[t].id)) { st = 1; break; }
+      if (!st) continue;
+    }
+    if (maxBudget !== null) {
+      let over = false;
+      for (let t = 0; t < 6; t++) if (seq[t].base_cost_php > maxBudget) { over = true; break; }
+      if (over) continue;
+    }
     const s = run(seq, envN);
     if (!s.feasible) continue;
     const e = run(seq, envE);
     a.ok[r] = 1;
+    let famMask = 0;
+    let shortDry = 0;
+    for (let t = 0; t < 6; t++) {
+      const fam = seq[t].family;
+      famMask |= fam === "Poaceae" ? 1 : fam === "Fabaceae" ? 2 : 4;
+      if (t % 2 === 1 && seq[t].days <= 75) shortDry++;
+      if (seq[t].high_water) a.highWater[r] = 1;
+      if (t > 0 && seq[t].id === seq[t - 1].id) a.consecSame[r] = 1;
+      if (t >= 2 && fam === seq[t - 1].family && fam === seq[t - 2].family) a.guard3[r] = 1;
+    }
+    const famCount = (famMask & 1) + ((famMask >> 1) & 1) + ((famMask >> 2) & 1);
+    const divBonus = famCount === 3 ? 4 : famCount === 2 ? 1.5 : 0;
+    a.shortDry[r] = shortDry;
+    a.lossN[r] = s.lossSeasons;
+    a.lossE[r] = e.lossSeasons;
     a.water[r] = s.waterMm;
-    a.soil[r] = 0.5 * s.nFinal + 0.3 * (100 - s.avgErosion) + 0.2 * (100 - 100 * s.avgPest);
+    a.soil[r] = Math.min(100, 0.5 * s.nFinal + 0.3 * (100 - s.avgErosion) + 0.2 * (100 - 100 * s.avgPest) + divBonus);
     a.econ[r] = 0.7 * s.total + 0.3 * s.worst;
     a.waterE[r] = e.waterMm;
-    a.soilE[r] = 0.5 * e.nFinal + 0.3 * (100 - e.avgErosion) + 0.2 * (100 - 100 * e.avgPest);
+    a.soilE[r] = Math.min(100, 0.5 * e.nFinal + 0.3 * (100 - e.avgErosion) + 0.2 * (100 - 100 * e.avgPest) + divBonus);
     a.econE[r] = 0.7 * e.total + 0.3 * e.worst;
-    for (let t = 0; t < 6; t++) if (seq[t].high_water) a.highWater[r] = 1;
-    for (let t = 2; t < 6; t++) {
-      if (seq[t].family === seq[t - 1].family && seq[t].family === seq[t - 2].family) a.guard3[r] = 1;
-    }
   }
   return a;
 }
@@ -164,20 +203,32 @@ export function planRoutes(req: PlanRequest, preset: Preset): PlansResponse {
   let envN = makeEnv(preset, req.soil, req.irrigation, "normal", req.overrides, req.baselineCrop);
   let envE = makeEnv(preset, req.soil, req.irrigation, "elnino", req.overrides, req.baselineCrop);
   let a = evaluateAll(req, envN, envE);
-  if (!a.ok.some((x) => x) && req.overrides.floods !== "never") {
-    notes.push("No rotation fits a field that floods every " + req.overrides.floods + " season on this slope, so the flood rule was relaxed.");
+  if (!a.ok.some((x) => x)) {
+    if (req.overrides.floods !== "never") {
+      notes.push("No rotation fits a field that floods every " + req.overrides.floods + " season on this slope, so the flood rule was relaxed.");
+    } else if (req.overrides.maxBudgetPhp != null || req.overrides.mustIncludeStaple) {
+      notes.push("No rotation matched both your budget/staple constraints and this farm's slope/water rules, so budget/staple caps were relaxed.");
+    }
     envN = makeEnv(preset, req.soil, req.irrigation, "normal", req.overrides, req.baselineCrop, true);
     envE = makeEnv(preset, req.soil, req.irrigation, "elnino", req.overrides, req.baselineCrop, true);
-    a = evaluateAll(req, envN, envE);
+    a = evaluateAll(req, envN, envE, true);
   }
   if (!a.ok.some((x) => x)) throw new Error("No feasible rotation for these inputs.");
 
-  const W = scaler(a.water, a.ok, true);
-  const S = scaler(a.soil, a.ok);
-  const E = scaler(a.econ, a.ok);
-  const WE = scaler(a.waterE, a.ok, true);
-  const SE = scaler(a.soilE, a.ok);
-  const EE = scaler(a.econE, a.ok);
+  const wScaleN = scaler(a.water, a.ok, true);
+  const sScaleN = scaler(a.soil, a.ok);
+  const eScaleN = scaler(a.econ, a.ok);
+  const wScaleE = scaler(a.waterE, a.ok, true);
+  const sScaleE = scaler(a.soilE, a.ok);
+  const eScaleE = scaler(a.econE, a.ok);
+  const shortBonusN = req.irrigation === "rainfed" && envN.climates[1].rain_mm < 350 ? 1.5 : 0;
+  const shortBonusE = req.irrigation === "rainfed" && envE.climates[1].rain_mm < 350 ? 1.5 : 0;
+  const W = (r: number) => Math.min(100, wScaleN(r) + shortBonusN * a.shortDry[r]);
+  const S = sScaleN;
+  const E = (r: number) => Math.max(0, eScaleN(r) - 8 * a.lossN[r]);
+  const WE = (r: number) => Math.min(100, wScaleE(r) + shortBonusE * a.shortDry[r]);
+  const SE = sScaleE;
+  const EE = (r: number) => Math.max(0, eScaleE(r) - 8 * a.lossE[r]);
   const sum = req.weights.water + req.weights.soil + req.weights.econ || 1;
   const ww = req.weights.water / sum;
   const ws = req.weights.soil / sum;
@@ -186,7 +237,7 @@ export function planRoutes(req: PlanRequest, preset: Preset): PlansResponse {
   let best = -1;
   let bestScore = -Infinity;
   for (let r = 0; r < TOTAL; r++) {
-    if (!a.ok[r] || a.guard3[r]) continue;
+    if (!a.ok[r] || a.guard3[r] || a.consecSame[r]) continue;
     const scNorm = ww * W(r) + ws * S(r) + we * E(r);
     const scEln = ww * WE(r) + ws * SE(r) + we * EE(r);
     const sc = 0.85 * scNorm + 0.15 * scEln;
@@ -195,14 +246,44 @@ export function planRoutes(req: PlanRequest, preset: Preset): PlansResponse {
       best = r;
     }
   }
+  if (best < 0) {
+    for (let r = 0; r < TOTAL; r++) {
+      if (!a.ok[r] || a.guard3[r]) continue;
+      const sc = 0.85 * (ww * W(r) + ws * S(r) + we * E(r)) + 0.15 * (ww * WE(r) + ws * SE(r) + we * EE(r));
+      if (sc > bestScore) {
+        bestScore = sc;
+        best = r;
+      }
+    }
+  }
+  if (best < 0) {
+    for (let r = 0; r < TOTAL; r++) {
+      if (!a.ok[r]) continue;
+      const sc = 0.85 * (ww * W(r) + ws * S(r) + we * E(r)) + 0.15 * (ww * WE(r) + ws * SE(r) + we * EE(r));
+      if (sc > bestScore) {
+        bestScore = sc;
+        best = r;
+      }
+    }
+  }
   let safe = -1;
   let safeScore = -Infinity;
   for (let r = 0; r < TOTAL; r++) {
-    if (!a.ok[r] || a.highWater[r] || hamming(r, best) < 2) continue;
+    if (!a.ok[r] || a.highWater[r] || a.guard3[r] || a.consecSame[r] || hamming(r, best) < 2) continue;
     const sc = Math.min(0.6 * W(r) + 0.25 * S(r) + 0.15 * E(r), 0.6 * WE(r) + 0.25 * SE(r) + 0.15 * EE(r));
     if (sc > safeScore) {
       safeScore = sc;
       safe = r;
+    }
+  }
+  if (safe < 0) {
+    for (let r = 0; r < TOTAL; r++) {
+      if (!a.ok[r] || a.highWater[r] || hamming(r, best) < 2) continue;
+      const sc = Math.min(0.6 * W(r) + 0.25 * S(r) + 0.15 * E(r), 0.6 * WE(r) + 0.25 * SE(r) + 0.15 * EE(r));
+      if (sc > safeScore) {
+        safeScore = sc;
+        safe = r;
+      }
     }
   }
 

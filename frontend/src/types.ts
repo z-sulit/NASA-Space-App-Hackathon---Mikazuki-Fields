@@ -72,6 +72,9 @@ export interface Overrides {
   soilPh: number | null;
   pestLastSeason: boolean;
   floods: "never" | SeasonKind;
+  maxBudgetPhp?: number | null;
+  excludedCrops?: CropId[];
+  mustIncludeStaple?: boolean;
 }
 
 export interface Weights {

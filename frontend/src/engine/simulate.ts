@@ -170,6 +170,7 @@ export interface Summary {
   avgPest: number;
   total: number;
   worst: number;
+  lossSeasons: number;
 }
 
 /** Runs 6 seasons. Pass `record` to collect per-season detail (slower); omit it in the optimizer loop. */
@@ -193,6 +194,7 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
   let pestSum = 0;
   let total = 0;
   let worst = Infinity;
+  let lossSeasons = 0;
   const acidSoil = env.overrides.soilPh !== null && env.overrides.soilPh < 5.5;
 
   for (let t = 0; t < 6; t++) {
@@ -214,10 +216,12 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
       waterLoss = Math.min(0.85, (crop.ky * gap) / demand);
       if (isPaddy && supply < 0.8 * demand) feasible = false;
     }
-    const waterlogLoss =
-      !crop.flood_tolerant && clim.gwetroot > 0.85
-        ? Math.min(0.25, 1.2 * (clim.gwetroot - 0.85)) * (env.soil === "sandy" ? 0.5 : 1)
-        : 0;
+    let waterlogLoss = 0;
+    if (!crop.flood_tolerant && clim.gwetroot > 0.85) {
+      const wlBase = Math.min(0.25, 1.2 * (clim.gwetroot - 0.85)) * (env.soil === "sandy" ? 0.5 : 1);
+      const isRootOrTuber = crop.id === "sweet_potato" || crop.id === "peanut";
+      waterlogLoss = isRootOrTuber && env.soil !== "sandy" ? Math.min(0.35, wlBase * 1.5) : wlBase;
+    }
     if (isPaddy && env.slopePct > 8) feasible = false;
     if (!env.relaxFlood && env.overrides.floods === kind && !crop.flood_tolerant) feasible = false;
     store = 0.5 * Math.min(whc, w.endStore) + 0.5 * (env.climates[t + 1].gwetroot * whc);
@@ -270,6 +274,7 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
     pestSum += pest;
     total += profit;
     if (profit < worst) worst = profit;
+    if (profit < 0) lossSeasons++;
 
     if (record) {
       const coveredMonths = Math.min(6, Math.round(crop.days / 30));
@@ -303,5 +308,5 @@ export function run(seq: Crop[], env: Env, record?: SeasonResult[]): Summary {
     prevFamily = crop.family;
   }
 
-  return { feasible, waterMm: water, nFinal: n, avgErosion: erosionSum / 6, avgPest: pestSum / 6, total, worst };
+  return { feasible, waterMm: water, nFinal: n, avgErosion: erosionSum / 6, avgPest: pestSum / 6, total, worst, lossSeasons };
 }
