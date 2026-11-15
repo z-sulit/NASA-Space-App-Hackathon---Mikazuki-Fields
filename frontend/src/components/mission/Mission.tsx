@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode, type Ref } from "react";
 import { ArrowLeft, CircleHelp, Crosshair, FileDown, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
@@ -10,7 +10,7 @@ import { fetchWeather, type Weather } from "../../api/weather";
 import { ringAreaHa, ringCentroid } from "../../utils/geo";
 import { CROP } from "../../data/crops";
 import { Emblem } from "../Emblem";
-import { CountUp, formatPhpUsd, formatPhpUsdInText, InfoTip, prefersReducedMotion, Switch, useScramble } from "../ui";
+import { CountUp, formatPhpUsd, formatPhpUsdInText, prefersReducedMotion, Switch, useScramble } from "../ui";
 import { TargetMap, type LatLon, type TargetMapHandle } from "./TargetMap";
 import { PickPlants, SeasonFlags, type Choice } from "./PickPlants";
 import { PlantField } from "./PlantField";
@@ -117,17 +117,89 @@ const TIP = {
   ndvi: "Green Cover Score (MODIS NDVI): how green your land looks from space. Below 0.3 is mostly bare soil.",
 } as const;
 
-function Readout({ label, value, live, tip, tipAlign = "left" }: { label: string; value: string; live: boolean; tip?: string; tipAlign?: "left" | "right" }) {
-  const shown = useScramble(value, live, 300);
+function useHudTip() {
+  const [hover, setHover] = useState<string | null>(null);
+  const [focus, setFocus] = useState<string | null>(null);
+  const [pinned, setPinned] = useState<string | null>(null);
+  const active = hover ?? focus ?? pinned;
+  const bind = (tip: string) => ({
+    active: active === tip,
+    onMouseEnter: () => setHover(tip),
+    onMouseLeave: () => setHover((h) => (h === tip ? null : h)),
+    onFocus: () => setFocus(tip),
+    onBlur: () => setFocus((f) => (f === tip ? null : f)),
+    onClick: (e: ReactMouseEvent<HTMLDivElement>) => {
+      if (pinned === tip) {
+        setPinned(null);
+        setHover(null);
+        e.currentTarget.querySelector("button")?.blur();
+      } else {
+        setPinned(tip);
+      }
+    },
+  });
+  return { active, bind };
+}
+
+function TipSlot({ tip }: { tip: string | null }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-ink/10 py-1.5">
-      <dt className="micro flex items-center gap-1 text-[10.5px] text-ink/70">
-        {label}
-        {tip && (
-          <InfoTip label={label} light align={tipAlign}>
-            {tip}
-          </InfoTip>
-        )}
+    <p
+      className={`mt-2 min-h-[4.25rem] rounded-[6px] px-2.5 py-2 text-xs leading-snug transition-colors ${
+        tip ? "bg-ink/[0.08] text-ink" : "bg-ink/[0.03] text-ink/60"
+      }`}
+      aria-live="polite"
+    >
+      {tip ?? "Hover or tap an underlined metric to see what it means."}
+    </p>
+  );
+}
+
+function Readout({
+  label,
+  value,
+  live,
+  tip,
+  tips,
+}: {
+  label: string;
+  value: string;
+  live: boolean;
+  tip?: string;
+  tips?: ReturnType<typeof useHudTip>;
+}) {
+  const shown = useScramble(value, live, 300);
+  if (!tip || !tips) {
+    return (
+      <div className="flex items-baseline justify-between gap-4 border-b border-ink/10 py-1.5">
+        <dt className="micro text-[10.5px] text-ink/70">{label}</dt>
+        <dd className="micro text-[13px] whitespace-pre text-ink tabular" aria-label={value}>
+          {shown}
+        </dd>
+      </div>
+    );
+  }
+  const { active, onMouseEnter, onMouseLeave, onClick, onFocus, onBlur } = tips.bind(tip);
+  return (
+    <div
+      className={`flex cursor-pointer items-baseline justify-between gap-4 border-b border-ink/10 py-1.5 transition-colors ${
+        active ? "-mx-1.5 rounded-[4px] bg-ink/[0.06] px-1.5" : ""
+      }`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onClick={onClick}
+    >
+      <dt className="min-w-0">
+        <button
+          type="button"
+          aria-pressed={active}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          className={`micro border-b border-dotted text-left text-[10.5px] transition-colors ${
+            active ? "border-sakura text-ink" : "border-ink/40 text-ink/75 hover:border-ink/70 hover:text-ink"
+          }`}
+        >
+          {label}
+        </button>
       </dt>
       <dd className="micro text-[13px] whitespace-pre text-ink tabular" aria-label={value}>
         {shown}
@@ -260,6 +332,8 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const leftPanel = usePanel({ minW: 240, minH: 150, collapsed: phone });
   const rightPanel = usePanel({ minW: 240, minH: 150 });
   const statsPanel = usePanel({ minW: 320, minH: wide ? 240 : 120, mode: wide ? "float" : "sheet" });
+  const targetTips = useHudTip();
+  const condTips = useHudTip();
 
   const planSeq = useRef(0);
   const plan = useCallback(async (r: PlanRequest, p: Preset) => {
@@ -790,11 +864,12 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             <dl className="mt-2">
               <Readout live={hudLive} label="Lat / Lon" value={`${lat} / ${lon}`} />
               <Readout live={hudLive} label={`Farm area (${areaHa === null ? "pin" : "outline"})`} value={`${req.landSizeHa} HA`} />
-              <Readout live={hudLive} label="Dry-season rain" value={`${Math.round(dry.rain_mm)} MM`} tip={TIP.rain} />
-              <Readout live={hudLive} label="Afternoon heat" value={`${dry.tmax_c.toFixed(1)} °C`} tip={TIP.heat} />
-              <Readout live={hudLive} label="Soil thirst" value={dry.gwetroot.toFixed(2)} tip={TIP.thirst} />
-              <Readout live={hudLive} label="Daily water use" value={`${dry.et0_mm_day.toFixed(1)} MM/DAY`} tip={TIP.et0} />
+              <Readout live={hudLive} label="Dry-season rain" value={`${Math.round(dry.rain_mm)} MM`} tip={TIP.rain} tips={targetTips} />
+              <Readout live={hudLive} label="Afternoon heat" value={`${dry.tmax_c.toFixed(1)} °C`} tip={TIP.heat} tips={targetTips} />
+              <Readout live={hudLive} label="Soil thirst" value={dry.gwetroot.toFixed(2)} tip={TIP.thirst} tips={targetTips} />
+              <Readout live={hudLive} label="Daily water use" value={`${dry.et0_mm_day.toFixed(1)} MM/DAY`} tip={TIP.et0} tips={targetTips} />
             </dl>
+            <TipSlot tip={targetTips.active} />
             <p className="mt-2 text-xs text-ink/80 tabular" aria-live="polite">
               {weather
                 ? `Right now: ${weather.tempC.toFixed(1)} °C, ${weather.rainMm.toFixed(1)} mm rain, wind ${Math.round(weather.windKmh)} km/h (Open-Meteo). The plan uses the 10-year climate above.`
@@ -831,11 +906,12 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               <Switch checked={scenario === "elnino"} onChange={(on) => setScenario(on ? "elnino" : "normal")} label="Simulate El Niño or dry spell" />
             </label>
             <dl className="mt-2">
-              <Readout live={hudLive} label={`Altitude (${altitude?.from ?? "SRTM"})`} value={altitude ? `${Math.round(altitude.m)} M` : "No record"} tip={TIP.altitude} tipAlign="right" />
-              <Readout live={hudLive} label={`Slope (${sampleTag(focus, "slope_pct", "SRTM")})`} value={`${focus.slope_pct}%`} tip={TIP.slope} tipAlign="right" />
-              <Readout live={hudLive} label={`Green cover (${sampleTag(focus, "ndvi_dry_min", "MODIS")})`} value={`NDVI ${focus.ndvi_dry_min.toFixed(2)}`} tip={TIP.ndvi} tipAlign="right" />
+              <Readout live={hudLive} label={`Altitude (${altitude?.from ?? "SRTM"})`} value={altitude ? `${Math.round(altitude.m)} M` : "No record"} tip={TIP.altitude} tips={condTips} />
+              <Readout live={hudLive} label={`Slope (${sampleTag(focus, "slope_pct", "SRTM")})`} value={`${focus.slope_pct}%`} tip={TIP.slope} tips={condTips} />
+              <Readout live={hudLive} label={`Green cover (${sampleTag(focus, "ndvi_dry_min", "MODIS")})`} value={`NDVI ${focus.ndvi_dry_min.toFixed(2)}`} tip={TIP.ndvi} tips={condTips} />
               <Readout live={hudLive} label="2015–16 El Niño" value={focus.elnino_2016_dry_rain_pct === null ? "No record" : `${focus.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(focus.elnino_2016_dry_rain_pct)}% RAIN`} />
             </dl>
+            <TipSlot tip={condTips.active} />
             </>
             )}
             {/* Lock stays reachable even with the panel folded. */}
