@@ -11,6 +11,8 @@ export interface TargetMapHandle {
   reset(): Promise<void>;
   /** Glide over to a point at `zoom` or closer (a region for a searched place, field level for drawing). */
   glideTo(lat: number, lon: number, zoom?: number): Promise<void>;
+  /** Current Leaflet zoom level. */
+  getZoom(): number;
 }
 
 /** Leaflet flyTo that resolves on landing (or after `cap` ms if the map never reports it). */
@@ -56,6 +58,7 @@ export function TargetMap({
   boundary,
   drawing,
   onBoundary,
+  onZoom,
   onTilesReady,
   ref,
 }: {
@@ -73,6 +76,8 @@ export function TargetMap({
   /** Draw mode: a tap adds a corner instead of dropping a pin. */
   drawing: boolean;
   onBoundary: (ring: LatLon[]) => void;
+  /** Fired on init and whenever the map zoom changes. */
+  onZoom?: (zoom: number) => void;
   /** The first screenful of map tiles has loaded (used to leave the loading screen). */
   onTilesReady?: () => void;
   ref?: Ref<TargetMapHandle>;
@@ -87,8 +92,8 @@ export function TargetMap({
   focusRef.current = focus;
   const dragging = useRef(false);
   const dragEndAt = useRef(0);
-  const handlers = useRef({ onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary });
-  handlers.current = { onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary };
+  const handlers = useRef({ onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary, onZoom });
+  handlers.current = { onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary, onZoom };
 
   const place = () => {
     const m = map.current;
@@ -139,10 +144,12 @@ export function TargetMap({
       const h = handlers.current;
       if (h.locked || dragging.current || performance.now() - dragEndAt.current < 200) return;
       const p = { lat: e.latlng.lat, lon: e.latlng.lng };
-      if (h.drawing) h.onBoundary([...h.boundary, p]);
+      if (h.drawing && m.getZoom() >= 12) h.onBoundary([...h.boundary, p]);
       else h.onPickPoint(p);
     });
     m.on("move zoom resize", place);
+    m.on("zoomend", () => handlers.current.onZoom?.(m.getZoom()));
+    handlers.current.onZoom?.(m.getZoom());
     place();
     return () => {
       m.remove();
@@ -220,6 +227,9 @@ export function TargetMap({
     glideTo(lat, lon, zoom = 8.5) {
       const m = map.current;
       return m ? flight(m, [lat, lon], Math.max(m.getZoom(), zoom), 0.6, 1200) : Promise.resolve();
+    },
+    getZoom() {
+      return map.current?.getZoom() ?? homeZoom();
     },
   }));
 
