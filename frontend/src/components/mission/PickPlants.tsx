@@ -318,6 +318,50 @@ export function PickPlants({
               options={[["never", "Never"], ["wet", "Wet season"], ["dry", "Dry season"]]}
               onChange={(floods) => onReq({ overrides: { ...req.overrides, floods } })}
             />
+            <Seg
+              label="Seasonal budget / ha"
+              value={String(req.overrides.maxBudgetPhp ?? "none")}
+              options={[
+                ["none", "No limit"],
+                ["25000", "₱25k"],
+                ["35000", "₱35k"],
+                ["45000", "₱45k"],
+              ]}
+              onChange={(v) => onReq({ overrides: { ...req.overrides, maxBudgetPhp: v === "none" ? null : Number(v) } })}
+            />
+            <Seg
+              label="Food-security staple"
+              value={req.overrides.mustIncludeStaple ? "yes" : "no"}
+              options={[["no", "Any crops"], ["yes", "Include rice/corn"]]}
+              onChange={(v) => onReq({ overrides: { ...req.overrides, mustIncludeStaple: v === "yes" } })}
+            />
+            <div className="sm:col-span-2 lg:col-span-3">
+              <p className="text-xs font-medium text-ink/70">Exclude crops (optional)</p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {CROPS.map((c) => {
+                  const excluded = (req.overrides.excludedCrops ?? []).includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      aria-pressed={excluded}
+                      onClick={() => {
+                        const prev = req.overrides.excludedCrops ?? [];
+                        const next = excluded ? prev.filter((id) => id !== c.id) : [...prev, c.id];
+                        if (next.length < CROPS.length) onReq({ overrides: { ...req.overrides, excludedCrops: next } });
+                      }}
+                      className={`rounded-[6px] border px-2.5 py-1 text-xs transition-colors ${
+                        excluded
+                          ? "border-[#e0896f]/70 bg-[#a9452c]/25 text-[#f3b49f] line-through"
+                          : "border-ink/20 text-ink/80 hover:bg-ink/10"
+                      }`}
+                    >
+                      {c.short}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div className="sm:col-span-2 lg:col-span-3">
               <p className="text-xs font-medium text-ink/70">What matters most</p>
               <div className="mt-1 grid gap-x-4 gap-y-1 sm:grid-cols-3">

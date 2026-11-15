@@ -30,9 +30,18 @@ THREE_SAME_FAM_ROW: np.ndarray = np.any(
     (ALL_FAMS[:, :-2] == ALL_FAMS[:, 1:-1]) & (ALL_FAMS[:, 1:-1] == ALL_FAMS[:, 2:]),
     axis=1,
 )
+CONSEC_SAME_CROP: np.ndarray = np.any(ALL_SEQS[:, :-1] == ALL_SEQS[:, 1:], axis=1)
+FAMILY_COUNT: np.ndarray = (
+    np.any(ALL_FAMS == 0, axis=1).astype(np.int8)
+    + np.any(ALL_FAMS == 1, axis=1).astype(np.int8)
+    + np.any(ALL_FAMS == 2, axis=1).astype(np.int8)
+)
 NO_HIGH_WATER_MASK: np.ndarray = ~np.any(CROP_ARRAYS.high_water[ALL_SEQS], axis=1)
 NO_PADDY_MASK: np.ndarray = ~np.any(CROP_ARRAYS.is_paddy[ALL_SEQS], axis=1)
 FORAGE_COUNT: np.ndarray = np.sum(CROP_ARRAYS.is_forage[ALL_SEQS], axis=1)
+STAPLE_COUNT: np.ndarray = np.sum(CROP_ARRAYS.is_staple[ALL_SEQS], axis=1)
+MAX_SEASON_COST: np.ndarray = np.max(CROP_ARRAYS.base_cost[ALL_SEQS], axis=1)
+SHORT_DRY_COUNT: np.ndarray = np.sum(CROP_ARRAYS.is_short_cycle[ALL_SEQS[:, 1::2]], axis=1)
 
 
 def _minmax_norm(arr: np.ndarray, mask: np.ndarray, invert: bool = False) -> np.ndarray:
@@ -67,6 +76,17 @@ def _build_feasibility_mask(
     if req.goal == "forage":
         mask &= FORAGE_COUNT >= 2
 
+    if req.overrides.excluded_crops:
+        excl_idxs = [ca.id_to_idx[cid] for cid in req.overrides.excluded_crops if cid in ca.id_to_idx]
+        if excl_idxs and len(excl_idxs) < len(ca.crops):
+            mask &= ~np.any(np.isin(ALL_SEQS, excl_idxs), axis=1)
+
+    if req.overrides.must_include_staple:
+        mask &= STAPLE_COUNT >= 1
+
+    if req.overrides.max_budget_php is not None:
+        mask &= MAX_SEASON_COST <= req.overrides.max_budget_php
+
     if req.overrides.flooded_months:
         flooded = set(req.overrides.flooded_months)
         wet_flooded = any(m in WET_MONTHS for m in flooded)
@@ -80,6 +100,12 @@ def _build_feasibility_mask(
         mask = np.ones(ALL_SEQS.shape[0], dtype=bool)
         if req.goal == "forage":
             mask &= FORAGE_COUNT >= 2
+        if req.overrides.excluded_crops:
+            excl_idxs = [ca.id_to_idx[cid] for cid in req.overrides.excluded_crops if cid in ca.id_to_idx]
+            if excl_idxs and len(excl_idxs) < len(ca.crops):
+                cand = mask & (~np.any(np.isin(ALL_SEQS, excl_idxs), axis=1))
+                if np.any(cand):
+                    mask = cand
     return mask
 
 
@@ -87,16 +113,23 @@ def _compute_subscores(
     sim: BatchSimResult,
     mask: np.ndarray,
     irrigation: Literal["rainfed", "irrigated"],
+    dry_rain_mm: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     water_metric = sim.total_pumped if irrigation == "irrigated" else sim.total_water_deficit
     w_score = _minmax_norm(water_metric, mask, invert=True)
-    s_score = (
+    if irrigation == "rainfed" and dry_rain_mm < 350.0:
+        w_score = np.clip(w_score + 1.5 * SHORT_DRY_COUNT, 0.0, 100.0)
+    diversity_bonus = np.where(FAMILY_COUNT == 3, 4.0, np.where(FAMILY_COUNT == 2, 1.5, 0.0))
+    s_score = np.clip(
         0.5 * sim.final_soil_n
         + 0.3 * (100.0 - sim.mean_erosion)
         + 0.2 * (100.0 - 100.0 * sim.mean_pest)
+        + diversity_bonus,
+        0.0,
+        100.0,
     )
     econ_raw = 0.7 * sim.total_profit + 0.3 * sim.worst_profit
-    e_score = _minmax_norm(econ_raw, mask, invert=False)
+    e_score = np.clip(_minmax_norm(econ_raw, mask, invert=False) - 8.0 * sim.loss_seasons, 0.0, 100.0)
     return w_score, s_score, e_score
 
 
@@ -147,6 +180,12 @@ def _ground_truth_summary(req: PlanRequest) -> tuple[list[str], bool]:
         applied.append(f"Flooded months excluded: {ov.flooded_months}")
     if ov.clear_bare_months:
         applied.append(f"Cleared bare-soil flags: {ov.clear_bare_months}")
+    if ov.max_budget_php is not None:
+        applied.append(f"Max seasonal budget: PHP {ov.max_budget_php:,.0f}/ha")
+    if ov.excluded_crops:
+        applied.append(f"Excluded crops: {', '.join(ov.excluded_crops)}")
+    if ov.must_include_staple:
+        applied.append("Food-security staple (rice/corn) required")
     liming = ov.soil_ph is not None and ov.soil_ph < 5.5
     return applied, liming
 
@@ -164,8 +203,8 @@ def optimize_plans(req: PlanRequest, farm: FarmContext) -> PlanResponse:
     if not np.any(mask_both):
         mask_both = mask_norm
 
-    w_norm, s_norm, e_norm = _compute_subscores(sim_norm, mask_norm, req.irrigation)
-    w_eln, s_eln, e_eln = _compute_subscores(sim_eln, mask_eln, req.irrigation)
+    w_norm, s_norm, e_norm = _compute_subscores(sim_norm, mask_norm, req.irrigation, farm.climate.normal.dry.rain_mm)
+    w_eln, s_eln, e_eln = _compute_subscores(sim_eln, mask_eln, req.irrigation, farm.climate.elnino.dry.rain_mm)
 
     # Plan A: Status Quo
     base_idx = ca.id_to_idx.get(req.baseline_crop, 0)
@@ -184,7 +223,9 @@ def optimize_plans(req: PlanRequest, farm: FarmContext) -> PlanResponse:
     score_b_norm = ww * w_norm + ws * s_norm + we * e_norm
     score_b_eln = ww * w_eln + ws * s_eln + we * e_eln
     score_b = 0.85 * score_b_norm + 0.15 * score_b_eln
-    mask_b = mask_norm & (~THREE_SAME_FAM_ROW)
+    mask_b = mask_norm & (~THREE_SAME_FAM_ROW) & (~CONSEC_SAME_CROP)
+    if not np.any(mask_b):
+        mask_b = mask_norm & (~THREE_SAME_FAM_ROW)
     if not np.any(mask_b):
         mask_b = mask_norm
     idx_b = int(np.argmax(np.where(mask_b, score_b, -1e9)))
@@ -196,7 +237,9 @@ def optimize_plans(req: PlanRequest, farm: FarmContext) -> PlanResponse:
     worst_case_c = np.minimum(score_c_norm, score_c_eln)
 
     diff_from_b = np.sum(ALL_SEQS != seq_b, axis=1) >= 2
-    mask_c = mask_both & NO_HIGH_WATER_MASK & (~THREE_SAME_FAM_ROW) & diff_from_b
+    mask_c = mask_both & NO_HIGH_WATER_MASK & (~THREE_SAME_FAM_ROW) & (~CONSEC_SAME_CROP) & diff_from_b
+    if not np.any(mask_c):
+        mask_c = mask_both & NO_HIGH_WATER_MASK & (~THREE_SAME_FAM_ROW) & diff_from_b
     if not np.any(mask_c):
         mask_c = mask_both & NO_HIGH_WATER_MASK & diff_from_b
     if not np.any(mask_c):

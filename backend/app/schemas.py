@@ -120,6 +120,9 @@ class PlanOverrides(BaseModel):
     last_outcome_pests: bool = False
     flooded_months: list[int] = Field(default_factory=list)
     clear_bare_months: list[int] = Field(default_factory=list)
+    max_budget_php: Optional[float] = Field(default=None, ge=0.0)
+    excluded_crops: list[str] = Field(default_factory=list)
+    must_include_staple: bool = False
 
 
 class PlanRequest(BaseModel):
