@@ -187,7 +187,9 @@ export function planRoutes(req: PlanRequest, preset: Preset): PlansResponse {
   let bestScore = -Infinity;
   for (let r = 0; r < TOTAL; r++) {
     if (!a.ok[r] || a.guard3[r]) continue;
-    const sc = ww * W(r) + ws * S(r) + we * E(r);
+    const scNorm = ww * W(r) + ws * S(r) + we * E(r);
+    const scEln = ww * WE(r) + ws * SE(r) + we * EE(r);
+    const sc = 0.85 * scNorm + 0.15 * scEln;
     if (sc > bestScore) {
       bestScore = sc;
       best = r;

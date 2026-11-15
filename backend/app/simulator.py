@@ -124,6 +124,8 @@ def season_water(
     bare_8m = BARE_EVAP_FRAC * et0[None, :] * 30.0 * (1.0 - frac)
     supply_rain_8 = (RAIN_EFFECTIVE * rain[None, :] * (frac > 0)).sum(axis=1)
     tmax_8 = (frac * tmax[None, :]).sum(axis=1) / crop_months
+    peak_tmax_8 = np.where(frac > 0, tmax[None, :], -np.inf).max(axis=1)
+    eff_tmax_8 = 0.7 * tmax_8 + 0.3 * peak_tmax_8
 
     # The batch run covers 262,144 sequences per season, so this loop is kept lean:
     # float32, 1-D takes from per-month rows, and no per-crop lookup in months when no
@@ -157,7 +159,7 @@ def season_water(
         np.clip(bucket, np.float32(0.0), whc32, out=bucket)
     demand = need_8m.sum(axis=1).astype(np.float32).take(c_idx)
     supply = supply_rain_8.astype(np.float32).take(c_idx) + store.astype(np.float32, copy=False)
-    return demand, supply, gap, bucket, tmax_8.astype(np.float32).take(c_idx)
+    return demand, supply, gap, bucket, eff_tmax_8.astype(np.float32).take(c_idx)
 
 
 def heat_loss_from(crop_tmax: np.ndarray, heat_limit: np.ndarray) -> np.ndarray:
@@ -176,16 +178,18 @@ class BatchSimResult:
     paddy_rainfed_infeasible: np.ndarray
 
 
-def resolve_initial_n(req: PlanRequest) -> float:
+def resolve_initial_n(req: PlanRequest, mean_ndvi: float = 0.40) -> float:
     n_level = req.overrides.soil_n_level
     if isinstance(n_level, (int, float)):
         return float(np.clip(n_level, 10.0, 100.0))
+    if n_level is None:
+        return 55.0 if mean_ndvi < 0.35 else (70.0 if mean_ndvi >= 0.50 else 65.0)
     n_map = {"low": 35.0, "medium": 65.0, "high": 85.0}
-    return n_map.get(n_level or "medium", 65.0)
+    return n_map.get(n_level, 65.0)
 
 
-def _initial_state(req: PlanRequest, wet_gwetroot: float) -> tuple[float, float, float, int]:
-    n0 = resolve_initial_n(req)
+def _initial_state(req: PlanRequest, wet_gwetroot: float, mean_ndvi: float = 0.40) -> tuple[float, float, float, int]:
+    n0 = resolve_initial_n(req, mean_ndvi)
     whc = WHC_MAP[req.soil_texture]
     store0 = wet_gwetroot * whc
     pest0 = 0.45 if req.overrides.last_outcome_pests else 0.15
@@ -211,7 +215,8 @@ def simulate_batch_vectorized(
     is_irrigated = req.irrigation == "irrigated"
     acid_soil = req.overrides.soil_ph is not None and req.overrides.soil_ph < 5.5
 
-    n0, store0, pest0, prev_fam0 = _initial_state(req, clim_sc.wet.gwetroot)
+    mean_ndvi = farm.ndvi_profile.mean_ndvi
+    n0, store0, pest0, prev_fam0 = _initial_state(req, clim_sc.wet.gwetroot, mean_ndvi)
 
     soil_n = np.full(m, n0, dtype=np.float32)
     store = np.full(m, store0, dtype=np.float32)
@@ -232,19 +237,26 @@ def simulate_batch_vectorized(
     base_cost_8 = ca.base_cost.astype(np.float32)
     ky_8 = ca.ky.astype(np.float32)
     fam_8 = ca.family_id.astype(np.int8)
+    ph_factor_8 = np.where((~ca.is_legume) & acid_soil, np.float32(0.95), np.float32(1.0)).astype(np.float32)
 
     for t in range(6):
         is_wet = t % 2 == 0
         s_clim: SeasonClimate = clim_sc.wet if is_wet else clim_sc.dry
         next_gwet = clim_sc.dry.gwetroot if is_wet else clim_sc.wet.gwetroot
 
+        ndvi_erosion_mult = 1.15 if ((not is_wet) and mean_ndvi < 0.35) else 1.0
         erosion_8 = np.clip(
-            (s_clim.rain_mm / 1200.0) * k_soil * (1.0 + slope_pct / 10.0) * c_eff_8 * 50.0,
+            (s_clim.rain_mm / 1200.0) * k_soil * (1.0 + slope_pct / 10.0) * c_eff_8 * 50.0 * ndvi_erosion_mult,
             0.0,
             100.0,
         ).astype(np.float32)
-        sandy_leach = 3.0 if (req.soil_texture == "sandy" and is_wet) else 0.0
-        n_delta_8 = ca.soil_n_delta - sandy_leach
+        if req.soil_texture == "sandy":
+            rain_leach = 2.0 + 3.0 * min(1.0, max(0.0, (s_clim.rain_mm - 600.0) / 800.0))
+        elif req.soil_texture == "loam" and s_clim.rain_mm > 1000.0:
+            rain_leach = 1.5 * min(1.0, (s_clim.rain_mm - 1000.0) / 600.0)
+        else:
+            rain_leach = 0.0
+        n_delta_8 = ca.soil_n_delta - rain_leach
         if acid_soil:
             n_delta_8 = np.where(ca.is_legume, 0.5 * n_delta_8, n_delta_8)
         n_delta_8 = n_delta_8.astype(np.float32)
@@ -254,7 +266,7 @@ def simulate_batch_vectorized(
         is_paddy = ca.is_paddy[c_idx]
         is_legume = ca.is_legume[c_idx]
 
-        # 1. Water Balance (monthly when the climate has monthly series)
+        # 1. Water Balance + NASA GWETROOT waterlogging
         demand, supply, gap, end_store, crop_tmax = season_water(c_idx, store, s_clim, float(whc))
         demand = demand.astype(np.float32, copy=False)
         supply = supply.astype(np.float32, copy=False)
@@ -270,10 +282,18 @@ def simulate_batch_vectorized(
             water_yield_loss = np.float32(0.0)
             pumped_sum += gap
 
+        if s_clim.gwetroot > 0.85:
+            wl_base = min(0.25, 1.2 * (s_clim.gwetroot - 0.85)) * (0.5 if req.soil_texture == "sandy" else 1.0)
+            waterlog_mult_8 = np.where(~ca.flood_tolerant, np.float32(1.0 - wl_base), np.float32(1.0)).astype(np.float32)
+        else:
+            waterlog_mult_8 = np.ones(len(ca.days), dtype=np.float32)
+
         store = (np.float32(0.5) * np.minimum(whc, end_store.astype(np.float32, copy=False)) + np.float32(0.5 * next_gwet) * whc).astype(np.float32, copy=False)
 
-        # 2. Heat Penalty (mean afternoon heat over the months the crop is in the ground)
+        # 2. Heat Penalty (mean + peak monthly NASA T2M_MAX) and Solar Radiation (NASA ALLSKY_SFC_SW_DWN)
         heat_loss = heat_loss_from(crop_tmax, ca.heat_limit_c.astype(np.float32).take(c_idx.astype(np.intp, copy=False))).astype(np.float32, copy=False)
+        solar_factor = np.float32(min(1.06, max(0.88, 1.0 + 0.015 * (s_clim.allsky_mj - 18.5))))
+        env_mult_8 = (waterlog_mult_8 * ph_factor_8 * solar_factor).astype(np.float32)
 
         # 3. Soil Nitrogen & Urea Top-Up
         same_family = (prev_fam >= 0) & (fam == prev_fam)
@@ -288,7 +308,7 @@ def simulate_batch_vectorized(
         )
         soil_n = np.clip(soil_n + delta_n, np.float32(10.0), np.float32(100.0))
 
-        # 4. Pest Carryover
+        # 4. Pest Carryover & Rotation Vigor
         if t == 0 and prev_fam0 == -1:
             pest_t = pest
         else:
@@ -297,17 +317,27 @@ def simulate_batch_vectorized(
         pest_sum += pest_t
         pest_loss = np.float32(0.15) * pest_t
 
+        rotation_factor = np.ones(m, dtype=np.float32)
+        rotation_factor[(~is_legume) & (prev_fam == 1)] = np.float32(1.06)
+        if t > 0 or req.overrides.last_outcome_pests:
+            rotation_factor[same_family] = np.float32(0.97)
+
         # 5. Bare-Soil Erosion Index
         erosion_sum += erosion_8[c_idx]
 
-        # 6. Net Seasonal Profit
-        profit_t = (
-            gross_rev_8[c_idx]
-            * (np.float32(1.0) - water_yield_loss)
+        # 6. Net Seasonal Profit (88% fixed + 12% harvest cost scaled by yield)
+        yield_ratio = (
+            (np.float32(1.0) - water_yield_loss)
             * (np.float32(1.0) - heat_loss)
             * (np.float32(1.0) - pest_loss)
             * n_yield_factor
-            - base_cost_8[c_idx]
+            * env_mult_8[c_idx]
+            * rotation_factor
+        )
+        crop_cost = base_cost_8[c_idx] * (np.float32(0.88) + np.float32(0.12) * np.minimum(np.float32(1.1), yield_ratio))
+        profit_t = (
+            gross_rev_8[c_idx] * yield_ratio
+            - crop_cost
             - urea_cost
             - pump_cost
         )
@@ -355,7 +385,9 @@ def simulate_single_detailed(
     is_irrigated = req.irrigation == "irrigated"
     acid_soil = req.overrides.soil_ph is not None and req.overrides.soil_ph < 5.5
 
-    n0, store, pest, prev_fam = _initial_state(req, clim_sc.wet.gwetroot)
+    mean_ndvi = farm.ndvi_profile.mean_ndvi
+    n0, store, pest, prev_fam = _initial_state(req, clim_sc.wet.gwetroot, mean_ndvi)
+    prev_fam0 = prev_fam
     soil_n = n0
 
     seasons_out: list[SeasonStep] = []
@@ -394,15 +426,26 @@ def simulate_single_detailed(
             deficit_t = 0.0
             pumped_sum += pumped
 
+        if (not bool(crop["flood_tolerant"])) and s_clim.gwetroot > 0.85:
+            waterlog_loss = min(0.25, 1.2 * (s_clim.gwetroot - 0.85)) * (0.5 if req.soil_texture == "sandy" else 1.0)
+        else:
+            waterlog_loss = 0.0
+
         store = 0.5 * min(whc, end_store) + 0.5 * (next_gwet * whc)
 
-        # 2. Heat Penalty
+        # 2. Heat Penalty & Solar Radiation
         heat_loss = min(0.70, 0.10 * max(0.0, crop_tmax - float(crop["heat_limit_c"])))
+        solar_factor = min(1.06, max(0.88, 1.0 + 0.015 * (s_clim.allsky_mj - 18.5)))
 
-        # 3. Soil Nitrogen & Urea Top-Up
+        # 3. Soil Nitrogen, rain-driven leaching & Urea Top-Up
         same_family = (prev_fam >= 0) and (fam == prev_fam)
-        sandy_leach = 3.0 if (req.soil_texture == "sandy" and is_wet) else 0.0
-        delta_n = float(crop["soil_n_delta"]) - sandy_leach - (3.0 if same_family else 0.0)
+        if req.soil_texture == "sandy":
+            rain_leach = 2.0 + 3.0 * min(1.0, max(0.0, (s_clim.rain_mm - 600.0) / 800.0))
+        elif req.soil_texture == "loam" and s_clim.rain_mm > 1000.0:
+            rain_leach = 1.5 * min(1.0, (s_clim.rain_mm - 1000.0) / 600.0)
+        else:
+            rain_leach = 0.0
+        delta_n = float(crop["soil_n_delta"]) - rain_leach - (3.0 if same_family else 0.0)
         is_legume = crop["family"] == "Fabaceae"
         if acid_soil and is_legume:
             delta_n *= 0.5
@@ -415,8 +458,8 @@ def simulate_single_detailed(
             n_yield_factor = 1.0
         soil_n = float(np.clip(soil_n + delta_n, 10.0, 100.0))
 
-        # 4. Pest Carryover
-        if t == 0 and prev_fam == -1:
+        # 4. Pest Carryover & Rotation Vigor
+        if t == 0 and prev_fam0 == -1:
             pest_t = pest
             pest_broken = False
         else:
@@ -431,12 +474,18 @@ def simulate_single_detailed(
         pest = pest_t
         pest_loss = 0.15 * pest_t
 
+        legume_boost = (not is_legume) and (prev_fam == 1)
+        mono_drag = same_family and ((t > 0) or req.overrides.last_outcome_pests)
+        rotation_factor = 1.06 if legume_boost else (0.97 if mono_drag else 1.0)
+        ph_factor = 0.95 if ((not is_legume) and acid_soil) else 1.0
+
         # 5. Bare-Soil Erosion Index
         f_bare = (180.0 - days) / 180.0
         c_eff = (days / 180.0) * float(crop["cover_c"]) + f_bare
+        ndvi_erosion_mult = 1.15 if ((not is_wet) and mean_ndvi < 0.35) else 1.0
         erosion_t = float(
             np.clip(
-                (s_clim.rain_mm / 1200.0) * k_soil * (1.0 + slope_pct / 10.0) * c_eff * 50.0,
+                (s_clim.rain_mm / 1200.0) * k_soil * (1.0 + slope_pct / 10.0) * c_eff * 50.0 * ndvi_erosion_mult,
                 0.0,
                 100.0,
             )
@@ -452,15 +501,20 @@ def simulate_single_detailed(
         bare_flag_count += len(bare_months)
 
         # 6. Net Seasonal Profit
-        eff_yield = (
-            float(crop["base_yield_t_ha"])
-            * (1.0 - water_yield_loss)
+        yield_ratio = (
+            (1.0 - water_yield_loss)
+            * (1.0 - waterlog_loss)
             * (1.0 - heat_loss)
             * (1.0 - pest_loss)
             * n_yield_factor
+            * solar_factor
+            * rotation_factor
+            * ph_factor
         )
+        eff_yield = float(crop["base_yield_t_ha"]) * yield_ratio
+        crop_cost = float(crop["base_cost_php"]) * (0.88 + 0.12 * min(1.1, yield_ratio))
         revenue = eff_yield * float(crop["price_php_per_t"])
-        profit_t = revenue - float(crop["base_cost_php"]) - urea_cost - pump_cost
+        profit_t = revenue - crop_cost - urea_cost - pump_cost
 
         total_profit += profit_t
         worst_profit = min(worst_profit, profit_t)
