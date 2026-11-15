@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
-import { ArrowLeft, Crosshair, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
+import { ArrowLeft, CircleHelp, Crosshair, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
 import { customPlan } from "../../engine/plans";
@@ -18,6 +18,7 @@ import { ElNinoReport } from "./ElNinoReport";
 import { ElNinoAtmosphere } from "./ElNinoAtmosphere";
 import { SeasonTimeline } from "./SeasonTimeline";
 import { PlaceSearch } from "./PlaceSearch";
+import { firstVisitStep, stepOnScreen, Tour } from "./Tour";
 import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
 import type { Place } from "../../api/geocode";
 import { planSpan, planStartYear, seasonWindows } from "../../data/calendar";
@@ -210,7 +211,7 @@ function saveLastFarm(v: LastFarm) {
   }
 }
 
-export function Mission({ presets: bundled, onReady, topRight }: { presets: Preset[]; onReady: () => void; topRight?: ReactNode }) {
+export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onReady: () => void }) {
   // Preset farms: the app's bundled copy until the backend's measured data arrives.
   const [presets, setPresets] = useState<Preset[]>(bundled);
   const [farmSource, setFarmSource] = useState<DataSource>("demo");
@@ -232,6 +233,8 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   const [drawing, setDrawing] = useState(false);
   const [boundary, setBoundary] = useState<LatLon[]>([]);
   const [weather, setWeather] = useState<Weather | null | undefined>(undefined);
+  // Walkthrough (#30): the step it is on, or null when closed.
+  const [tour, setTour] = useState(firstVisitStep);
   const [req, setReq] = useState<PlanRequest>(last?.req ?? DEFAULT_REQ);
   const [result, setResult] = useState<PlansResponse | null>(null);
   const [busy, setBusy] = useState(false);
@@ -616,7 +619,11 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           <Emblem size={30} />
           <span className="micro whitespace-nowrap">Mikazuki Fields</span>
         </div>
-        {topRight && <div className="flex items-center gap-2">{topRight}</div>}
+        {stage !== "intro" && stage !== "leaving" && (
+          <button type="button" className="btn btn-secondary guide-btn" onClick={() => setTour(stepOnScreen())}>
+            <CircleHelp className="size-4" aria-hidden /> Guide
+          </button>
+        )}
       </div>
 
       {/* Step 01 */}
@@ -656,7 +663,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           happen while the tiles still cover the screen; revealed at the handover. */}
       {(stage === "leaving" || stage === "target" || stage === "locking") && (
         <div className={`cockpit-hud ${stage === "leaving" ? "is-pre" : ""}`} aria-hidden={stage === "leaving" || undefined}>
-          <div className="hud-title">
+          <div className="hud-title" data-tour="locate">
             <h2 className="font-display text-[clamp(26px,3.4vw,44px)] leading-tight font-normal tracking-[-0.02em]">Where is your farm?</h2>
             <p className={`mt-1 text-sm tabular ${stage === "locking" ? "blink-3 text-sakura" : "text-ink/80"}`} aria-live="polite">
               {stage === "locking"
@@ -711,6 +718,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             style={leftPanel.style}
             className={`hud-panel hud-panel-left ${leftPanel.lifted ? "is-lifted" : ""} ${leftPanel.active ? "is-active" : ""}`}
             aria-label="Target data"
+            data-tour="telemetry"
           >
             <PanelBar panel={leftPanel} label="target data">
               <p className="flex items-center gap-1.5 text-xs font-semibold text-sakura">
@@ -884,7 +892,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               )}
             </PanelBar>
             {/* One tap switches the route right here (#15); the field regrows in place. */}
-            <div className="route-tabs" role="radiogroup" aria-label="Route, keys 1 to 4">
+            <div className="route-tabs" role="radiogroup" aria-label="Route, keys 1 to 4" data-tour="routes">
               {ROUTES.map((r) => (
                 <button
                   key={r.id}
@@ -1044,6 +1052,9 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
           </li>
         ))}
       </ol>
+
+      {/* The cockpit HUD is in the DOM, invisible, while the tiles leave: no coach marks until it shows. */}
+      <Tour step={stage === "intro" || stage === "leaving" ? null : tour} onStep={setTour} />
 
       {stage !== "intro" && (
         <p className="map-credit">
