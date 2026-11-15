@@ -429,19 +429,22 @@
   .hud-title {
     position: absolute;
     z-index: 24;
-    top: calc(2.5% + 96px);
+    top: calc(2.5% + 72px);
     left: 0;
     right: 0;
     margin-inline: auto;
     text-align: center;
     width: max-content;
-    max-width: calc(100vw - 32px);
+    /* Never wider than the gap between the two side panels. */
+    max-width: max(300px, calc(100vw - 2 * var(--hud-side)));
     animation: fade-up 0.25s var(--mf-ease) both;
-    padding: 10px 18px 12px;
+    padding: 8px 14px 10px;
     border-radius: var(--r-panel);
     background: rgb(20 26 6 / 0.72);
   }
   .cockpit-hud {
+    /* A side panel's reach from the screen edge: its inset, its 280 px width and a 16 px gap. */
+    --hud-side: calc(clamp(48px, 6vw, 120px) + 296px);
     position: absolute;
     inset: 0;
     z-index: 24;
@@ -477,21 +480,19 @@
     box-shadow: 0 24px 60px rgb(0 0 0 / 0.4);
     display: flex;
     flex-direction: column;
-    max-height: calc(100svh - 16px);
+    /* From under the top bar to above the step rail, so a short or zoomed window never cuts a panel off. */
+    top: 88px;
+    max-height: calc(100svh - 88px - 68px);
     pointer-events: auto;
   }
   .hud-panel-left {
     left: clamp(48px, 6vw, 120px);
-    top: 50%;
-    translate: 0 -50%;
     transform-origin: 0% 50%;
     transform: rotateY(20deg);
     animation: unfold-left 0.3s cubic-bezier(0.34, 1.32, 0.64, 1) 0.05s both;
   }
   .hud-panel-right {
     right: clamp(48px, 6vw, 120px);
-    top: 50%;
-    translate: 0 -50%;
     transform-origin: 100% 50%;
     transform: rotateY(-20deg);
     animation: unfold-right 0.3s cubic-bezier(0.34, 1.32, 0.64, 1) 0.1s both;
@@ -524,6 +525,10 @@
   @media (max-width: 900px) {
     .alt-ladder {
       display: none;
+    }
+    /* No side panels beside the title here: it may use the full width. */
+    .hud-title {
+      max-width: calc(100vw - 32px);
     }
     .hud-panels {
       position: absolute;
@@ -831,6 +836,10 @@
 .hud-map.leaflet-container {
   background: #2a3411;
   cursor: crosshair;
+}
+/* Crosshair places a point; a closed hand shows the map is being dragged instead (#39). */
+.leaflet-dragging .hud-map.leaflet-container {
+  cursor: grabbing;
 }
 /* Olive "night-vision" tint on the real map tiles. */
 .hud-map .leaflet-tile-pane {
@@ -1398,6 +1407,46 @@
   outline-offset: 2px;
 }
 
+/* Space held over the map: an open hand, and a chip that says so. Mouse and keyboard only. */
+.hud-map.is-grab.leaflet-container {
+  cursor: grab;
+}
+.grab-hint {
+  position: absolute;
+  z-index: 24;
+  left: 50%;
+  bottom: 68px;
+  translate: -50% 0;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgb(20 26 6 / 0.82);
+  font-size: 12px;
+  white-space: nowrap;
+  color: rgb(246 239 235 / 0.85);
+  pointer-events: none;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+.grab-hint.is-on {
+  background: var(--sakura);
+  color: var(--foreground);
+}
+.grab-hint kbd {
+  padding: 1px 6px;
+  border: 1px solid rgb(246 239 235 / 0.5);
+  border-radius: var(--r-chip);
+  font: 600 11px/1.4 var(--mf-font-display);
+}
+@media (hover: hover) and (pointer: fine) {
+  .grab-hint {
+    display: inline-flex;
+  }
+}
+
 /* Walkthrough (#30): a ring around one part of the screen, and the card that explains it */
 .guide-btn {
   background: rgb(20 26 6 / 0.72);
@@ -1485,6 +1534,19 @@
 .vtx:hover::after,
 .leaflet-drag-target .vtx::after {
   transform: scale(1.25);
+}
+
+/* The search and the pin / draw switch fit the title block, which fits between the side panels. */
+@media (min-width: 901px) {
+  .hud-title .place-search,
+  .hud-title .draw-bar {
+    width: min(420px, max(272px, calc(100vw - 2 * var(--hud-side) - 28px)));
+  }
+  /* Lock is the step's one action: it stays in view while the readouts above it scroll. */
+  .hud-panel-right .panel-body > .btn {
+    position: sticky;
+    bottom: 0;
+  }
 }
 
 /* Place search in step 02 (#23) */

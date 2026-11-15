@@ -59,6 +59,7 @@ export function TargetMap({
   drawing,
   onBoundary,
   onZoom,
+  onGrab,
   onTilesReady,
   ref,
 }: {
@@ -76,6 +77,8 @@ export function TargetMap({
   /** Draw mode: a tap adds a corner instead of dropping a pin. */
   drawing: boolean;
   onBoundary: (ring: LatLon[]) => void;
+  /** Space is held over the map: drags pan it and clicks place nothing. */
+  onGrab?: (held: boolean) => void;
   /** Fired on init and whenever the map zoom changes. */
   onZoom?: (zoom: number) => void;
   /** The first screenful of map tiles has loaded (used to leave the loading screen). */
@@ -92,8 +95,47 @@ export function TargetMap({
   focusRef.current = focus;
   const dragging = useRef(false);
   const dragEndAt = useRef(0);
-  const handlers = useRef({ onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary, onZoom });
-  handlers.current = { onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary, onZoom };
+  const grab = useRef(false);
+  const handlers = useRef({ onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary, onZoom, onGrab });
+  handlers.current = { onHover, onPickPreset, onPickPoint, locked, onTilesReady, boundary, drawing, onBoundary, onZoom, onGrab };
+
+  // Hold Space with the pointer over the map to grab it. Only then, so Space still presses a focused button.
+  useEffect(() => {
+    const host = el.current;
+    if (!host) return;
+    let over = false;
+    const set = (held: boolean) => {
+      if (grab.current === held) return;
+      grab.current = held;
+      host.classList.toggle("is-grab", held);
+      handlers.current.onGrab?.(held);
+    };
+    const enter = () => void (over = true);
+    const leave = () => void (over = false);
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || !over || (e.target as HTMLElement).closest("input, textarea")) return;
+      e.preventDefault();
+      set(true);
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || !grab.current) return;
+      e.preventDefault(); // Chrome clicks a focused button on keyup
+      set(false);
+    };
+    const release = () => set(false);
+    host.addEventListener("pointerenter", enter);
+    host.addEventListener("pointerleave", leave);
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", release);
+    return () => {
+      host.removeEventListener("pointerenter", enter);
+      host.removeEventListener("pointerleave", leave);
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", release);
+    };
+  }, []);
 
   const place = () => {
     const m = map.current;
@@ -142,7 +184,7 @@ export function TargetMap({
     });
     m.on("click", (e: L.LeafletMouseEvent) => {
       const h = handlers.current;
-      if (h.locked || dragging.current || performance.now() - dragEndAt.current < 200) return;
+      if (h.locked || grab.current || dragging.current || performance.now() - dragEndAt.current < 200) return;
       const p = { lat: e.latlng.lat, lon: e.latlng.lng };
       if (h.drawing && m.getZoom() >= 12) h.onBoundary([...h.boundary, p]);
       else h.onPickPoint(p);
@@ -218,7 +260,7 @@ export function TargetMap({
   useImperativeHandle(ref, () => ({
     flyTo(lat, lon) {
       const m = map.current;
-      return m ? flight(m, [lat, lon], 12.2, 1.2, 2000) : Promise.resolve();
+      return m ? flight(m, [lat, lon], 12.2, 2.4, 3600) : Promise.resolve();
     },
     reset() {
       const m = map.current;

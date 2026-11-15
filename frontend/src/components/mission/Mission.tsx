@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode, type Ref } from "react";
-import { ArrowLeft, CircleHelp, Crosshair, FileDown, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
+import { ArrowLeft, CircleHelp, Crosshair, FileDown, Grab, Hand, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
 import { customPlan, scalePlanResult, scalePlansResponse } from "../../engine/plans";
@@ -298,7 +298,9 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const [pinVia, setPinVia] = useState<"api" | "browser" | "nearest" | null>(null);
   const [mapNote, setMapNote] = useState<string | null>(null);
   const [mapZoom, setMapZoom] = useState(() => (typeof window !== "undefined" && window.innerWidth < 640 ? 5.0 : 5.9));
-  const [hasPickedLocation, setHasPickedLocation] = useState(false);
+  const [hasPickedLocation, setHasPickedLocation] = useState(Boolean(last)); // a remembered farm was picked on an earlier visit
+  const [pickedRoute, setPickedRoute] = useState(false);
+  const [grabbing, setGrabbing] = useState(false);
   const [checking, setChecking] = useState(false);
   const [tryAgain, setTryAgain] = useState<{ text: string; key: number } | null>(null);
   const [rejected, setRejected] = useState<(LatLon & { key: number }) | null>(null);
@@ -567,6 +569,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     const seq = ++navSeq.current;
     const p = target;
     saveLastFarm({ target: p, pin, req });
+    setPickedRoute(false); // a new farm has new routes to choose from
     setStage("locking");
     const planning = plan(req, p); // compute this farm's routes while we fly
     await new Promise((r) => setTimeout(r, reduced ? 0 : 200));
@@ -645,6 +648,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
         else if (k.stage === "plants" && !k.busy) k.plant();
       } else if ((k.stage === "plants" || k.stage === "planting") && ["1", "2", "3", "4"].includes(e.key)) {
         setChoice((["A", "B", "C", "custom"] as Choice[])[Number(e.key) - 1]);
+        setPickedRoute(true);
       } else if ((e.key === "e" || e.key === "E") && ["target", "plants", "planting"].includes(k.stage)) {
         setScenario((s) => (s === "elnino" ? "normal" : "elnino"));
       }
@@ -715,12 +719,17 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     });
   };
 
-  const advanceTour = (nextTarget: TourTarget): boolean => {
-    if (nextTarget === "settings" && stage === "target" && !acquiring && !checking) {
+  // The tour never moves the mission on by itself: the farm, then the route, must be the user's own pick.
+  const advanceTour = (nextTarget: TourTarget): boolean | string => {
+    if (nextTarget === "settings" && stage === "target") {
+      if (!hasPickedLocation) return "Pick your farm first: search a town, tap the map, or choose a reference site.";
+      if (acquiring || checking) return false;
       void lockOn();
       return true;
     }
-    if (nextTarget === "routes" && stage === "plants" && !busy) {
+    if (nextTarget === "routes" && stage === "plants") {
+      if (!pickedRoute) return "Choose a route first: tap Route A, B, C, or build your own.";
+      if (busy) return false;
       plant();
       return true;
     }
@@ -755,6 +764,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             drawing={drawing && stage === "target"}
             onBoundary={drawBoundary}
             onZoom={setMapZoom}
+            onGrab={setGrabbing}
             onTilesReady={() => setMapReady(true)}
           />
           <div className={`mission-dim ${stage === "plants" || stage === "planting" ? "is-on" : ""}`} aria-hidden />
@@ -836,7 +846,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       {(stage === "leaving" || stage === "target" || stage === "locking") && (
         <div className={`cockpit-hud ${stage === "leaving" ? "is-pre" : ""} ${drawing ? "is-drawing" : ""}`} aria-hidden={stage === "leaving" || undefined}>
           <div className="hud-title">
-            <h2 className="font-display text-[clamp(26px,3.4vw,44px)] leading-tight font-normal tracking-[-0.02em]">Where is your farm?</h2>
+            <h2 className="font-display text-[clamp(20px,2vw,28px)] leading-tight font-normal tracking-[-0.02em]">Where is your farm?</h2>
             <p className={`mt-1 text-sm tabular ${stage === "locking" ? "blink-3 text-sakura" : "text-ink/80"}`} aria-live="polite">
               {stage === "locking"
                 ? "Target locked · descending"
@@ -885,6 +895,19 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               </p>
             )}
           </div>
+
+          {stage === "target" && (
+            <p className={`grab-hint ${grabbing ? "is-on" : ""}`}>
+              {grabbing ? <Grab className="size-4" aria-hidden /> : <Hand className="size-4" aria-hidden />}
+              {grabbing ? (
+                "Grabbing: drag to move the map"
+              ) : (
+                <span>
+                  Hold <kbd>Space</kbd> to grab the map
+                </span>
+              )}
+            </p>
+          )}
 
           <div className="hud-panels">
           <aside
@@ -1003,7 +1026,10 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
           plans={scaledResult[scenario]}
           custom={custom[scenario]}
           choice={choice}
-          onChoice={setChoice}
+          onChoice={(c) => {
+            setChoice(c);
+            setPickedRoute(true);
+          }}
           customRotation={customRotation}
           onCustomRotation={setCustomRotation}
           req={req}
