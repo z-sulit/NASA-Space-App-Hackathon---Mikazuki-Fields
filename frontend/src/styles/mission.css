@@ -1529,6 +1529,90 @@
 .layer-swatch.is-rain {
   background: linear-gradient(90deg, #3b82f6 0%, #22d3ee 45%, #facc15 75%, #ef4444 100%);
 }
+/* Saved farms multi-plot pill bar in step 02 (#64) */
+.saved-farms {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  pointer-events: auto;
+}
+.farm-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 9px;
+  border-radius: 999px;
+  border: 1px solid rgb(246 239 235 / 0.16);
+  background: rgb(20 26 6 / 0.84);
+  backdrop-filter: blur(8px);
+  font: 600 11px/1 var(--mf-font-display);
+  color: rgb(246 239 235 / 0.82);
+}
+.farm-pill.is-on {
+  border-color: var(--sakura);
+  background: var(--sakura);
+  color: var(--foreground);
+}
+.farm-pill-name {
+  max-width: 112px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: 22px;
+  padding-right: 2px;
+}
+.farm-pill-act {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  opacity: 0.72;
+  transition: opacity 0.15s, background-color 0.15s;
+}
+.farm-pill-act:hover,
+.farm-pill-act:focus-visible {
+  opacity: 1;
+  background: rgb(246 239 235 / 0.14);
+}
+.farm-pill.is-on .farm-pill-act:hover,
+.farm-pill.is-on .farm-pill-act:focus-visible {
+  background: rgb(20 26 6 / 0.14);
+}
+.farm-pill-input {
+  width: 96px;
+  min-height: 22px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+.farm-save-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px dashed rgb(246 239 235 / 0.32);
+  background: rgb(20 26 6 / 0.72);
+  font: 600 11px/1 var(--mf-font-display);
+  color: rgb(246 239 235 / 0.86);
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+.farm-save-pill:hover {
+  border-color: var(--sakura);
+  color: var(--ink);
+  background: rgb(20 26 6 / 0.9);
+}
+.farm-pill-name:focus-visible,
+.farm-pill-act:focus-visible,
+.farm-save-pill:focus-visible {
+  outline: 2px solid #f6efeb;
+  outline-offset: 1px;
+}
 .vtx {
   display: grid;
   place-items: center;

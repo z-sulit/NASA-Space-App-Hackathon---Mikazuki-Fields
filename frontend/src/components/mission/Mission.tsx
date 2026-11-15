@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode, type Ref } from "react";
-import { ArrowLeft, CircleHelp, Crosshair, FileDown, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode, type Ref } from "react";
+import { ArrowLeft, BookmarkPlus, CircleHelp, Crosshair, FileDown, Info, Loader2, Lock, MapPin, PenLine, Pencil, RotateCcw, Sprout, Trash2, Undo2, Waves, X } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
 import { customPlan, scalePlanResult, scalePlansResponse } from "../../engine/plans";
@@ -12,19 +12,22 @@ import { CROP } from "../../data/crops";
 import { Emblem } from "../Emblem";
 import { CountUp, formatPhpUsd, formatPhpUsdInText, prefersReducedMotion, Switch, useScramble } from "../ui";
 import { TargetMap, type GibsOverlay, type LatLon, type TargetMapHandle } from "./TargetMap";
-import { HaInput, PickPlants, SeasonFlags, Seg, type Choice } from "./PickPlants";
-import { PlantField } from "./PlantField";
-import { ElNinoReport } from "./ElNinoReport";
-import { ElNinoAtmosphere } from "./ElNinoAtmosphere";
-import { SeasonTimeline } from "./SeasonTimeline";
+import { HaInput, SeasonFlags, Seg, type Choice } from "./FieldControls";
 import { PlaceSearch } from "./PlaceSearch";
 import { firstVisitStep, stepOnScreen, Tour, type TourTarget } from "./Tour";
 import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
 import { reverseGeocode, type Place } from "../../api/geocode";
 import { inTargetName, lockTargetName, shortTargetName } from "../../utils/locationName";
+import { deleteSavedFarm, loadSavedFarms, renameSavedFarm, saveFarmPlot, type SavedFarm } from "../../utils/savedFarms";
 import { telemetryStatus, type TelemetryBadge } from "../../utils/telemetryStatus";
 import { planSpan, planStartYear, seasonWindows } from "../../data/calendar";
 import type { FieldHandle } from "../../three/tileField";
+
+const PickPlants = lazy(() => import("./PickPlants").then((m) => ({ default: m.PickPlants })));
+const PlantField = lazy(() => import("./PlantField").then((m) => ({ default: m.PlantField })));
+const ElNinoReport = lazy(() => import("./ElNinoReport").then((m) => ({ default: m.ElNinoReport })));
+const ElNinoAtmosphere = lazy(() => import("./ElNinoAtmosphere").then((m) => ({ default: m.ElNinoAtmosphere })));
+const SeasonTimeline = lazy(() => import("./SeasonTimeline").then((m) => ({ default: m.SeasonTimeline })));
 
 /** Must match EXIT_MS in three/tileField.ts (kept here so the 3D chunk stays lazy). */
 const EXIT_MS = 600;
@@ -359,6 +362,11 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const statsPanel = usePanel({ minW: 320, minH: wide ? 240 : 120, mode: wide ? "float" : "sheet" });
   const targetTips = useHudTip();
   const condTips = useHudTip();
+  const [savedFarms, setSavedFarms] = useState<SavedFarm[]>(() => loadSavedFarms());
+  const [activeFarmId, setActiveFarmId] = useState<string | null>(null);
+  const [editingFarmId, setEditingFarmId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const skipBoundarySync = useRef(false);
 
   const planSeq = useRef(0);
   const plan = useCallback(async (r: PlanRequest, p: Preset) => {
@@ -413,6 +421,26 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     setStage((s) => (s === "intro" ? "leaving" : s));
   }, [loaded, onReady]);
 
+  useEffect(() => {
+    if (stage !== "target" || !mapReady) return;
+    let idleId = 0;
+    let timer = 0;
+    const warm = () => {
+      void import("./PlantField");
+      void import("../../three/plantScene");
+    };
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof w.requestIdleCallback === "function") {
+      idleId = w.requestIdleCallback(warm, { timeout: 2500 });
+      return () => w.cancelIdleCallback?.(idleId);
+    }
+    timer = window.setTimeout(warm, 800);
+    return () => window.clearTimeout(timer);
+  }, [stage, mapReady]);
+
   // Cockpit parallax: the far map and the near canopy shift opposite ways with the pointer.
   // Written straight to the two layers once per frame (cheap, compositor-only).
   useEffect(() => {
@@ -459,6 +487,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     ++tapSeq.current;
     revGeoAbort.current?.abort();
     resetBoundary();
+    setActiveFarmId(null);
     setHasPickedLocation(true);
     setPin(null);
     setMapNote(null);
@@ -476,6 +505,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     const seq = ++tapSeq.current;
     revGeoAbort.current?.abort();
     // A new tap supersedes any check or fetch still running for an older one.
+    setActiveFarmId(null);
     setMapNote(null);
     setTryAgain(null);
     setChecking(false);
@@ -531,6 +561,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     const outside = ring.find((p) => !inPhilippines(p.lat, p.lon));
     setTryAgain(null);
     if (outside) refuse(outside, "That's outside the Philippines.");
+    setActiveFarmId(null);
     setBoundary(outside ? [...boundary] : ring); // a fresh array redraws a corner dragged out of bounds where it was
   };
   const setDrawMode = (on: boolean) => {
@@ -547,11 +578,63 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const areaNote = areaHa === null ? null : areaHa < MIN_HA ? `Under ${MIN_HA} ha: check the corners. Planning uses ${MIN_HA} ha.` : areaHa > MAX_HA ? `Over ${MAX_HA.toLocaleString("en-PH")} ha: planning uses ${MAX_HA.toLocaleString("en-PH")} ha.` : null;
   // A closed outline targets its centre like a tap there (land check, live data) and sets the farm's size.
   useEffect(() => {
+    if (skipBoundarySync.current) {
+      skipBoundarySync.current = false;
+      return;
+    }
     if (areaHa === null) return;
     setHectares(Math.round(Math.min(MAX_HA, Math.max(MIN_HA, areaHa)) * 100) / 100);
     const t = setTimeout(() => void pickPoint(ringCentroid(boundary)), 600);
     return () => clearTimeout(t);
   }, [boundary]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveCurrentFarm = () => {
+    const { farms, saved } = saveFarmPlot({ target, req, boundary, scenario });
+    setSavedFarms(farms);
+    setActiveFarmId(saved.id);
+    setEditingFarmId(null);
+    setMapNote(`Saved ${saved.label}.`);
+  };
+  const loadSavedPlot = async (farm: SavedFarm) => {
+    ++tapSeq.current;
+    revGeoAbort.current?.abort();
+    setTryAgain(null);
+    setRejected(null);
+    setChecking(false);
+    setAcquiring(false);
+    setHoverId(null);
+    skipBoundarySync.current = farm.boundary.length >= 3;
+    setActiveFarmId(farm.id);
+    setHasPickedLocation(true);
+    setTarget(farm.target);
+    setPin(farm.target.id.startsWith("pin-") ? { lat: farm.target.lat, lon: farm.target.lon } : null);
+    setBoundary(farm.boundary.map((p) => ({ ...p })));
+    setDrawing(farm.boundary.length >= 3);
+    setReq(farm.req);
+    setScenario(farm.scenario);
+    setPinVia(null);
+    setMapNote(`Loaded ${farm.label}.`);
+    await Promise.all([
+      mapRef.current?.glideTo(farm.target.lat, farm.target.lon, farm.boundary.length >= 3 ? 16 : 12),
+      plan(farm.req, farm.target),
+    ]);
+  };
+  const startRenameFarm = (farm: SavedFarm) => {
+    setEditingFarmId(farm.id);
+    setEditLabel(farm.label);
+  };
+  const commitRenameFarm = () => {
+    if (!editingFarmId) return;
+    const next = renameSavedFarm(editingFarmId, editLabel);
+    setSavedFarms(next);
+    setEditingFarmId(null);
+  };
+  const removeSavedPlot = (id: string) => {
+    const next = deleteSavedFarm(id);
+    setSavedFarms(next);
+    if (activeFarmId === id) setActiveFarmId(null);
+    if (editingFarmId === id) setEditingFarmId(null);
+  };
   const drawStatus =
     mapZoom < 12
       ? "Step 1: Search or tap your farm's general location on the map to zoom in."
@@ -614,6 +697,8 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     const fromDeep = stage === "plants" || stage === "planting" || stage === "flying";
     setDrawing(false);
     setBaseChoice(null);
+    setActiveFarmId(null);
+    setEditingFarmId(null);
     resetBoundary();
     setHasPickedLocation(false);
     setTryAgain(null);
@@ -797,7 +882,9 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       </div>
 
       {/* El Niño atmosphere over the map (the 3D field adds its own dust and dry soil) */}
-      <ElNinoAtmosphere on={scenario === "elnino" && stage !== "intro" && stage !== "leaving"} />
+      <Suspense fallback={null}>
+        <ElNinoAtmosphere on={scenario === "elnino" && stage !== "intro" && stage !== "leaving"} />
+      </Suspense>
 
       {/* Step 01: tiles */}
       {tilesAlive && <TileField exiting={stage !== "intro"} onExited={tilesGone} />}
@@ -953,6 +1040,70 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                       )}
                     </p>
                   )}
+                  <div className="saved-farms" role="region" aria-label="My saved farms">
+                    {savedFarms.map((farm) => {
+                      const on = activeFarmId === farm.id;
+                      if (editingFarmId === farm.id) {
+                        return (
+                          <span key={farm.id} className={`farm-pill ${on ? "is-on" : ""}`}>
+                            <input
+                              type="text"
+                              value={editLabel}
+                              onChange={(e) => setEditLabel(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") commitRenameFarm();
+                                else if (e.key === "Escape") setEditingFarmId(null);
+                              }}
+                              onBlur={commitRenameFarm}
+                              aria-label="Rename farm"
+                              maxLength={32}
+                              autoFocus
+                              className="farm-pill-input"
+                            />
+                          </span>
+                        );
+                      }
+                      return (
+                        <span key={farm.id} className={`farm-pill ${on ? "is-on" : ""}`}>
+                          <button
+                            type="button"
+                            onClick={() => void loadSavedPlot(farm)}
+                            onDoubleClick={() => startRenameFarm(farm)}
+                            aria-pressed={on}
+                            title={`${farm.label} (${farm.req.landSizeHa} ha) · Click to load, double-click to rename`}
+                            className="farm-pill-name"
+                          >
+                            {farm.label}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startRenameFarm(farm);
+                            }}
+                            aria-label={`Rename ${farm.label}`}
+                            className="farm-pill-act"
+                          >
+                            <Pencil className="size-2.5" aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeSavedPlot(farm.id);
+                            }}
+                            aria-label={`Delete ${farm.label}`}
+                            className="farm-pill-act"
+                          >
+                            <X className="size-3" aria-hidden />
+                          </button>
+                        </span>
+                      );
+                    })}
+                    <button type="button" onClick={saveCurrentFarm} className="farm-save-pill">
+                      <BookmarkPlus className="size-3" aria-hidden /> Save farm
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -1079,37 +1230,57 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
 
       {/* Step 04 */}
       {stage === "plants" && scaledResult && (
-        <PickPlants
-          farmName={inTargetName(target)}
-          plans={scaledResult[scenario]}
-          custom={custom[scenario]}
-          choice={choice}
-          onChoice={setChoice}
-          customRotation={customRotation}
-          onCustomRotation={setCustomRotation}
-          req={req}
-          onReq={(patch) => setReq((r) => ({ ...r, ...patch }))}
-          scenario={scenario}
-          onScenario={setScenario}
-          notes={planNotes}
-          busy={busy}
-          onPlant={plant}
-          onBack={() => void backToMap()}
-        />
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-20 grid place-items-center bg-[#141a06]/80" role="status">
+              <span className="inline-flex items-center gap-2 rounded-full border border-ink/20 bg-[#1d240a]/95 px-4 py-2 text-xs text-ink">
+                <Loader2 className="size-4 animate-spin" aria-hidden /> Loading crop planner…
+              </span>
+            </div>
+          }
+        >
+          <PickPlants
+            farmName={inTargetName(target)}
+            plans={scaledResult[scenario]}
+            custom={custom[scenario]}
+            choice={choice}
+            onChoice={setChoice}
+            customRotation={customRotation}
+            onCustomRotation={setCustomRotation}
+            req={req}
+            onReq={(patch) => setReq((r) => ({ ...r, ...patch }))}
+            scenario={scenario}
+            onScenario={setScenario}
+            notes={planNotes}
+            busy={busy}
+            onPlant={plant}
+            onBack={() => void backToMap()}
+          />
+        </Suspense>
       )}
 
       {/* Step 05 */}
       {stage === "planting" && chosen && (
         <div className="absolute inset-0 z-20 flex flex-col lg:flex-row">
           <div className="relative min-h-0 flex-1">
-            <PlantField
-              plots={plots}
-              plantKey={`${choice}-${chosen.now.rotation.join("-")}`}
-              onSeason={onSeason}
-              drought={scenario === "elnino"}
-              focus={season >= 6 ? focusSeason : null}
-              polygon={boundary.length >= 3 ? boundary : undefined}
-            />
+            <Suspense
+              fallback={
+                <div className="grid h-full place-items-center bg-[#0d1104] text-sm text-ink/75" role="status">
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin" aria-hidden /> Preparing 3D field…
+                  </span>
+                </div>
+              }
+            >
+              <PlantField
+                plots={plots}
+                plantKey={`${choice}-${chosen.now.rotation.join("-")}`}
+                onSeason={onSeason}
+                drought={scenario === "elnino"}
+                focus={season >= 6 ? focusSeason : null}
+                polygon={boundary.length >= 3 ? boundary : undefined}
+              />
+            </Suspense>
             <div className="pointer-events-none absolute top-20 left-4 z-10 sm:left-8">
               <h2 className="font-display text-[clamp(24px,3.2vw,40px)] leading-tight font-normal tracking-[-0.02em]">
                 {chosen.now.custom ? "Your rotation" : `Route ${chosen.now.id}`} in {inTargetName(target)}
@@ -1125,16 +1296,18 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               </p>
             </div>
             {season >= 6 && (
-              <SeasonTimeline
-                windows={windows}
-                seasons={chosen.now.seasons}
-                focus={focusSeason}
-                onFocus={setFocusSeason}
-                playing={playing}
-                onPlaying={setPlaying}
-                rainFor={(i) => climate(target, windows[i].kind, scenario).rain_mm}
-                tmaxFor={(i) => climate(target, windows[i].kind, scenario).tmax_c}
-              />
+              <Suspense fallback={null}>
+                <SeasonTimeline
+                  windows={windows}
+                  seasons={chosen.now.seasons}
+                  focus={focusSeason}
+                  onFocus={setFocusSeason}
+                  playing={playing}
+                  onPlaying={setPlaying}
+                  rainFor={(i) => climate(target, windows[i].kind, scenario).rain_mm}
+                  tmaxFor={(i) => climate(target, windows[i].kind, scenario).tmax_c}
+                />
+              </Suspense>
             )}
           </div>
 
@@ -1310,7 +1483,11 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
               </span>
               <Switch checked={scenario === "elnino"} onChange={(on) => setScenario(on ? "elnino" : "normal")} label="Replay the 2015–16 El Niño" />
             </label>
-            {scenario === "elnino" && <ElNinoReport req={req} preset={target} now={chosen.now} normal={chosen.normal} />}
+            {scenario === "elnino" && (
+              <Suspense fallback={<p className="mt-2 text-xs text-ink/70" role="status">Loading El Niño analysis…</p>}>
+                <ElNinoReport req={req} preset={target} now={chosen.now} normal={chosen.normal} />
+              </Suspense>
+            )}
             <ul className="mt-5 list-disc space-y-1 pl-4 text-sm text-ink/80">
               {chosenWhy.slice(0, 2).map((w) => (
                 <li key={w}>{w}</li>
