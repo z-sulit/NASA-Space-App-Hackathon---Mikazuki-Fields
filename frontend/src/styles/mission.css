@@ -826,6 +826,10 @@
   background: #2a3411;
   cursor: crosshair;
 }
+/* Crosshair places a point; a closed hand shows the map is being dragged instead (#39). */
+.leaflet-dragging .hud-map.leaflet-container {
+  cursor: grabbing;
+}
 /* Olive "night-vision" tint on the real map tiles. */
 .hud-map .leaflet-tile-pane {
   filter: grayscale(1) sepia(0.55) hue-rotate(35deg) saturate(1.5) brightness(0.62) contrast(1.15);
