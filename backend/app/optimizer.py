@@ -181,7 +181,9 @@ def optimize_plans(req: PlanRequest, farm: FarmContext) -> PlanResponse:
         ws = req.sliders.soil / w_sum
         we = req.sliders.economy / w_sum
 
-    score_b = ww * w_norm + ws * s_norm + we * e_norm
+    score_b_norm = ww * w_norm + ws * s_norm + we * e_norm
+    score_b_eln = ww * w_eln + ws * s_eln + we * e_eln
+    score_b = 0.85 * score_b_norm + 0.15 * score_b_eln
     mask_b = mask_norm & (~THREE_SAME_FAM_ROW)
     if not np.any(mask_b):
         mask_b = mask_norm
