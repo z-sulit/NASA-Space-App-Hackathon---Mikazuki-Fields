@@ -429,7 +429,7 @@
   .hud-title {
     position: absolute;
     z-index: 24;
-    top: calc(2.5% + 96px);
+    top: calc(2.5% + 66px);
     left: 0;
     right: 0;
     margin-inline: auto;
@@ -477,7 +477,7 @@
     box-shadow: 0 24px 60px rgb(0 0 0 / 0.4);
     display: flex;
     flex-direction: column;
-    max-height: calc(100svh - 112px);
+    max-height: calc(100svh - 136px);
     pointer-events: auto;
   }
   .hud-panel-left {
@@ -527,7 +527,7 @@
       position: absolute;
       left: 12px;
       right: 12px;
-      bottom: 98px;
+      bottom: 108px;
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -544,7 +544,7 @@
       padding: 8px 12px 10px;
       transform: none;
       animation: fade-up 0.25s var(--mf-ease) 0.05s both;
-      max-height: 29svh;
+      max-height: 27svh;
     }
     .hud-panel-right dl {
       display: none;
@@ -1391,7 +1391,8 @@
 
 /* Walkthrough (#30): a ring around one part of the screen, and the card that explains it */
 .guide-btn {
-  background: rgb(20 26 6 / 0.72);
+  background: rgb(20 26 6 / 0.78);
+  backdrop-filter: blur(8px);
 }
 .tour-spot {
   position: fixed;
@@ -1478,18 +1479,18 @@
   gap: 2px;
   padding: 2px;
   border-radius: 999px;
-  border: 1px solid rgb(246 239 235 / 0.16);
+  border: 1px solid rgb(246 239 235 / 0.2);
   background: rgb(20 26 6 / 0.84);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
 }
 .layer-pill {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 26px;
-  padding: 0 9px;
+  min-height: 36px;
+  padding: 8px 16px;
   border-radius: 999px;
-  font: 600 11px/1 var(--mf-font-display);
+  font: 600 14px/1 var(--mf-font-display);
   color: rgb(246 239 235 / 0.72);
   transition:
     background-color 0.15s var(--mf-ease),
@@ -1531,71 +1532,6 @@
 }
 .layer-swatch.is-rain {
   background: linear-gradient(90deg, #3b82f6 0%, #22d3ee 45%, #facc15 75%, #ef4444 100%);
-}
-/* Saved farms multi-plot pill bar in step 02 (#64) */
-.saved-farms {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  pointer-events: auto;
-}
-.farm-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 4px 2px 9px;
-  border-radius: 999px;
-  border: 1px solid rgb(246 239 235 / 0.16);
-  background: rgb(20 26 6 / 0.84);
-  backdrop-filter: blur(8px);
-  font: 600 11px/1 var(--mf-font-display);
-  color: rgb(246 239 235 / 0.82);
-}
-.farm-pill.is-on {
-  border-color: var(--sakura);
-  background: var(--sakura);
-  color: var(--foreground);
-}
-.farm-pill-name {
-  max-width: 112px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-height: 22px;
-  padding-right: 2px;
-}
-.farm-pill-act {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  opacity: 0.72;
-  transition: opacity 0.15s, background-color 0.15s;
-}
-.farm-pill-act:hover,
-.farm-pill-act:focus-visible {
-  opacity: 1;
-  background: rgb(246 239 235 / 0.14);
-}
-.farm-pill.is-on .farm-pill-act:hover,
-.farm-pill.is-on .farm-pill-act:focus-visible {
-  background: rgb(20 26 6 / 0.14);
-}
-.farm-pill-input {
-  width: 96px;
-  min-height: 22px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  outline: none;
-}
-.farm-pill-name:focus-visible,
-.farm-pill-act:focus-visible {
-  outline: 2px solid #f6efeb;
-  outline-offset: 1px;
 }
 .vtx {
   display: grid;
@@ -1768,7 +1704,7 @@
 @media (max-width: 639px) {
   /* Phones: tighter cockpit title below top bar so the map keeps the middle of the screen. */
   .hud-title {
-    top: calc(2.5% + 86px);
+    top: calc(2.5% + 64px);
     padding: 8px 12px 10px;
   }
   .heading-tape {

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fitPolygonToField, pointInPolygon, ringAreaHa, ringCentroid } from "./geo.ts";
+import { distanceKm, fitPolygonToField, pointInPolygon, ringAreaHa, ringCentroid } from "./geo.ts";
 
 // A square of `m` metres a side with its south-west corner at (lat, lon).
 const square = (lat: number, lon: number, m: number) => {
@@ -100,4 +100,15 @@ test("fitPolygonToField centres at (0,0), scales uniformly inside bounds, and re
     ),
     null,
   );
+});
+
+test("distanceKm computes accurate Haversine distance", () => {
+  const a = { lat: 14.5995, lon: 120.9842 };
+  assert.equal(distanceKm(a, a), 0);
+  // 1 degree latitude ~ 111.195 km
+  const north = distanceKm({ lat: 8, lon: 125 }, { lat: 9, lon: 125 });
+  assert.ok(Math.abs(north - 111.195) < 0.1);
+  // ~5 km check (~0.045 deg latitude)
+  const near = distanceKm({ lat: 8, lon: 125 }, { lat: 8.045, lon: 125 });
+  assert.ok(near > 4.9 && near < 5.1);
 });
