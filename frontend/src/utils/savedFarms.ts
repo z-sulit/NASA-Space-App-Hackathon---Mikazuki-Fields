@@ -119,6 +119,29 @@ export function saveFarmPlot(
   return { farms, saved };
 }
 
+export function updateSavedFarm(
+  id: string,
+  input: Omit<SavedFarm, "id" | "label"> & { label?: string },
+  storage?: StorageLike | null,
+): { farms: SavedFarm[]; saved: SavedFarm | null } {
+  const existing = loadSavedFarms(storage);
+  const current = existing.find((f) => f.id === id);
+  if (!current) return { farms: existing, saved: null };
+  const saved: SavedFarm = {
+    id,
+    label: input.label?.trim() || current.label,
+    target: input.target,
+    req: { ...input.req, weights: { ...input.req.weights }, overrides: { ...input.req.overrides } },
+    boundary: input.boundary.map((p) => ({ lat: p.lat, lon: p.lon })),
+    scenario: input.scenario === "elnino" ? "elnino" : "normal",
+  };
+  const farms = writeSavedFarms(
+    existing.map((f) => (f.id === id ? saved : f)),
+    storage,
+  );
+  return { farms, saved };
+}
+
 export function renameSavedFarm(id: string, label: string, storage?: StorageLike | null): SavedFarm[] {
   const clean = label.trim();
   const existing = loadSavedFarms(storage);
