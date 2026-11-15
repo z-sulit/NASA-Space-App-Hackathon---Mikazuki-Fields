@@ -1,6 +1,27 @@
 type Box = { left: number; top: number; right: number; bottom: number; width: number };
 export type RectBox = Box & { height: number };
 
+export type TourTarget = "locate" | "refs" | "telemetry" | "layers" | "lock" | "settings" | "routes" | "timeline" | "report";
+
+export const TOUR_ORDER: readonly TourTarget[] = [
+  "locate",
+  "refs",
+  "telemetry",
+  "layers",
+  "lock",
+  "settings",
+  "routes",
+  "timeline",
+  "report",
+];
+
+/** Advances an active tour to the first step of `stage` if still on an earlier screen's step. */
+export function advanceTourForStage(step: number | null, stage: "plants" | "planting"): number | null {
+  if (step === null) return null;
+  const entryIdx = TOUR_ORDER.indexOf(stage === "plants" ? "settings" : "routes");
+  return step < entryIdx ? entryIdx : step;
+}
+
 const GAP = 12;
 
 /** Bounding union across visible reference-site marker nodes inside the viewport. */
