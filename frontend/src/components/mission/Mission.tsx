@@ -15,6 +15,7 @@ import { TargetMap, type GibsOverlay, type LatLon, type TargetMapHandle } from "
 import { HaInput, SeasonFlags, Seg, type Choice } from "./FieldControls";
 import { PlaceSearch } from "./PlaceSearch";
 import { firstVisitStep, stepOnScreen, Tour, type TourTarget } from "./Tour";
+import { advanceTourForStage } from "../../utils/tour";
 import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
 import { reverseGeocode, type Place } from "../../api/geocode";
 import { hasResolvedPinName, inTargetName, lockTargetName, shortTargetName } from "../../utils/locationName";
@@ -732,7 +733,10 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     if (navSeq.current !== seq) return;
     setStage("flying");
     await Promise.all([mapRef.current?.flyTo(p.lat, p.lon), planning]);
-    if (navSeq.current === seq) setStage("plants");
+    if (navSeq.current === seq) {
+      setStage("plants");
+      setTour((t) => advanceTourForStage(t, "plants"));
+    }
   };
   const applyBackToMap = async () => {
     const seq = ++navSeq.current;
@@ -844,6 +848,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     setFocusSeason(null);
     setPlaying(false);
     setStage("planting");
+    setTour((t) => advanceTourForStage(t, "planting"));
   };
 
   // Keyboard: Esc goes back a step, Enter does the screen's main action, 1–4 pick a route,
@@ -1306,7 +1311,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                 </p>
               )}
               <div className="map-layers">
-                <div className="layer-group" role="group" aria-label="NASA GIBS overlay">
+                <div className="layer-group" role="group" aria-label="NASA GIBS overlay" data-tour="layers">
                   {([
                     ["none", "None"],
                     ["ndvi", "NDVI"],
