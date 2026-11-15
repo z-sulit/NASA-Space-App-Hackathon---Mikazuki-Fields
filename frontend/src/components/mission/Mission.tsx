@@ -12,7 +12,7 @@ import { CROP } from "../../data/crops";
 import { Emblem } from "../Emblem";
 import { CountUp, formatPhpUsd, formatPhpUsdInText, prefersReducedMotion, Switch, useScramble } from "../ui";
 import { TargetMap, type LatLon, type TargetMapHandle } from "./TargetMap";
-import { PickPlants, SeasonFlags, type Choice } from "./PickPlants";
+import { HaInput, PickPlants, SeasonFlags, Seg, type Choice } from "./PickPlants";
 import { PlantField } from "./PlantField";
 import { ElNinoReport } from "./ElNinoReport";
 import { ElNinoAtmosphere } from "./ElNinoAtmosphere";
@@ -595,7 +595,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     }
   };
 
-  // Farm-settings changes re-plan (debounced) while picking plants; landSizeHa scales instantaneously.
+  // Farm-settings changes re-plan (debounced) while picking plants or looking at the field; landSizeHa scales instantaneously.
   const firstReq = useRef(true);
   const planSig = JSON.stringify({ ...req, landSizeHa: 1 });
   useEffect(() => {
@@ -603,7 +603,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       firstReq.current = false;
       return;
     }
-    if (stage !== "plants") return;
+    if (stage !== "plants" && stage !== "planting") return;
     setBusy(true); // instant feedback; the plan itself follows the debounce
     const t = setTimeout(() => void plan(req, target), 350);
     return () => clearTimeout(t);
@@ -1184,7 +1184,22 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                 </div>
               ))}
             </dl>
-            <label className="mt-5 flex items-center justify-between gap-3 rounded-md border border-ink/15 px-3 py-2">
+            {/* The two inputs that change the numbers most, adjustable in place (#15); the rest stay in step 04. */}
+            <div className="mt-5 grid grid-cols-2 items-end gap-2">
+              <div>
+                <label htmlFor="field-land-size" className="text-xs font-medium text-ink/70">
+                  Land size
+                </label>
+                <div className="mt-1 flex min-h-10 items-center">
+                  <HaInput id="field-land-size" value={landHa} onChange={(landSizeHa) => setReq((r) => ({ ...r, landSizeHa }))} />
+                </div>
+              </div>
+              <Seg label="Water" value={req.irrigation} options={[["rainfed", "Rain only"], ["irrigated", "Irrigated"]]} onChange={(irrigation) => setReq((r) => ({ ...r, irrigation }))} />
+            </div>
+            <p className="mt-1 min-h-4 text-xs text-ink/70" aria-live="polite">
+              {busy ? "Re-planning with your settings…" : ""}
+            </p>
+            <label className="mt-3 flex items-center justify-between gap-3 rounded-md border border-ink/15 px-3 py-2">
               <span>
                 <span className="block text-sm font-semibold">El Niño (2015–16)</span>
                 <span className="block text-xs text-ink/70">Replays the real El Niño months; crops it hurts wilt</span>
