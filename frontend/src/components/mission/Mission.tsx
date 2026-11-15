@@ -17,8 +17,8 @@ import { PlaceSearch } from "./PlaceSearch";
 import { firstVisitStep, stepOnScreen, Tour, type TourTarget } from "./Tour";
 import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
 import { reverseGeocode, type Place } from "../../api/geocode";
-import { inTargetName, lockTargetName, shortTargetName } from "../../utils/locationName";
-import { deleteSavedFarm, loadSavedFarms, saveFarmPlot, updateSavedFarm, type SavedFarm } from "../../utils/savedFarms";
+import { hasResolvedPinName, inTargetName, lockTargetName, shortTargetName } from "../../utils/locationName";
+import { deleteSavedFarm, isFarmDirty, loadSavedFarms, nextFarmLabel, saveFarmPlot, updateSavedFarm, type SavedFarm } from "../../utils/savedFarms";
 import { telemetryStatus, type TelemetryBadge } from "../../utils/telemetryStatus";
 import { planSpan, planStartYear, seasonWindows } from "../../data/calendar";
 import type { FieldHandle } from "../../three/tileField";
@@ -365,7 +365,25 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const [savedFarms, setSavedFarms] = useState<SavedFarm[]>(() => loadSavedFarms());
   const [activeFarmId, setActiveFarmId] = useState<string | null>(null);
   const [farmNameInput, setFarmNameInput] = useState("");
+  const [dirtyFarm, setDirtyFarm] = useState(false);
+  const [unsavedModal, setUnsavedModal] = useState<{ name: string; run: () => void | Promise<void> } | null>(null);
   const skipBoundarySync = useRef(false);
+  const patchReq = useCallback((patch: Partial<PlanRequest>) => {
+    setDirtyFarm(true);
+    setReq((r) => ({ ...r, ...patch }));
+  }, []);
+  const changeScenario = useCallback((next: Scenario | ((cur: Scenario) => Scenario)) => {
+    setDirtyFarm(true);
+    setScenario(next);
+  }, []);
+  const activeSaved = useMemo(
+    () => (activeFarmId ? savedFarms.find((f) => f.id === activeFarmId) ?? null : null),
+    [savedFarms, activeFarmId],
+  );
+  const hasUnsavedFarm = useMemo(
+    () => isFarmDirty({ target, req, boundary, scenario, label: farmNameInput }, activeSaved, dirtyFarm),
+    [target, req, boundary, scenario, farmNameInput, activeSaved, dirtyFarm],
+  );
 
   const planSeq = useRef(0);
   const plan = useCallback(async (r: PlanRequest, p: Preset) => {
@@ -468,8 +486,8 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   // Tiles have faded out: hand over to the cockpit, and free the tile scene's GPU
   // context only once the cockpit has settled (tearing it down mid-move stalls frames).
   const tilesGone = useCallback(() => {
+    setTilesAlive(false);
     setStage((s) => (s === "leaving" ? "target" : s));
-    setTimeout(() => setTilesAlive(false), 1500);
   }, []);
 
   const hovered = hoverId ? presets.find((p) => p.id === hoverId)! : null;
@@ -481,33 +499,37 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   const sampleTag = (p: Preset, key: string, measured: string) =>
     !p.placeholders.includes(key) ? measured : p.id.startsWith("pin-") ? "nearest ref" : "sample";
 
-  const pickPreset = (id: string) => {
+  const applyPickPreset = (id: string, focusOnMap = false) => {
     const next = presets.find((p) => p.id === id)!;
     ++tapSeq.current;
     revGeoAbort.current?.abort();
     resetBoundary();
     setActiveFarmId(null);
     setFarmNameInput("");
+    setDirtyFarm(false);
     setHasPickedLocation(true);
     setPin(null);
     setMapNote(null);
     setPinVia(null);
     setTarget(next);
-    if (drawing) void mapRef.current?.glideTo(next.lat, next.lon, 16);
+    if (drawing || focusOnMap) void mapRef.current?.glideTo(next.lat, next.lon, drawing ? 16 : 8.5);
   };
   const refuse = (p: LatLon, text: string) => {
     const key = Date.now();
     setRejected({ ...p, key });
     setTryAgain({ text, key });
   };
-  const pickPoint = async (tap: LatLon, place?: string, keepBoundary = false) => {
+  const applyPickPoint = async (tap: LatLon, place?: string, keepBoundary = false) => {
     let p = tap;
     const seq = ++tapSeq.current;
     revGeoAbort.current?.abort();
     // A new tap supersedes any check or fetch still running for an older one.
-    setActiveFarmId(null);
-    setFarmNameInput("");
-    if (!keepBoundary) resetBoundary();
+    if (!keepBoundary) {
+      setActiveFarmId(null);
+      setFarmNameInput("");
+      resetBoundary();
+      setDirtyFarm(true);
+    }
     setMapNote(null);
     setTryAgain(null);
     setChecking(false);
@@ -574,14 +596,16 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       setBoundary([...boundary]);
       return;
     }
-    setActiveFarmId(null);
-    setFarmNameInput("");
     setBoundary(ring);
   };
-  const setDrawMode = (on: boolean) => {
+  const applyDrawMode = (on: boolean) => {
     setDrawing(on);
     resetBoundary();
     if (!on) return;
+    setPin(null);
+    setActiveFarmId(null);
+    setFarmNameInput("");
+    setDirtyFarm(false);
     // Zoom to field level only if the user already picked a location or zoomed in manually.
     const zoom = mapRef.current?.getZoom() ?? mapZoom;
     if (hasPickedLocation || zoom >= 14) void mapRef.current?.glideTo(target.lat, target.lon, 16);
@@ -596,28 +620,34 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     }
     if (areaHa === null) return;
     setHectares(Math.round(Math.min(MAX_HA, Math.max(MIN_HA, areaHa)) * 100) / 100);
-    const t = setTimeout(() => void pickPoint(ringCentroid(boundary), undefined, true), 600);
+    const t = setTimeout(() => void applyPickPoint(ringCentroid(boundary), undefined, true), 600);
     return () => clearTimeout(t);
   }, [boundary]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const saveCurrentFarm = () => {
-    const label = farmNameInput.trim() || undefined;
+  const savePlotRecord = (overrideLabel?: string) => {
+    const label = (overrideLabel ?? farmNameInput).trim() || undefined;
     if (activeFarmId) {
       const updated = updateSavedFarm(activeFarmId, { label, target, req, boundary, scenario });
       if (updated.saved) {
         setSavedFarms(updated.farms);
         setFarmNameInput(updated.saved.label);
+        setDirtyFarm(false);
         setMapNote(`Saved ${updated.saved.label}.`);
-        return;
+        return updated.saved;
       }
     }
     const { farms, saved } = saveFarmPlot({ label, target, req, boundary, scenario });
     setSavedFarms(farms);
     setActiveFarmId(saved.id);
     setFarmNameInput(saved.label);
+    setDirtyFarm(false);
     setMapNote(`Saved ${saved.label}.`);
+    return saved;
   };
-  const loadSavedPlot = async (farm: SavedFarm) => {
+  const saveCurrentFarm = () => {
+    savePlotRecord();
+  };
+  const applyLoadSavedPlot = async (farm: SavedFarm) => {
     ++tapSeq.current;
     revGeoAbort.current?.abort();
     setTryAgain(null);
@@ -628,6 +658,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     skipBoundarySync.current = farm.boundary.length >= 3;
     setActiveFarmId(farm.id);
     setFarmNameInput(farm.label);
+    setDirtyFarm(false);
     setHasPickedLocation(true);
     setTarget(farm.target);
     setPin(farm.target.id.startsWith("pin-") ? { lat: farm.target.lat, lon: farm.target.lon } : null);
@@ -648,6 +679,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     if (activeFarmId === id) {
       setActiveFarmId(null);
       setFarmNameInput("");
+      setDirtyFarm(false);
     }
   };
   const drawStatus =
@@ -680,11 +712,11 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
           : null;
 
   /** A search result: glide over, then target it exactly like a tap. */
-  const pickPlace = async (pl: Place) => {
+  const applyPickPlace = async (pl: Place) => {
     resetBoundary(); // a new place is a new farm
     setHasPickedLocation(true);
     await mapRef.current?.glideTo(pl.lat, pl.lon, drawing ? 16 : undefined);
-    await pickPoint({ lat: pl.lat, lon: pl.lon }, pl.context ? `${pl.name}, ${pl.context}` : pl.name);
+    await applyPickPoint({ lat: pl.lat, lon: pl.lon }, pl.context ? `${pl.name}, ${pl.context}` : pl.name);
   };
 
   const navSeq = useRef(0);
@@ -701,36 +733,95 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     await Promise.all([mapRef.current?.flyTo(p.lat, p.lon), planning]);
     if (navSeq.current === seq) setStage("plants");
   };
-  const backToMap = async () => {
+  const applyBackToMap = async () => {
     const seq = ++navSeq.current;
     resetBoundary();
     setDrawing(false);
+    setPin(null);
     setHasPickedLocation(false);
     setActiveFarmId(null);
     setFarmNameInput("");
+    setDirtyFarm(false);
     setStage("rising");
     await mapRef.current?.reset();
     if (navSeq.current === seq) setStage("target");
   };
-  const returnHome = async () => {
+  const applyReturnHome = async () => {
     if (stage === "intro" || stage === "leaving") return;
     const fromDeep = stage === "plants" || stage === "planting" || stage === "flying";
     setDrawing(false);
+    setPin(null);
     setActiveFarmId(null);
     setFarmNameInput("");
+    setDirtyFarm(false);
     resetBoundary();
     setHasPickedLocation(false);
     setTryAgain(null);
     setRejected(null);
     setMapNote(null);
     if (fromDeep) {
-      await backToMap();
+      await applyBackToMap();
     } else {
       const seq = ++navSeq.current;
       setStage("target");
       await mapRef.current?.reset();
       if (navSeq.current === seq) setStage("target");
     }
+  };
+
+  const defaultModalFarmName = () =>
+    farmNameInput.trim() ||
+    (!target.id.startsWith("pin-")
+      ? shortTargetName(target)
+      : hasResolvedPinName(target)
+        ? lockTargetName(target)
+        : nextFarmLabel(savedFarms));
+  const guardUnsaved = (action: () => void | Promise<void>) => {
+    if (!hasUnsavedFarm) {
+      void action();
+      return;
+    }
+    setUnsavedModal({ name: defaultModalFarmName(), run: action });
+  };
+  const pickPreset = (id: string, focusOnMap = false) => guardUnsaved(() => applyPickPreset(id, focusOnMap));
+  const pickPoint = (tap: LatLon) =>
+    !inPhilippines(tap.lat, tap.lon)
+      ? refuse(tap, "That's outside the Philippines.")
+      : guardUnsaved(() => applyPickPoint(tap));
+  const pickPlace = (pl: Place) => guardUnsaved(() => applyPickPlace(pl));
+  const setDrawMode = (on: boolean) => {
+    if (on === drawing) return;
+    guardUnsaved(() => applyDrawMode(on));
+  };
+  const loadSavedPlot = (farm: SavedFarm) => {
+    if (farm.id === activeFarmId && !hasUnsavedFarm) {
+      void applyLoadSavedPlot(farm);
+      return;
+    }
+    guardUnsaved(() => applyLoadSavedPlot(farm));
+  };
+  const backToMap = () => guardUnsaved(() => applyBackToMap());
+  const returnHome = () => {
+    if (stage === "intro" || stage === "leaving") return;
+    guardUnsaved(() => applyReturnHome());
+  };
+  const closeUnsavedModal = () => setUnsavedModal(null);
+  const confirmSaveAndSwitch = () => {
+    if (!unsavedModal) return;
+    const pending = unsavedModal;
+    savePlotRecord(pending.name);
+    resetBoundary();
+    setDirtyFarm(false);
+    setUnsavedModal(null);
+    void pending.run();
+  };
+  const confirmDiscardAndSwitch = () => {
+    if (!unsavedModal) return;
+    const pending = unsavedModal;
+    resetBoundary();
+    setDirtyFarm(false);
+    setUnsavedModal(null);
+    void pending.run();
   };
 
   // Farm-settings changes re-plan (debounced) while picking plants or looking at the field; landSizeHa scales instantaneously.
@@ -756,19 +847,24 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
 
   // Keyboard: Esc goes back a step, Enter does the screen's main action, 1–4 pick a route,
   // E toggles El Niño. Ignored while typing in a field.
-  const keys = useRef({ stage, lockOn: () => {}, backToMap: () => {}, plant: () => {}, busy });
+  const keys = useRef({ stage, lockOn: () => {}, backToMap: () => {}, plant: () => {}, busy, modalOpen: false });
   keys.current = {
     stage,
     lockOn: () => void lockOn(),
     backToMap: () => void backToMap(),
     plant,
     busy,
+    modalOpen: unsavedModal !== null,
   };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const k = keys.current;
+      if (k.modalOpen) {
+        if (e.key === "Escape") setUnsavedModal(null);
+        return;
+      }
       const el = e.target as HTMLElement;
       if (e.metaKey || e.ctrlKey || e.altKey || el.closest("input, textarea, select, [contenteditable=true]")) return;
-      const k = keys.current;
       const onControl = !!el.closest("button, a, summary, [role=radio], [role=switch]");
       if (e.key === "Escape") {
         if (k.stage === "plants") k.backToMap();
@@ -779,7 +875,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       } else if ((k.stage === "plants" || k.stage === "planting") && ["1", "2", "3", "4"].includes(e.key)) {
         setChoice((["A", "B", "C", "custom"] as Choice[])[Number(e.key) - 1]);
       } else if ((e.key === "e" || e.key === "E") && ["target", "plants", "planting"].includes(k.stage)) {
-        setScenario((s) => (s === "elnino" ? "normal" : "elnino"));
+        changeScenario((s) => (s === "elnino" ? "normal" : "elnino"));
       }
     };
     window.addEventListener("keydown", onKey);
@@ -828,10 +924,13 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
     return chosen.now.why.map(formatPhpUsdInText);
   }, [chosen]);
 
+  const activeFarmLabel = farmNameInput.trim() || activeSaved?.label || undefined;
+
   const downloadPdfReport = async () => {
     if (!chosen) return;
     const { downloadFieldReportPdf } = await import("../../utils/pdfReport");
     await downloadFieldReportPdf({
+      farmName: activeFarmLabel,
       target,
       req,
       scenario,
@@ -849,20 +948,17 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
   };
 
   const advanceTour = (nextTarget: TourTarget): boolean => {
-    if (nextTarget === "settings" && stage === "target" && !acquiring && !checking) {
-      void lockOn();
-      return true;
-    }
-    if (nextTarget === "routes" && stage === "plants" && !busy) {
-      plant();
-      return true;
-    }
     if (nextTarget === "report" && stage === "planting" && statsPanel.collapsed) {
       statsPanel.toggle();
       return true;
     }
     return false;
   };
+
+  const unsavedLocationLabel =
+    !target.id.startsWith("pin-") || hasResolvedPinName(target)
+      ? target.name
+      : `${Math.abs(target.lat).toFixed(4)}° ${target.lat >= 0 ? "N" : "S"}, ${Math.abs(target.lon).toFixed(4)}° ${target.lon >= 0 ? "E" : "W"}`;
 
   return (
     <section
@@ -884,7 +980,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             gibsOverlay={gibsOverlay}
             onHover={setHoverId}
             onPickPreset={pickPreset}
-            onPickPoint={(p) => void pickPoint(p)}
+            onPickPoint={pickPoint}
             boundary={boundary}
             drawing={drawing && stage === "target"}
             onBoundary={drawBoundary}
@@ -1091,7 +1187,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                     : "Dry spell: −25% rain, +1.5 °C"}
                 </span>
               </span>
-              <Switch checked={scenario === "elnino"} onChange={(on) => setScenario(on ? "elnino" : "normal")} label="Simulate El Niño or dry spell" />
+              <Switch checked={scenario === "elnino"} onChange={(on) => changeScenario(on ? "elnino" : "normal")} label="Simulate El Niño or dry spell" />
             </label>
             <dl className="mt-2">
               <Readout live={hudLive} label={`Altitude (${altitude?.from ?? "SRTM"})`} value={altitude ? `${Math.round(altitude.m)} M` : "No record"} tip={TIP.altitude} tips={condTips} />
@@ -1122,7 +1218,10 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                 <input
                   type="text"
                   value={farmNameInput}
-                  onChange={(e) => setFarmNameInput(e.target.value)}
+                  onChange={(e) => {
+                    setDirtyFarm(true);
+                    setFarmNameInput(e.target.value);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") saveCurrentFarm();
                   }}
@@ -1262,9 +1361,9 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
             customRotation={customRotation}
             onCustomRotation={setCustomRotation}
             req={req}
-            onReq={(patch) => setReq((r) => ({ ...r, ...patch }))}
+            onReq={patchReq}
             scenario={scenario}
-            onScenario={setScenario}
+            onScenario={changeScenario}
             notes={planNotes}
             busy={busy}
             onPlant={plant}
@@ -1482,10 +1581,10 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                   Land size
                 </label>
                 <div className="mt-1 flex min-h-10 items-center">
-                  <HaInput id="field-land-size" value={landHa} onChange={(landSizeHa) => setReq((r) => ({ ...r, landSizeHa }))} />
+                  <HaInput id="field-land-size" value={landHa} onChange={(landSizeHa) => patchReq({ landSizeHa })} />
                 </div>
               </div>
-              <Seg label="Water" value={req.irrigation} options={[["rainfed", "Rain only"], ["irrigated", "Irrigated"]]} onChange={(irrigation) => setReq((r) => ({ ...r, irrigation }))} />
+              <Seg label="Water" value={req.irrigation} options={[["rainfed", "Rain only"], ["irrigated", "Irrigated"]]} onChange={(irrigation) => patchReq({ irrigation })} />
             </div>
             <p className="mt-1 min-h-4 text-xs text-ink/70" aria-live="polite">
               {busy ? "Re-planning with your settings…" : ""}
@@ -1495,7 +1594,7 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
                 <span className="block text-sm font-semibold">El Niño (2015–16)</span>
                 <span className="block text-xs text-ink/70">Replays the real El Niño months; crops it hurts wilt</span>
               </span>
-              <Switch checked={scenario === "elnino"} onChange={(on) => setScenario(on ? "elnino" : "normal")} label="Replay the 2015–16 El Niño" />
+              <Switch checked={scenario === "elnino"} onChange={(on) => changeScenario(on ? "elnino" : "normal")} label="Replay the 2015–16 El Niño" />
             </label>
             {scenario === "elnino" && (
               <Suspense fallback={<p className="mt-2 text-xs text-ink/70" role="status">Loading El Niño analysis…</p>}>
@@ -1547,7 +1646,67 @@ export function Mission({ presets: bundled, onReady }: { presets: Preset[]; onRe
       </ol>
 
       {/* The cockpit HUD is in the DOM, invisible, while the tiles leave: no coach marks until it shows. */}
-      <Tour step={stage === "intro" || stage === "leaving" ? null : tour} onStep={setTour} onAdvance={advanceTour} />
+      <Tour
+        step={stage === "intro" || stage === "leaving" ? null : tour}
+        onStep={setTour}
+        onAdvance={advanceTour}
+        activePresetId={!target.id.startsWith("pin-") ? target.id : undefined}
+        onPickPreset={(id) => pickPreset(id, true)}
+      />
+
+      {unsavedModal && (
+        <div
+          className="fixed inset-0 z-[70] grid place-items-center bg-[#0d1104]/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="unsaved-farm-title"
+          onClick={closeUnsavedModal}
+        >
+          <div
+            className="w-full max-w-md rounded-[16px] border border-ink/25 bg-[#1d240a] p-5 text-ink shadow-[0_24px_60px_rgba(0,0,0,0.65)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="unsaved-farm-title" className="font-display text-xl font-semibold text-ink">
+              Save your current farm first?
+            </h2>
+            <p className="mt-2 text-sm text-ink/80">
+              You have an unsaved farm at <span className="font-medium text-ink">{unsavedLocationLabel}</span>. Give it a name to save it before switching.
+            </p>
+            <label htmlFor="unsaved-farm-name" className="mt-4 block text-[11px] font-semibold tracking-[0.12em] uppercase text-ink/75">
+              Farm name
+            </label>
+            <input
+              id="unsaved-farm-name"
+              type="text"
+              autoFocus
+              maxLength={32}
+              value={unsavedModal.name}
+              onChange={(e) => setUnsavedModal((cur) => (cur ? { ...cur, name: e.target.value } : null))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") confirmSaveAndSwitch();
+                else if (e.key === "Escape") closeUnsavedModal();
+              }}
+              placeholder="Farm name (e.g. North Paddy)"
+              className="mt-1.5 min-h-[42px] w-full rounded-[8px] border border-ink/30 bg-ink/[0.08] px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/65 focus:border-sakura focus:ring-2 focus:ring-sakura/30 focus:outline-none"
+            />
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
+              <button type="button" onClick={confirmSaveAndSwitch} className="btn btn-primary min-h-[42px] flex-1">
+                <BookmarkPlus className="size-4 shrink-0" aria-hidden /> Save &amp; Switch
+              </button>
+              <button
+                type="button"
+                onClick={confirmDiscardAndSwitch}
+                className="btn min-h-[42px] border border-[#f39a82]/45 bg-[#4a1e16]/65 px-3.5 text-sm font-medium text-[#ffd8ce] hover:border-[#f39a82]/80 hover:bg-[#64271d]/85"
+              >
+                <Trash2 className="size-4 shrink-0" aria-hidden /> Discard &amp; Switch
+              </button>
+              <button type="button" onClick={closeUnsavedModal} className="btn btn-secondary min-h-[42px] px-3.5 text-sm">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {stage !== "intro" && (
         <p className="map-credit">

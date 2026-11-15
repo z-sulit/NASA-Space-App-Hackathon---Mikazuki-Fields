@@ -157,3 +157,63 @@ export function deleteSavedFarm(id: string, storage?: StorageLike | null): Saved
     storage,
   );
 }
+
+function samePlanRequest(a: PlanRequest, b: PlanRequest): boolean {
+  const ao = a.overrides;
+  const bo = b.overrides;
+  const aExcl = ao.excludedCrops ?? [];
+  const bExcl = bo.excludedCrops ?? [];
+  return (
+    a.baselineCrop === b.baselineCrop &&
+    a.soil === b.soil &&
+    a.irrigation === b.irrigation &&
+    a.goal === b.goal &&
+    Math.abs(a.landSizeHa - b.landSizeHa) < 1e-6 &&
+    a.weights.water === b.weights.water &&
+    a.weights.soil === b.weights.soil &&
+    a.weights.econ === b.weights.econ &&
+    ao.soilTestN === bo.soilTestN &&
+    ao.soilPh === bo.soilPh &&
+    ao.pestLastSeason === bo.pestLastSeason &&
+    ao.floods === bo.floods &&
+    (ao.maxBudgetPhp ?? null) === (bo.maxBudgetPhp ?? null) &&
+    Boolean(ao.mustIncludeStaple) === Boolean(bo.mustIncludeStaple) &&
+    (ao.lastHarvestYieldTHa ?? null) === (bo.lastHarvestYieldTHa ?? null) &&
+    aExcl.length === bExcl.length &&
+    aExcl.every((c, i) => c === bExcl[i])
+  );
+}
+
+export interface FarmDraft {
+  target: Preset;
+  req: PlanRequest;
+  boundary: readonly SavedCoord[];
+  scenario: Scenario;
+  label: string;
+}
+
+/** True when the active workspace has unsaved edits or diverges from its active saved farm record. */
+export function isFarmDirty(draft: FarmDraft, activeSaved: SavedFarm | null, dirtyEdits: boolean): boolean {
+  const cleanLabel = draft.label.trim();
+  if (!activeSaved) {
+    return dirtyEdits || draft.boundary.length >= 3 || cleanLabel.length > 0;
+  }
+  if (cleanLabel !== activeSaved.label || draft.scenario !== activeSaved.scenario) return true;
+  if (
+    draft.target.id !== activeSaved.target.id ||
+    Math.abs(draft.target.lat - activeSaved.target.lat) > 1e-6 ||
+    Math.abs(draft.target.lon - activeSaved.target.lon) > 1e-6
+  ) {
+    return true;
+  }
+  if (draft.boundary.length !== activeSaved.boundary.length) return true;
+  for (let i = 0; i < draft.boundary.length; i++) {
+    if (
+      Math.abs(draft.boundary[i].lat - activeSaved.boundary[i].lat) > 1e-6 ||
+      Math.abs(draft.boundary[i].lon - activeSaved.boundary[i].lon) > 1e-6
+    ) {
+      return true;
+    }
+  }
+  return !samePlanRequest(draft.req, activeSaved.req);
+}

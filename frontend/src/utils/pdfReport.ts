@@ -6,9 +6,12 @@ import { CROP } from "../data/crops";
 import { climate, SOIL_LABEL } from "../engine/simulate";
 import type { PlanRequest, PlanResult, Preset, Scenario } from "../types";
 import { PHP_PER_USD } from "./currency";
-import { reportTargetSlug } from "./locationName";
+import { fieldReportFilename, fieldReportHeader } from "./locationName";
+
+export { fieldReportFilename };
 
 export interface FieldReportInput {
+  farmName?: string;
   target: Preset;
   req: PlanRequest;
   scenario: Scenario;
@@ -79,16 +82,6 @@ function splitMoneyLines(phpAmount: number): [string, string] {
   return [`PHP ${php.toLocaleString("en-PH")}`, `USD ${usd.toLocaleString("en-US")}`];
 }
 
-function safeSegment(raw: string, fallback: string): string {
-  return raw.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || fallback;
-}
-
-export function fieldReportFilename(target: Preset, plan: PlanResult): string {
-  const safeLocation = safeSegment(reportTargetSlug(target), "Farm");
-  const routeLabel = plan.custom ? "Custom" : `Route${plan.id}`;
-  return `Mikazuki-Fields-Report-${safeLocation}-${routeLabel}.pdf`;
-}
-
 function drawFooter(doc: jsPDF, pageNum: number, totalPages: number) {
   doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
   doc.setLineWidth(0.25);
@@ -122,7 +115,7 @@ async function emblemPngDataUrl(sizePx = 128): Promise<string | null> {
 }
 
 export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string | null = null): jsPDF {
-  const { target, req, scenario, plan, normalPlan, why, notes, windows, startYear, farmSource, pinVia, planSource, altitude } = input;
+  const { farmName, target, req, scenario, plan, normalPlan, why, notes, windows, startYear, farmSource, pinVia, planSource, altitude } = input;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
   const landHa = Number.isFinite(req.landSizeHa) && req.landSizeHa > 0 ? req.landSizeHa : 1;
@@ -142,6 +135,14 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
   const planSourceText = plan.custom ? "In-Browser Simulation Engine" : PLAN_SOURCE_LABEL[planSource];
 
   // ---------------- PAGE 1: PROFILE, TELEMETRY & 3-YEAR SUMMARY ----------------
+  const header = fieldReportHeader({
+    farmName,
+    target,
+    landHa,
+    planName: plan.name,
+    routeBadge,
+    span: `${planSpan(startYear)} (6 Seasons)`,
+  });
   let y = 16;
   const logoMm = 11;
   const textX = logoDataUrl ? M + logoMm + 3.5 : M;
@@ -149,19 +150,20 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
     doc.addImage(logoDataUrl, "PNG", M, 11.5, logoMm, logoMm);
   }
   setText(doc, 15, INK, "bold");
-  doc.text(pdfText("Mikazuki Fields - Field & Crop Rotation Report"), textX, y);
+  const titleLine = (doc.splitTextToSize(pdfText(header.title), PAGE_W - M - 40 - textX) as string[])[0] ?? "";
+  doc.text(titleLine, textX, y);
   setText(doc, 8.5, MUTED);
   doc.text(pdfText(`Generated ${generatedDate}`), PAGE_W - M, y - 1, { align: "right" });
 
   y += 6;
   setText(doc, 9, MUTED);
   const subMaxW = PAGE_W - M - 48 - textX;
-  const subLine = doc.splitTextToSize(pdfText(`${routeBadge}: ${plan.name}  |  ${target.name}  |  ${planSpan(startYear)} (6 Seasons)`), subMaxW)[0] ?? "";
-  doc.text(subLine, textX, y);
+  const subLines = (doc.splitTextToSize(pdfText(header.subtitle), subMaxW) as string[]).slice(0, 2);
+  doc.text(subLines, textX, y);
   setText(doc, 8.5, MUTED);
   doc.text(pdfText(planSourceText), PAGE_W - M, y, { align: "right" });
 
-  y += 4;
+  y += 4 + Math.max(0, subLines.length - 1) * 4;
   doc.setDrawColor(OLIVE[0], OLIVE[1], OLIVE[2]);
   doc.setLineWidth(0.6);
   doc.line(M, y, PAGE_W - M, y);
@@ -179,7 +181,7 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
   doc.roundedRect(M, y, W, profileCardH, 2, 2, "FD");
 
   const profileRows: [string, string, string, string][] = [
-    ["Location", target.name, "Coordinates", `${lat}, ${lon}`],
+    [farmName?.trim() ? "Farm" : "Location", header.locationValue, "Coordinates", `${lat}, ${lon}`],
     ["Land Size", landLabel, "Climate Scenario", scenarioLabel],
     [
       "Soil & pH",
@@ -556,5 +558,5 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
 export async function downloadFieldReportPdf(input: FieldReportInput): Promise<void> {
   const logoDataUrl = await emblemPngDataUrl();
   const doc = buildFieldReportPdf(input, logoDataUrl);
-  doc.save(fieldReportFilename(input.target, input.plan));
+  doc.save(fieldReportFilename(input.target, input.plan, input.farmName));
 }
