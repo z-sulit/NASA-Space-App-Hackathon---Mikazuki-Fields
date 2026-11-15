@@ -173,9 +173,12 @@ export function createTileField(host: HTMLElement): FieldHandle {
 
   let raf = 0;
   const tick = (now: number) => {
-    if (dead) return;
+    if (dead || stopped) {
+      raf = 0;
+      return;
+    }
     raf = requestAnimationFrame(tick);
-    if (!visible || stopped) return;
+    if (!visible) return;
     const t = (now - t0) / 1000;
     const exitT = exiting ? (now - exitStart) / EXIT_MS : 0;
     if (hasPointer) {
