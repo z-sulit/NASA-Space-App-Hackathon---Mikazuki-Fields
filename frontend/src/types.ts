@@ -84,6 +84,7 @@ export interface PlanRequest {
   soil: Soil;
   irrigation: Irrigation;
   goal: Goal;
+  landSizeHa: number;
   weights: Weights;
   overrides: Overrides;
 }

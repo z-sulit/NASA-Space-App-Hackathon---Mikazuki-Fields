@@ -256,3 +256,46 @@ export function customPlan(req: PlanRequest, preset: Preset, rotation: CropId[])
   };
   return { normal: one("normal"), elnino: one("elnino") };
 }
+
+function scaleWhyCurrency(text: string, ha: number): string {
+  return text.replace(/(₱|PHP\s*)([\d,]+(?:\.\d+)?)/g, (_m, prefix: string, num: string) => {
+    const val = Number(num.replace(/,/g, ""));
+    if (!Number.isFinite(val)) return `${prefix}${num}`;
+    const scaled = Math.round(val * ha).toLocaleString("en-PH");
+    return `${prefix}${scaled}`;
+  });
+}
+
+/** Scale a 1-hectare PlanResult proportionally to `landSizeHa` hectares. */
+export function scalePlanResult(plan: PlanResult, landSizeHa: number): PlanResult {
+  const ha = Number.isFinite(landSizeHa) && landSizeHa > 0 ? landSizeHa : 1;
+  if (ha === 1) return plan;
+  return {
+    ...plan,
+    seasons: plan.seasons.map((s) => ({
+      ...s,
+      yieldT: s.yieldT * ha,
+      ureaCost: s.ureaCost * ha,
+      pumpCost: s.pumpCost * ha,
+      profit: s.profit * ha,
+    })),
+    kpis: {
+      ...plan.kpis,
+      totalProfit: plan.kpis.totalProfit * ha,
+      worstSeasonProfit: plan.kpis.worstSeasonProfit * ha,
+      ureaTotal: plan.kpis.ureaTotal * ha,
+    },
+    why: plan.why.map((line) => scaleWhyCurrency(line, ha)),
+  };
+}
+
+/** Scale all routes in a PlansResponse proportionally to `landSizeHa` hectares. */
+export function scalePlansResponse(res: PlansResponse, landSizeHa: number): PlansResponse {
+  const ha = Number.isFinite(landSizeHa) && landSizeHa > 0 ? landSizeHa : 1;
+  if (ha === 1) return res;
+  return {
+    ...res,
+    normal: res.normal.map((p) => scalePlanResult(p, ha)),
+    elnino: res.elnino.map((p) => scalePlanResult(p, ha)),
+  };
+}
