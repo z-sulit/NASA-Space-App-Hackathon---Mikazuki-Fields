@@ -1,10 +1,10 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
-import { placeCard, visibleRefsRect, type RectBox } from "../../utils/tour";
+import { placeCard, visibleRefsRect, type RectBox, type TourTarget } from "../../utils/tour";
+
+export type { TourTarget };
 
 const DONE_KEY = "mf-tour-done";
-
-export type TourTarget = "locate" | "refs" | "telemetry" | "lock" | "settings" | "routes" | "timeline" | "report";
 
 const REF_PILLS = [
   { id: "isabela", label: "Isabela" },
@@ -28,6 +28,11 @@ const STEPS: { target: TourTarget; title: string; body: string; hint?: string }[
     target: "telemetry",
     title: "Read live telemetry",
     body: "Target holds 10 years of NASA POWER climate and live Open-Meteo weather; Conditions beside it shows SRTM 30 m altitude, slope, and MODIS NDVI.",
+  },
+  {
+    target: "layers",
+    title: "Inspect Satellite Vegetation & Rainfall Layers",
+    body: "Toggle between None, NDVI (MODIS 8-day vegetation greenness to spot lush vs. dry/bare cropland), and Rain (NASA GPM IMERG precipitation) to visually inspect regional climate patterns across the Philippines.",
   },
   {
     target: "lock",
