@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
-import { ArrowLeft, Crosshair, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
+import { ArrowLeft, Crosshair, FileDown, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
 import { customPlan, scalePlanResult, scalePlansResponse } from "../../engine/plans";
@@ -16,6 +16,7 @@ import { PickPlants, SeasonFlags, type Choice } from "./PickPlants";
 import { PlantField } from "./PlantField";
 import { ElNinoReport } from "./ElNinoReport";
 import { ElNinoAtmosphere } from "./ElNinoAtmosphere";
+import { FieldReportPrint } from "./FieldReportPrint";
 import { SeasonTimeline } from "./SeasonTimeline";
 import { PlaceSearch } from "./PlaceSearch";
 import { PanelBar, ResizeGrip, useMedia, usePanel } from "./FloatPanel";
@@ -99,7 +100,7 @@ function TileField({ exiting, onExited }: { exiting: boolean; onExited: () => vo
 
   return (
     // Fades out over the map underneath while the camera dives (see .tile-stage).
-    <div ref={host} className={`tile-stage ${exiting ? "is-leaving" : ""}`}>
+    <div ref={host} className={`tile-stage print:hidden ${exiting ? "is-leaving" : ""}`}>
       {!gl && <div className="tile-fallback absolute inset-0" aria-hidden />}
     </div>
   );
@@ -140,7 +141,7 @@ function Canopy({ stage, ref }: { stage: Stage; ref?: Ref<HTMLDivElement> }) {
   // Outer: closes in around you once (and takes the pointer parallax). Inner: hover / thrust motion.
   const cls = stage === "intro" ? "is-pre" : stage === "flying" || stage === "rising" ? "is-flying" : "";
   return (
-    <div ref={ref} className={`canopy ${cls}`} aria-hidden>
+    <div ref={ref} className={`canopy print:hidden ${cls}`} aria-hidden>
       <div className="canopy-body">
       <svg className="canopy-frame" viewBox="0 0 1600 900" preserveAspectRatio="none">
         <defs>
@@ -577,6 +578,29 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     return chosen.now.why.map(formatPhpUsdInText);
   }, [chosen]);
 
+  const downloadPdfReport = () => {
+    if (!chosen) return;
+    const prevTitle = document.title;
+    const safeFarmName = shortName(target).replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "Farm";
+    const routeLabel = chosen.now.custom ? "Custom" : `Route${chosen.now.id}`;
+    let timer: number | undefined;
+    const restore = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      window.removeEventListener("afterprint", restore);
+      document.title = prevTitle;
+    };
+    window.addEventListener("afterprint", restore, { once: true });
+    document.title = `Mikazuki-Fields-Report-${safeFarmName}-${routeLabel}`;
+    try {
+      window.print();
+    } catch (err) {
+      restore();
+      throw err;
+    } finally {
+      timer = window.setTimeout(restore, 1500);
+    }
+  };
+
   return (
     <section
       aria-label="Mikazuki Fields"
@@ -586,7 +610,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     >
       {/* Map: mounted (and painted) from the start under the tiles, so it is ready
           the moment they fall away. Leaflet stays still; the zoom-in is a CSS scale. */}
-      <div ref={viewRef} className="cockpit-view absolute inset-0">
+      <div ref={viewRef} className="cockpit-view absolute inset-0 print:hidden">
           <TargetMap
             ref={mapRef}
             presets={presets}
@@ -615,10 +639,10 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       {/* Cockpit glass over steps 02–03 (pre-mounted, invisible, during the intro) */}
       {canopyOn && <Canopy ref={canopyRef} stage={stage} />}
 
-      <div className="hud-frame" aria-hidden />
+      <div className="hud-frame print:hidden" aria-hidden />
 
       {/* Top bar */}
-      <div className="relative z-40 mx-auto flex max-w-[1400px] items-center justify-between gap-2 px-4 pt-4">
+      <div className="relative z-40 mx-auto flex max-w-[1400px] items-center justify-between gap-2 px-4 pt-4 print:hidden">
         <div className="flex shrink-0 items-center gap-2">
           <Emblem size={30} />
           <span className="micro whitespace-nowrap">Mikazuki Fields</span>
@@ -841,7 +865,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
 
       {/* Step 05 */}
       {stage === "planting" && chosen && (
-        <div className="absolute inset-0 z-20 flex flex-col lg:flex-row">
+        <div className="absolute inset-0 z-20 flex flex-col lg:flex-row print:hidden">
           <div className="relative min-h-0 flex-1">
             <PlantField
               plots={plots}
@@ -1038,6 +1062,9 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               <button type="button" onClick={() => setStage("plants")} className="btn btn-primary flex-1">
                 <Sprout className="size-4" aria-hidden /> Change plants
               </button>
+              <button type="button" onClick={downloadPdfReport} className="btn btn-secondary">
+                <FileDown className="size-4" aria-hidden /> Download PDF Report
+              </button>
               <button type="button" onClick={() => void backToMap()} className="btn btn-secondary">
                 <ArrowLeft className="size-4" aria-hidden /> New farm
               </button>
@@ -1050,7 +1077,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       )}
 
       {/* Step rail: where you are in the mission */}
-      <ol className="step-rail" aria-label="Steps">
+      <ol className="step-rail print:hidden" aria-label="Steps">
         {STEPS.map((s, i) => (
           <li key={s.n} className={i < stepIndex ? "is-done" : i === stepIndex ? "is-now" : ""} aria-current={i === stepIndex ? "step" : undefined}>
             <span className="micro">{s.n}</span>
@@ -1060,13 +1087,30 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
       </ol>
 
       {stage !== "intro" && (
-        <p className="map-credit">
+        <p className="map-credit print:hidden">
           ©{" "}
           <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
             OpenStreetMap
           </a>{" "}
           · NASA POWER
         </p>
+      )}
+
+      {stage === "planting" && chosen && (
+        <FieldReportPrint
+          target={target}
+          req={req}
+          scenario={scenario}
+          plan={chosen.now}
+          normalPlan={chosen.normal}
+          why={chosenWhy}
+          notes={planNotes}
+          windows={windows}
+          startYear={startYear}
+          farmSource={farmSource}
+          pinVia={pinVia}
+          planSource={result?.source ?? "demo"}
+        />
       )}
     </section>
   );
