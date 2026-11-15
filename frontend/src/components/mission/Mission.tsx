@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
-import { ArrowLeft, Crosshair, Info, Loader2, Lock, MapPin, RotateCcw, Sprout, Waves } from "lucide-react";
+import { ArrowLeft, Crosshair, Info, Loader2, Lock, MapPin, PenLine, RotateCcw, Sprout, Trash2, Undo2, Waves } from "lucide-react";
 import type { CropId, PlanRequest, PlansResponse, Preset, Scenario } from "../../types";
 import { climate } from "../../engine/simulate";
 import { customPlan, scalePlanResult, scalePlansResponse } from "../../engine/plans";
 import { fetchPinFarm, fetchPlans, loadFarms, type DataSource } from "../../api/client";
 import { inPhilippines } from "../../api/power";
 import { checkLand } from "../../api/landcheck";
+import { fetchWeather, type Weather } from "../../api/weather";
+import { ringAreaHa, ringCentroid } from "../../utils/geo";
 import { CROP } from "../../data/crops";
 import { Emblem } from "../Emblem";
 import { CountUp, formatPhpUsd, formatPhpUsdInText, InfoTip, prefersReducedMotion, Switch, useScramble } from "../ui";
@@ -23,6 +25,9 @@ import type { FieldHandle } from "../../three/tileField";
 
 /** Must match EXIT_MS in three/tileField.ts (kept here so the 3D chunk stays lazy). */
 const EXIT_MS = 600;
+/** Outlines outside this range are slips of the finger or more than one farm (#31). */
+const MIN_HA = 0.05;
+const MAX_HA = 1000;
 
 /** The whole app as one step-by-step mission (the team's sketch); STEPS groups the stages into its five steps. */
 type Stage = "intro" | "leaving" | "target" | "locking" | "flying" | "plants" | "planting" | "rising";
@@ -106,6 +111,7 @@ const TIP = {
   heat: "Afternoon Heat (T2M_MAX): the usual daily high. Corn and rice flowers get damaged above about 35°C.",
   thirst: "Soil Thirst Level (GWETROOT): water left where roots drink, top ~1 m. 0 is bone dry, 1 is soaked.",
   et0: "Daily Water Use (ET0): water that sun and heat pull from soil and leaves. 5 mm a day is 50,000 litres per hectare.",
+  altitude: "Height above sea level. Higher farms run cooler, which changes which crops do well.",
   slope: "Erosion Slope Risk (SRTM slope): how steep your field is. Steep + bare + heavy rain washes topsoil away.",
   ndvi: "Green Cover Score (MODIS NDVI): how green your land looks from space. Below 0.3 is mostly bare soil.",
 } as const;
@@ -222,6 +228,10 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   const [tryAgain, setTryAgain] = useState<{ text: string; key: number } | null>(null);
   const [rejected, setRejected] = useState<(LatLon & { key: number }) | null>(null);
   const tapSeq = useRef(0);
+  // Farm outline (#31): its corners, and whether taps add corners or drop a pin.
+  const [drawing, setDrawing] = useState(false);
+  const [boundary, setBoundary] = useState<LatLon[]>([]);
+  const [weather, setWeather] = useState<Weather | null | undefined>(undefined);
   const [req, setReq] = useState<PlanRequest>(last?.req ?? DEFAULT_REQ);
   const [result, setResult] = useState<PlansResponse | null>(null);
   const [busy, setBusy] = useState(false);
@@ -346,6 +356,8 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
   const inName = (p: Preset) => (p.id.startsWith("pin-") ? "your farm" : shortName(p));
 
   const pickPreset = (id: string) => {
+    setDrawing(false);
+    resetBoundary();
     setPin(null);
     setMapNote(null);
     setPinVia(null);
@@ -393,9 +405,63 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
     // One Enter away from planning (after the re-render that enables the button).
     if (place) requestAnimationFrame(() => lockBtn.current?.focus());
   };
+  const setHectares = (ha: number) => setReq((r) => (r.landSizeHa === ha ? r : { ...r, landSizeHa: ha }));
+  const resetBoundary = () => {
+    setBoundary([]);
+    setHectares(1); // a pin stands for 1 ha
+  };
+  const drawBoundary = (ring: LatLon[]) => {
+    const outside = ring.find((p) => !inPhilippines(p.lat, p.lon));
+    setTryAgain(null);
+    if (outside) refuse(outside, "That's outside the Philippines.");
+    setBoundary(outside ? [...boundary] : ring); // a fresh array redraws a corner dragged out of bounds where it was
+  };
+  const setDrawMode = (on: boolean) => {
+    setDrawing(on);
+    if (!on) resetBoundary();
+    // A field is tens of metres across: come down to where its corners can be told apart.
+    else void mapRef.current?.glideTo(target.lat, target.lon, 16);
+  };
+  const areaHa = boundary.length >= 3 ? ringAreaHa(boundary) : null;
+  const areaNote = areaHa === null ? null : areaHa < MIN_HA ? `Under ${MIN_HA} ha: check the corners. Planning uses ${MIN_HA} ha.` : areaHa > MAX_HA ? `Over ${MAX_HA.toLocaleString("en-PH")} ha: planning uses ${MAX_HA.toLocaleString("en-PH")} ha.` : null;
+  // A closed outline targets its centre like a tap there (land check, live data) and sets the farm's size.
+  useEffect(() => {
+    if (areaHa === null) return;
+    setHectares(Math.round(Math.min(MAX_HA, Math.max(MIN_HA, areaHa)) * 100) / 100);
+    const t = setTimeout(() => void pickPoint(ringCentroid(boundary)), 600);
+    return () => clearTimeout(t);
+  }, [boundary]); // eslint-disable-line react-hooks/exhaustive-deps
+  const drawStatus =
+    boundary.length === 0
+      ? "Tap the map at each corner of your farm"
+      : areaHa === null
+        ? `${boundary.length} of 3 corners: tap ${3 - boundary.length} more to close the outline`
+        : (areaNote ?? `${boundary.length} corners · ${areaHa.toFixed(2)} ha. Drag a corner to adjust it.`);
+
+  // Current weather for the farm in view; never holds up targeting.
+  useEffect(() => {
+    setWeather(undefined);
+    let dead = false;
+    const t = setTimeout(() => void fetchWeather(focus.lat, focus.lon).then((w) => !dead && setWeather(w)), 400);
+    return () => {
+      dead = true;
+      clearTimeout(t);
+    };
+  }, [focus.lat, focus.lon]);
+  // Altitude: SRTM from the backend when it is for this point, else Open-Meteo's terrain model, else the nearest reference site's.
+  const altitude =
+    focus.elevation_m !== undefined && !focus.placeholders.includes("elevation_m")
+      ? { m: focus.elevation_m, from: "SRTM" }
+      : weather?.elevationM != null
+        ? { m: weather.elevationM, from: "Open-Meteo" }
+        : focus.elevation_m !== undefined
+          ? { m: focus.elevation_m, from: "nearest ref" }
+          : null;
+
   /** A search result: glide over, then target it exactly like a tap. */
   const pickPlace = async (pl: Place) => {
-    await mapRef.current?.glideTo(pl.lat, pl.lon);
+    resetBoundary(); // a new place is a new farm
+    await mapRef.current?.glideTo(pl.lat, pl.lon, drawing ? 16 : undefined);
     await pickPoint({ lat: pl.lat, lon: pl.lon }, pl.name);
   };
 
@@ -531,6 +597,9 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             onHover={setHoverId}
             onPickPreset={pickPreset}
             onPickPoint={(p) => void pickPoint(p)}
+            boundary={boundary}
+            drawing={drawing && stage === "target"}
+            onBoundary={drawBoundary}
             onTilesReady={() => setMapReady(true)}
           />
           <div className={`mission-dim ${stage === "plants" || stage === "planting" ? "is-on" : ""}`} aria-hidden />
@@ -596,7 +665,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
         <div className={`cockpit-hud ${stage === "leaving" ? "is-pre" : ""}`} aria-hidden={stage === "leaving" || undefined}>
           <div className="hud-title">
             <h2 className="font-display text-[clamp(26px,3.4vw,44px)] leading-tight font-normal tracking-[-0.02em]">Where is your farm?</h2>
-            <p className={`mt-1 text-sm ${stage === "locking" ? "blink-3 text-sakura" : "text-ink/80"}`} aria-live="polite">
+            <p className={`mt-1 text-sm tabular ${stage === "locking" ? "blink-3 text-sakura" : "text-ink/80"}`} aria-live="polite">
               {stage === "locking"
                 ? "Target locked · descending"
                 : checking
@@ -605,9 +674,33 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
                     ? "Acquiring NASA data…"
                     : tryAgain
                       ? ""
-                      : (mapNote ?? "Search a place, tap anywhere on land, or choose a sample reference site")}
+                      : drawing
+                        ? drawStatus
+                        : (mapNote ?? "Search a place, tap anywhere on land, or choose a sample reference site")}
             </p>
             {stage !== "locking" && <PlaceSearch onPick={(pl) => void pickPlace(pl)} />}
+            {stage !== "locking" && (
+              <div className="draw-bar">
+                <div className="route-tabs draw-mode" role="radiogroup" aria-label="How to mark your farm">
+                  <button type="button" role="radio" aria-checked={!drawing} onClick={() => setDrawMode(false)} className={`route-tab ${drawing ? "" : "is-on"}`}>
+                    <MapPin className="size-4" aria-hidden /> Drop a pin
+                  </button>
+                  <button type="button" role="radio" aria-checked={drawing} onClick={() => setDrawMode(true)} className={`route-tab ${drawing ? "is-on" : ""}`}>
+                    <PenLine className="size-4" aria-hidden /> Draw boundary
+                  </button>
+                </div>
+                {drawing && (
+                  <div className="flex gap-2">
+                    <button type="button" className="btn btn-secondary flex-1" disabled={!boundary.length} onClick={() => drawBoundary(boundary.slice(0, -1))}>
+                      <Undo2 className="size-4" aria-hidden /> Undo last point
+                    </button>
+                    <button type="button" className="btn btn-secondary flex-1" disabled={!boundary.length} onClick={resetBoundary}>
+                      <Trash2 className="size-4" aria-hidden /> Clear boundary
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             {tryAgain && stage === "target" && (
               <p key={tryAgain.key} className="try-again" role="alert">
                 <Waves className="size-4 shrink-0" aria-hidden />
@@ -638,17 +731,27 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
             <p className="text-[11px] text-ink/70">
               {focus.id.startsWith("pin-")
                 ? pinVia === "api" || pinVia === "browser" || (pinVia === null && /live|Mikazuki API/i.test(focus.source))
-                  ? "Live NASA POWER climate for this pin · Slope & NDVI anchored to nearest reference site"
+                  ? focus.placeholders.includes("slope_pct")
+                    ? "Live NASA POWER climate for this farm · Slope & NDVI anchored to nearest reference site"
+                    : "Live NASA POWER climate and SRTM terrain for this farm · NDVI anchored to nearest reference site"
                   : "Using nearest reference site climate & terrain"
                 : FARM_SOURCE[farmSource]}
             </p>
             <dl className="mt-2">
               <Readout live={hudLive} label="Lat / Lon" value={`${lat} / ${lon}`} />
+              <Readout live={hudLive} label={`Farm area (${areaHa === null ? "pin" : "outline"})`} value={`${req.landSizeHa} HA`} />
               <Readout live={hudLive} label="Dry-season rain" value={`${Math.round(dry.rain_mm)} MM`} tip={TIP.rain} />
               <Readout live={hudLive} label="Afternoon heat" value={`${dry.tmax_c.toFixed(1)} °C`} tip={TIP.heat} />
               <Readout live={hudLive} label="Soil thirst" value={dry.gwetroot.toFixed(2)} tip={TIP.thirst} />
               <Readout live={hudLive} label="Daily water use" value={`${dry.et0_mm_day.toFixed(1)} MM/DAY`} tip={TIP.et0} />
             </dl>
+            <p className="mt-2 text-xs text-ink/80 tabular" aria-live="polite">
+              {weather
+                ? `Right now: ${weather.tempC.toFixed(1)} °C, ${weather.rainMm.toFixed(1)} mm rain, wind ${Math.round(weather.windKmh)} km/h (Open-Meteo). The plan uses the 10-year climate above.`
+                : weather === null
+                  ? "Current weather is unavailable; the plan does not need it."
+                  : "Checking current weather…"}
+            </p>
             </div>
             )}
             <ResizeGrip panel={leftPanel} label="target data" />
@@ -678,6 +781,7 @@ export function Mission({ presets: bundled, onReady, topRight }: { presets: Pres
               <Switch checked={scenario === "elnino"} onChange={(on) => setScenario(on ? "elnino" : "normal")} label="Simulate El Niño or dry spell" />
             </label>
             <dl className="mt-2">
+              <Readout live={hudLive} label={`Altitude (${altitude?.from ?? "SRTM"})`} value={altitude ? `${Math.round(altitude.m)} M` : "No record"} tip={TIP.altitude} tipAlign="right" />
               <Readout live={hudLive} label={`Slope (${sampleTag(focus, "slope_pct", "SRTM")})`} value={`${focus.slope_pct}%`} tip={TIP.slope} tipAlign="right" />
               <Readout live={hudLive} label={`Green cover (${sampleTag(focus, "ndvi_dry_min", "MODIS")})`} value={`NDVI ${focus.ndvi_dry_min.toFixed(2)}`} tip={TIP.ndvi} tipAlign="right" />
               <Readout live={hudLive} label="2015–16 El Niño" value={focus.elnino_2016_dry_rain_pct === null ? "No record" : `${focus.elnino_2016_dry_rain_pct > 0 ? "+" : ""}${Math.round(focus.elnino_2016_dry_rain_pct)}% RAIN`} />

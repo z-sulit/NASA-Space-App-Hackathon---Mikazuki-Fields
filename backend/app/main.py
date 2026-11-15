@@ -22,13 +22,14 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from backend.app.optimizer import optimize_plans
-from backend.app.power_client import build_banner_metrics, fetch_custom_pin_climate
+from backend.app.power_client import ROLLING_SLOPE_PCT, STEEP_SLOPE_PCT, build_banner_metrics, fetch_custom_pin_climate
 from backend.app.schemas import (
     FarmContext,
     LocationInfo,
     PlanRequest,
     PlanResponse,
     PresetSummary,
+    TerrainInfo,
 )
 
 DATA_PREP_DIR = REPO_ROOT / "data-prep"
@@ -110,6 +111,32 @@ def _get_cache_dir() -> Path:
         return tmp_cache
 
 
+OPENTOPO_URL = "https://api.opentopodata.org/v1/srtm30m"
+# Sample 3 SRTM cells either side of the point, so one noisy cell does not set the slope.
+SRTM_STEP_M = 90.0
+
+
+def slope_pct(north: float, south: float, east: float, west: float, step_m: float = SRTM_STEP_M) -> float:
+    """Slope in percent from elevations `step_m` north, south, east and west of a point."""
+    return math.hypot(east - west, north - south) / (2 * step_m) * 100.0
+
+
+def fetch_live_terrain(lat: float, lon: float, timeout_s: float = 3.0) -> TerrainInfo:
+    """SRTM 30 m elevation and slope for one point, from OpenTopoData (one request, five samples)."""
+    dlat = SRTM_STEP_M / 111_320.0
+    dlon = dlat / max(math.cos(math.radians(lat)), 0.01)
+    points = [(lat, lon), (lat + dlat, lon), (lat - dlat, lon), (lat, lon + dlon), (lat, lon - dlon)]
+    resp = requests.get(OPENTOPO_URL, params={"locations": "|".join(f"{a:.6f},{b:.6f}" for a, b in points)}, timeout=timeout_s)
+    resp.raise_for_status()
+    elevations = [r["elevation"] for r in resp.json()["results"]]
+    if len(elevations) != 5 or any(e is None for e in elevations):
+        raise ValueError("SRTM has no data at this point")
+    centre, north, south, east, west = (float(e) for e in elevations)
+    slope = round(slope_pct(north, south, east, west), 1)
+    label = "High (Steep Uplands)" if slope > STEEP_SLOPE_PCT else "Moderate (Rolling Terrain)" if slope >= ROLLING_SLOPE_PCT else "Low (Flat Plains)"
+    return TerrainInfo(elevation_m=centre, slope_pct=slope, erosion_risk_label=label, live=True)
+
+
 def _resolve_farm_context(
     preset_id: Optional[str] = None,
     lat: Optional[float] = None,
@@ -150,12 +177,18 @@ def _resolve_farm_context(
 
     try:
         live_climate = fetch_custom_pin_climate(lat, lon, timeout_s=10.0)
+        try:
+            terrain = fetch_live_terrain(lat, lon)
+        except (requests.RequestException, KeyError, TypeError, ValueError) as exc:
+            # Timeout, rate limit (1000 calls a day) or a hole in SRTM: keep the nearest preset's terrain.
+            logger.warning("Live SRTM failed for (%.4f, %.4f): %s; using terrain of %s", lat, lon, exc, nearest_id)
+            terrain = nearest.terrain.model_copy(deep=True)
         custom_ctx = FarmContext(
             location=custom_location,
-            terrain=nearest.terrain.model_copy(deep=True),
+            terrain=terrain,
             ndvi_profile=nearest.ndvi_profile.model_copy(deep=True),
             climate=live_climate,
-            banner_metrics=build_banner_metrics(live_climate, nearest.terrain, nearest.ndvi_profile),
+            banner_metrics=build_banner_metrics(live_climate, terrain, nearest.ndvi_profile),
         )
         try:
             cache_dir.mkdir(parents=True, exist_ok=True)
