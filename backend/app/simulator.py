@@ -17,8 +17,30 @@ from backend.app.schemas import (
 
 CROP_LIB_PATH = Path(__file__).resolve().parent / "crop_library.json"
 
-WHC_MAP = {"sandy": 60.0, "loam": 120.0, "clay": 150.0}
-K_SOIL_MAP = {"sandy": 0.6, "loam": 1.0, "clay": 0.8}
+WHC_MAP = {
+    "sandy": 60.0,
+    "sandy_loam": 85.0,
+    "loam": 120.0,
+    "silty_loam": 130.0,
+    "clay_loam": 135.0,
+    "clay": 150.0,
+}
+K_SOIL_MAP = {
+    "sandy": 0.6,
+    "sandy_loam": 0.75,
+    "loam": 1.0,
+    "silty_loam": 1.15,
+    "clay_loam": 0.90,
+    "clay": 0.8,
+}
+
+
+def _rain_leach(soil_texture: str, rain_mm: float) -> float:
+    if soil_texture == "sandy":
+        return 2.0 + 3.0 * min(1.0, max(0.0, (rain_mm - 600.0) / 800.0))
+    if soil_texture in ("loam", "silty_loam", "sandy_loam") and rain_mm > 1000.0:
+        return 1.5 * min(1.0, (rain_mm - 1000.0) / 600.0)
+    return 0.0
 FAMILY_TO_ID = {"Poaceae": 0, "Fabaceae": 1, "Convolvulaceae": 2}
 WET_MONTHS = [6, 7, 8, 9, 10, 11]
 DRY_MONTHS = [12, 1, 2, 3, 4, 5]
@@ -258,12 +280,7 @@ def simulate_batch_vectorized(
             0.0,
             100.0,
         ).astype(np.float32)
-        if req.soil_texture == "sandy":
-            rain_leach = 2.0 + 3.0 * min(1.0, max(0.0, (s_clim.rain_mm - 600.0) / 800.0))
-        elif req.soil_texture == "loam" and s_clim.rain_mm > 1000.0:
-            rain_leach = 1.5 * min(1.0, (s_clim.rain_mm - 1000.0) / 600.0)
-        else:
-            rain_leach = 0.0
+        rain_leach = _rain_leach(req.soil_texture, s_clim.rain_mm)
         n_delta_8 = ca.soil_n_delta - rain_leach
         if acid_soil:
             n_delta_8 = np.where(ca.is_legume, 0.5 * n_delta_8, n_delta_8)
@@ -390,6 +407,7 @@ def simulate_single_detailed(
     farm: FarmContext,
     req: PlanRequest,
     scenario: Literal["normal", "elnino"],
+    yield_scale: float = 1.0,
 ) -> tuple[list[SeasonStep], PlanKPIs]:
     """Run exact 6-season simulation for a single sequence and return full per-season breakdown."""
     ca = CROP_ARRAYS
@@ -458,12 +476,7 @@ def simulate_single_detailed(
 
         # 3. Soil Nitrogen, rain-driven leaching & Urea Top-Up
         same_family = (prev_fam >= 0) and (fam == prev_fam)
-        if req.soil_texture == "sandy":
-            rain_leach = 2.0 + 3.0 * min(1.0, max(0.0, (s_clim.rain_mm - 600.0) / 800.0))
-        elif req.soil_texture == "loam" and s_clim.rain_mm > 1000.0:
-            rain_leach = 1.5 * min(1.0, (s_clim.rain_mm - 1000.0) / 600.0)
-        else:
-            rain_leach = 0.0
+        rain_leach = _rain_leach(req.soil_texture, s_clim.rain_mm)
         delta_n = float(crop["soil_n_delta"]) - rain_leach - (3.0 if same_family else 0.0)
         is_legume = crop["family"] == "Fabaceae"
         if acid_soil and is_legume:
@@ -530,8 +543,9 @@ def simulate_single_detailed(
             * rotation_factor
             * ph_factor
         )
-        eff_yield = float(crop["base_yield_t_ha"]) * yield_ratio
-        crop_cost = float(crop["base_cost_php"]) * (0.88 + 0.12 * min(1.1, yield_ratio))
+        eff_yield = float(crop["base_yield_t_ha"]) * yield_ratio * yield_scale
+        cost_ratio = min(1.1 * max(1.0, yield_scale), yield_ratio * yield_scale)
+        crop_cost = float(crop["base_cost_php"]) * (0.88 + 0.12 * cost_ratio)
         revenue = eff_yield * float(crop["price_php_per_t"])
         profit_t = revenue - crop_cost - urea_cost - pump_cost
 

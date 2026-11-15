@@ -3,7 +3,7 @@ import type { DataSource } from "../api/client";
 import { emblemSvg } from "../components/Emblem";
 import { planSpan, type SeasonWindow } from "../data/calendar";
 import { CROP } from "../data/crops";
-import { climate } from "../engine/simulate";
+import { climate, SOIL_LABEL } from "../engine/simulate";
 import type { PlanRequest, PlanResult, Preset, Scenario } from "../types";
 import { PHP_PER_USD } from "./currency";
 import { reportTargetSlug } from "./locationName";
@@ -35,7 +35,6 @@ const BORDER: Rgb = [212, 214, 202];
 const GOOD_INK: Rgb = [47, 74, 18];
 const WARN_INK: Rgb = [143, 58, 36];
 
-const SOIL_LABEL: Record<PlanRequest["soil"], string> = { clay: "Clay", loam: "Loam", sandy: "Sandy" };
 const N_LABEL: Record<PlanRequest["overrides"]["soilTestN"], string> = {
   untested: "Untested",
   low: "Low",
@@ -188,7 +187,14 @@ export function buildFieldReportPdf(input: FieldReportInput, logoDataUrl: string
       "Irrigation & Flood",
       `${req.irrigation === "irrigated" ? "Irrigated" : "Rainfed"} · Floods: ${FLOOD_LABEL[req.overrides.floods]}`,
     ],
-    ["Primary Goal", req.goal === "cash" ? "Cash crop" : "Animal feed (forage)", "Baseline Crop", CROP[req.baselineCrop].name],
+    [
+      "Primary Goal",
+      req.goal === "cash" ? "Cash crop" : "Animal feed (forage)",
+      "Baseline Crop",
+      req.overrides.lastHarvestYieldTHa != null
+        ? `${CROP[req.baselineCrop].name} (${req.overrides.lastHarvestYieldTHa.toFixed(2)} t/ha)`
+        : CROP[req.baselineCrop].name,
+    ],
   ];
 
   let py = y + 7;
