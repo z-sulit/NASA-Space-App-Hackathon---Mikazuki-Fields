@@ -149,7 +149,7 @@ function useHudTip() {
 function TipSlot({ tip }: { tip: string | null }) {
   return (
     <p
-      className={`mt-2 min-h-[4.25rem] rounded-[6px] px-2.5 py-2 text-xs leading-snug transition-colors ${
+      className={`mt-2 min-h-[3.5rem] rounded-[6px] px-2.5 py-1.5 text-xs leading-snug transition-colors ${
         tip ? "bg-ink/[0.08] text-ink" : "bg-ink/[0.03] text-ink/60"
       }`}
       aria-live="polite"
