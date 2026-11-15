@@ -3,7 +3,7 @@ import { CloudSun, Droplets, Thermometer } from "lucide-react";
 import type { CropId, PlanRequest, PlanResult, Preset } from "../../types";
 import { CROP } from "../../data/crops";
 import { customPlan } from "../../engine/plans";
-import { peso } from "../ui";
+import { formatPhpUsd } from "../ui";
 
 const pct = (now: number, base: number) => (base ? Math.round(((now - base) / Math.abs(base)) * 100) : 0);
 
@@ -80,9 +80,9 @@ export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; p
 
       {changed ? (
         <>
-          <p className="mt-2 text-sm font-semibold">
+          <p className="mt-2 text-sm font-semibold tabular">
             3-year profit {dP < 0 ? "−" : "+"}
-            {peso(Math.abs(dP))} ({pct(now.kpis.totalProfit, normal.kpis.totalProfit)}%)
+            {formatPhpUsd(Math.abs(dP))} ({pct(now.kpis.totalProfit, normal.kpis.totalProfit)}%)
           </p>
           <ul className="mt-1 space-y-1.5">
             {findings.map((f) => (
@@ -105,7 +105,7 @@ export function ElNinoReport({ req, preset, now, normal }: { req: PlanRequest; p
                   </span>
                 )}
                 {f.pumpExtra !== undefined && (
-                  <span className="block text-ink/70">Irrigation kept the yield, but pumping cost {peso(f.pumpExtra)} more.</span>
+                  <span className="block text-ink/70 tabular">Irrigation kept the yield, but pumping cost {formatPhpUsd(f.pumpExtra)} more.</span>
                 )}
               </li>
             ))}

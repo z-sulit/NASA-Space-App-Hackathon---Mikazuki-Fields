@@ -28,10 +28,8 @@ function dustShadows(count: number, seed: number, maxSize: number) {
 }
 
 /**
- * El Niño atmosphere over the map: scorched sky tint, a glaring sun, heat shimmer rising
- * off the ground and drifting dust. Fades in when the El Niño switch is on; a heat flash
- * plays each time it is switched on. Decorative only (aria-hidden), transform/opacity
- * animations only, and static under reduced motion.
+ * El Niño atmosphere over the map: sky tint, sun glare, heat shimmer and dust, with a flash each time it is switched on.
+ * Decorative only (aria-hidden) and static under reduced motion.
  */
 export function ElNinoAtmosphere({ on }: { on: boolean }) {
   const near = useMemo(() => dustShadows(70, 7, 1.8), []);

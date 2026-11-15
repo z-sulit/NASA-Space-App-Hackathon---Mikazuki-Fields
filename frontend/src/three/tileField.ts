@@ -1,10 +1,6 @@
 /**
- * Frame 1, "Green tiles": a field of rounded olive tiles (one instanced mesh) seen
- * from above at an angle. Tiles ripple gently, rise around the pointer like a
- * crop pushed by wind, and flip to a crop color when tapped. exit() dives the
- * camera into the field while the tiles drop away in a wave from the center; the
- * page fades the canvas out over the map underneath, so it reads as one move.
- * onExited fires at EXIT_MS, and the scene stops rendering after that.
+ * Step 01: a field of olive tiles (one instanced mesh) that ripple, rise around the pointer and flip when tapped.
+ * exit() dives the camera in while the page fades the canvas out over the map; onExited fires at EXIT_MS.
  */
 import {
   ACESFilmicToneMapping,
@@ -39,7 +35,7 @@ const GAP = 1.06;
 const OLIVES = ["#3b4719", "#44521f", "#4d5c26", "#56662c", "#5f7033", "#36421a"];
 const CROP_TOPS = ["#a87c0e", "#4d8b3a", "#8e5ba8", "#f5bfcd", "#c99a2e"];
 /** When the cockpit takes over; the page has faded the canvas out by then. */
-export const EXIT_MS = 1150;
+export const EXIT_MS = 600;
 
 export function createTileField(host: HTMLElement): FieldHandle {
   const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -213,7 +209,7 @@ export function createTileField(host: HTMLElement): FieldHandle {
       if (exiting) {
         const k = (now - exitStart) / 1000 - tile.exitAt;
         // Anticipation: each tile lifts a little just before it falls.
-        target = k > 0 ? -9 : k > -0.14 ? 0.45 : 0;
+        target = k > 0 ? -9 : k > -0.08 ? 0.45 : 0;
       } else if (t < tile.enter) {
         target = -3;
       } else {
@@ -233,7 +229,7 @@ export function createTileField(host: HTMLElement): FieldHandle {
         tmp.copy(tile.base).lerp(isSakura ? SAKURA_GLOW : GLOW, Math.min(1, glow * 0.85 + ring * 0.9));
         mesh.setColorAt(i, tmp);
       }
-      tile.vy = (tile.vy + (target - tile.y) * (exiting ? 0.03 : 0.09)) * (exiting ? 0.95 : 0.78);
+      tile.vy = (tile.vy + (target - tile.y) * (exiting ? 0.07 : 0.09)) * (exiting ? 0.93 : 0.78);
       tile.y += tile.vy;
       tile.flip += (tile.flipTarget - tile.flip) * 0.12;
       dummy.position.set(tile.x, tile.y, tile.z);
@@ -260,7 +256,7 @@ export function createTileField(host: HTMLElement): FieldHandle {
       exiting = true;
       exitStart = performance.now();
       exitCb = onExited;
-      tiles.forEach((tile) => (tile.exitAt = Math.hypot(tile.x, tile.z) * 0.022));
+      tiles.forEach((tile) => (tile.exitAt = Math.hypot(tile.x, tile.z) * 0.011));
     },
     dispose() {
       dead = true;
