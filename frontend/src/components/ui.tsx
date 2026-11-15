@@ -1,5 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { Info } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export { PHP_PER_USD, formatPhpUsd, formatPhpUsdInText } from "../utils/currency";
 
@@ -68,61 +67,6 @@ export function useScramble(text: string, run = true, ms = 700) {
     return () => cancelAnimationFrame(raf);
   }, [text, run, ms]);
   return out;
-}
-
-/** Plain-English tooltip: opens on tap, click or keyboard focus; closes on Escape or outside tap. */
-export function InfoTip({
-  label,
-  children,
-  align = "left",
-  light = false,
-}: {
-  label: string;
-  children: ReactNode;
-  align?: "left" | "right";
-  light?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const id = useId();
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
-  }, [open]);
-  return (
-    <span ref={ref} className="relative inline-flex">
-      <button
-        type="button"
-        aria-label={`What is ${label}?`}
-        aria-expanded={open}
-        aria-describedby={open ? id : undefined}
-        onClick={() => setOpen(true)}
-        onFocus={() => setOpen(true)}
-        onBlur={(e) => {
-          if (!ref.current?.contains(e.relatedTarget as Node)) setOpen(false);
-        }}
-        onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
-        className={`-m-2.5 inline-flex size-11 items-center justify-center rounded-full transition-colors duration-150 ${
-          light ? "text-ink/80 hover:text-ink" : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        <Info className="size-[18px]" aria-hidden />
-      </button>
-      {open && (
-        <span
-          id={id}
-          role="tooltip"
-          className={`absolute top-full z-30 mt-2 w-64 max-w-[80vw] rounded-md border border-border bg-popover p-3 text-left text-sm font-normal normal-case tracking-normal text-popover-foreground shadow-[0_1px_2px_rgb(31_42_30/0.08)] ${align === "right" ? "right-0" : "left-0"}`}
-        >
-          {children}
-        </span>
-      )}
-    </span>
-  );
 }
 
 export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
