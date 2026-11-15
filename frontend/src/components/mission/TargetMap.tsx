@@ -56,8 +56,8 @@ const GIBS_LAYERS: Record<
   },
 };
 
-const OSM_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const ESRI_SAT_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const ESRI_LABELS_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
 const gibsUrl = (cfg: (typeof GIBS_LAYERS)[keyof typeof GIBS_LAYERS]) =>
   `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${cfg.layer}/default/${cfg.time}/${cfg.matrixSet}/{z}/{y}/{x}.png`;
 
@@ -67,7 +67,7 @@ const home = (): L.LatLngTuple => (phone() ? [9.6, 122.2] : [12.2, 122.4]);
 const homeZoom = () => (phone() ? 5.0 : 5.9);
 
 /**
- * Steps 02–03 backdrop: the real map, tinted like a cockpit display or shown in true-color Satellite mode.
+ * Steps 02–03 backdrop: true-color Esri World Imagery satellite base map with place labels.
  * Tap anywhere in the Philippines to drop a target (or pick a preset); a reticle glides to the focused point.
  */
 export function TargetMap({
@@ -76,7 +76,6 @@ export function TargetMap({
   pin,
   rejected = null,
   locked,
-  satellite = false,
   gibsOverlay = "none",
   onHover,
   onPickPreset,
@@ -95,8 +94,6 @@ export function TargetMap({
   /** A refused tap (water, outside the Philippines): shown as a fading red mark. */
   rejected?: (LatLon & { key: number }) | null;
   locked: boolean;
-  /** True-color Esri World Imagery base map instead of OSM street/terrain map. */
-  satellite?: boolean;
   /** Optional semi-transparent NASA GIBS Earth-observation overlay. */
   gibsOverlay?: GibsOverlay;
   onHover: (id: string | null) => void;
@@ -117,8 +114,6 @@ export function TargetMap({
 }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
-  const osmLayer = useRef<L.TileLayer | null>(null);
-  const satLayer = useRef<L.TileLayer | null>(null);
   const gibsLayer = useRef<L.TileLayer | null>(null);
   const pinMarker = useRef<L.Marker | null>(null);
   const rejectMarker = useRef<L.Marker | null>(null);
@@ -144,28 +139,31 @@ export function TargetMap({
     const bounds = L.latLngBounds([PH_BOUNDS.south - 3, PH_BOUNDS.west - 4], [PH_BOUNDS.north + 3, PH_BOUNDS.east + 4]);
     const m = L.map(el.current, { zoomControl: false, attributionControl: false, zoomSnap: 0, minZoom: 4.5, maxZoom: 18, maxBounds: bounds, maxBoundsViscosity: 0.8 });
     map.current = m;
-    // Separate pane above tilePane (200) and below vector overlayPane (400) so GIBS rasters skip the OSM tint filter.
+    // Separate panes above tilePane (200) and below vector overlayPane (400) for GIBS and place labels.
     const overlayPane = m.createPane("gibsOverlay");
     overlayPane.style.zIndex = "250";
     overlayPane.style.pointerEvents = "none";
+    const labelsPane = m.createPane("referenceLabels");
+    labelsPane.style.zIndex = "260";
+    labelsPane.style.pointerEvents = "none";
 
     // Decode each tile off-thread before fade-in so zooming in never stalls the reveal.
     const decodeTile = (e: L.TileEvent) => void (e.tile as HTMLImageElement).decode?.().catch(() => {});
-    const osm = L.tileLayer(OSM_URL, {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxNativeZoom: 19,
+    L.tileLayer(ESRI_SAT_URL, {
+      attribution: "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics",
+      maxNativeZoom: 18,
       maxZoom: 19,
     })
       .on("tileload", decodeTile)
-      .once("load", () => handlers.current.onTilesReady?.());
-    const sat = L.tileLayer(ESRI_SAT_URL, {
-      attribution: "Tiles &copy; Esri",
+      .once("load", () => handlers.current.onTilesReady?.())
+      .addTo(m);
+    L.tileLayer(ESRI_LABELS_URL, {
+      pane: "referenceLabels",
       maxNativeZoom: 18,
       maxZoom: 19,
-    }).on("tileload", decodeTile);
-    osmLayer.current = osm;
-    satLayer.current = sat;
-    osm.addTo(m);
+    })
+      .on("tileload", decodeTile)
+      .addTo(m);
     // Final view straight away: the map is pre-painted under the tiles, and the page
     // does the zoom-in as a GPU scale, so Leaflet never re-renders mid-transition.
     m.setView(home(), homeZoom(), { animate: false });
@@ -201,31 +199,12 @@ export function TargetMap({
     handlers.current.onZoom?.(m.getZoom());
     place();
     return () => {
-      osmLayer.current = null;
-      satLayer.current = null;
       gibsLayer.current = null;
       m.remove();
       map.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Swap OSM / Esri World Imagery base layers cleanly without recreating the map.
-  useEffect(() => {
-    const m = map.current;
-    const osm = osmLayer.current;
-    const sat = satLayer.current;
-    if (!m || !osm || !sat) return;
-    if (satellite) {
-      if (m.hasLayer(osm)) m.removeLayer(osm);
-      sat.setOpacity(1);
-      if (!m.hasLayer(sat)) sat.addTo(m);
-    } else {
-      if (m.hasLayer(sat)) m.removeLayer(sat);
-      osm.setOpacity(1);
-      if (!m.hasLayer(osm)) osm.addTo(m);
-    }
-  }, [satellite]);
 
   // Mount/unmount NASA GIBS raster overlay in its dedicated pane.
   useEffect(() => {
@@ -291,17 +270,16 @@ export function TargetMap({
     const group = L.layerGroup().addTo(m);
     outline.current = group;
     const ring = boundary.map((p) => [p.lat, p.lon] as L.LatLngTuple);
-    const casing = satellite
-      ? (ring.length >= 3
-          ? L.polygon(ring, { color: "#141a06", weight: 5.5, opacity: 0.82, fill: false, interactive: false })
-          : L.polyline(ring, { color: "#141a06", weight: 5.5, opacity: 0.82, interactive: false })
-        ).addTo(group)
-      : null;
+    const casing = (
+      ring.length >= 3
+        ? L.polygon(ring, { color: "#141a06", weight: 5.5, opacity: 0.82, fill: false, interactive: false })
+        : L.polyline(ring, { color: "#141a06", weight: 5.5, opacity: 0.82, interactive: false })
+    ).addTo(group);
     const style = {
-      color: satellite ? "#dfff78" : "#c9e86a",
-      weight: satellite ? 2.5 : 3,
+      color: "#dfff78",
+      weight: 2.5,
       fillColor: "#c9e86a",
-      fillOpacity: satellite ? 0.18 : 0.25,
+      fillOpacity: 0.18,
       interactive: false,
     };
     const shape = (ring.length >= 3 ? L.polygon(ring, style) : L.polyline(ring, style)).addTo(group);
@@ -316,7 +294,7 @@ export function TargetMap({
       corner.on("drag", () => {
         const at = corner.getLatLng();
         ring[i] = [at.lat, at.lng];
-        casing?.setLatLngs(ring);
+        casing.setLatLngs(ring);
         shape.setLatLngs(ring);
       });
       corner.on("dragend", () => {
@@ -325,7 +303,7 @@ export function TargetMap({
         handlers.current.onBoundary(ring.map(([lat, lon]) => ({ lat, lon })));
       });
     });
-  }, [boundary, drawing, locked, satellite]);
+  }, [boundary, drawing, locked]);
 
   // Refused tap: a red cross with a ripple that fades out on its own (CSS), re-added per tap.
   useEffect(() => {
@@ -357,7 +335,7 @@ export function TargetMap({
   }));
 
   return (
-    <div className={`absolute inset-0${satellite ? " is-satellite" : ""}`}>
+    <div className="absolute inset-0">
       <div
         ref={el}
         className="hud-map absolute inset-0"

@@ -9,6 +9,7 @@ import {
   nextFarmLabel,
   renameSavedFarm,
   saveFarmPlot,
+  updateSavedFarm,
   type StorageLike,
 } from "./savedFarms.ts";
 
@@ -78,6 +79,15 @@ test("savedFarms saves, loads, renames, deletes, and auto-numbers plots", () => 
 
   const emptyRename = renameSavedFarm(first.saved.id, "   ", store);
   assert.equal(emptyRename.find((f) => f.id === first.saved.id)?.label, "Riverbed");
+
+  const updated = updateSavedFarm(
+    first.saved.id,
+    { label: "North Paddy", target: SAMPLE_PRESET, req: { ...SAMPLE_REQ, landSizeHa: 4 }, boundary: [], scenario: "elnino" },
+    store,
+  );
+  assert.equal(updated.saved?.label, "North Paddy");
+  assert.equal(updated.saved?.req.landSizeHa, 4);
+  assert.equal(updated.saved?.scenario, "elnino");
 
   const afterDelete = deleteSavedFarm(second.saved.id, store);
   assert.equal(afterDelete.length, 2);
