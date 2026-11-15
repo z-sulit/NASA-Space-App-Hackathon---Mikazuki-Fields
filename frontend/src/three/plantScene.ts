@@ -535,7 +535,7 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
   let pitchTarget = 0;
   let zoom = 1;
   let zoomTarget = 1;
-  let drag: { x: number; y: number; yaw: number; pitch: number } | null = null;
+  let drag: { id: number; x: number; y: number; yaw: number; pitch: number } | null = null;
   let pinch: { d: number; zoom: number } | null = null;
   const pointers = new Map<number, { x: number; y: number }>();
   let visible = true;
@@ -569,29 +569,33 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
     const [a, b] = [...pointers.values()];
     return Math.hypot(a.x - b.x, a.y - b.y) || 1;
   };
-  const startDrag = (p: { x: number; y: number }) => (drag = { x: p.x, y: p.y, yaw: yawTarget, pitch: pitchTarget });
+  const startDrag = (id: number, p: { x: number; y: number }) => (drag = { id, x: p.x, y: p.y, yaw: yawTarget, pitch: pitchTarget });
   const onDown = (e: PointerEvent) => {
     canvas.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size === 2) {
       drag = null;
       pinch = { d: spread(), zoom: zoomTarget };
-    } else if (pointers.size === 1) startDrag({ x: e.clientX, y: e.clientY });
+    } else if (pointers.size === 1) startDrag(e.pointerId, { x: e.clientX, y: e.clientY });
     canvas.style.cursor = "grabbing";
   };
   const onMove = (e: PointerEvent) => {
     if (!pointers.has(e.pointerId)) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch && pointers.size >= 2) zoomTarget = clamp((pinch.zoom * pinch.d) / spread(), 0.6, 1.7);
-    else if (drag) {
+    else if (drag && drag.id === e.pointerId) {
       yawTarget = clamp(drag.yaw + (e.clientX - drag.x) * 0.006, -0.9, 0.9);
       pitchTarget = clamp(drag.pitch + (e.clientY - drag.y) * 0.012, -2.2, 3.5);
     }
   };
   const onUp = (e: PointerEvent) => {
     pointers.delete(e.pointerId);
-    if (pointers.size < 2) pinch = null;
-    if (pointers.size === 1) startDrag([...pointers.values()][0]);
+    if (pointers.size === 2) pinch = { d: spread(), zoom: zoomTarget };
+    else if (pointers.size < 2) pinch = null;
+    if (pointers.size === 1) {
+      const [id, pt] = [...pointers.entries()][0];
+      startDrag(id, pt);
+    }
     if (pointers.size === 0) {
       drag = null;
       canvas.style.cursor = "grab";
@@ -610,6 +614,7 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
   canvas.addEventListener("pointermove", onMove);
   canvas.addEventListener("pointerup", onUp);
   canvas.addEventListener("pointercancel", onUp);
+  canvas.addEventListener("lostpointercapture", onUp);
   canvas.addEventListener("wheel", onWheel, { passive: false });
   canvas.addEventListener("dblclick", resetView);
 
@@ -771,6 +776,7 @@ export function createPlantScene(host: HTMLElement, polygon?: Point[]): PlantHan
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp);
       canvas.removeEventListener("pointercancel", onUp);
+      canvas.removeEventListener("lostpointercapture", onUp);
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("dblclick", resetView);
       labels.forEach((l) => {
